@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Palimpsest is a cross-platform Chinese novel reading application (similar to Qidian/起點中文網). It supports Traditional Chinese, Simplified Chinese, and English, with real-time translation (OpenCC for zh-TW/zh-CN conversion, Google Translate for English). The project is currently in the documentation/planning phase (Phase 0) with no source code yet.
+Palimpsest is a cross-platform Chinese novel reading application (similar to Qidian/起點中文網). It supports Traditional Chinese, Simplified Chinese, and English, with real-time translation (OpenCC for zh-TW/zh-CN conversion, Google Translate for English). Detailed design documents are in `docs/`.
 
 ## Tech Stack
 
@@ -13,7 +13,7 @@ Palimpsest is a cross-platform Chinese novel reading application (similar to Qid
 - **Mobile/Desktop:** Flutter 3.x, Dart 3.x, Riverpod 2.x, sqflite, Dio 5.x, go_router
 - **Infrastructure:** Docker Compose (dev), Kubernetes (prod), GitHub Actions CI/CD
 
-## Planned Build & Dev Commands
+## Build & Dev Commands
 
 ### Backend (Go)
 ```bash
@@ -119,18 +119,19 @@ Middleware chain order: Recovery → Logger → CORS → RateLimiter → Auth (o
 | Flutter E2E | `integration_test` | Core user flows |
 | Load | k6 | API performance benchmarks |
 
-## Project Structure (Planned)
+## Project Structure
 
 ```
+docs/             # Planning & design documents (architecture, API, database, features, roadmap)
 backend/          # Go REST API server
-  cmd/server/     # Entry point
+  cmd/server/     # Entry point (main.go, router.go)
   internal/       # config/, middleware/, handler/, service/, repository/, model/, pkg/
-  migrations/     # PostgreSQL migrations
+  migrations/     # PostgreSQL migration SQL files
 web/              # Nuxt 3 web app
-  pages/          # File-based routing
+  pages/          # File-based routing (SSR/ISR + CSR)
   components/     # Vue components (common/, novel/, reader/, bookshelf/, translation/)
-  composables/    # Vue composition functions
-  stores/         # Pinia stores
+  composables/    # Vue composition functions (useAuth, useNovel, useReader, etc.)
+  stores/         # Pinia stores (auth, reader, app)
   server/api/     # BFF proxy to Go backend
   types/          # TypeScript type definitions
 mobile/           # Flutter app (Android, iOS, Desktop)
@@ -138,7 +139,7 @@ mobile/           # Flutter app (Android, iOS, Desktop)
   lib/features/   # Feature modules (auth, bookstore, reader, bookshelf, search, translation, profile)
   lib/shared/     # Shared widgets, providers, models
 shared/           # Cross-platform shared definitions
-  api-spec/       # OpenAPI 3.0 spec
-  sqlite-schema/  # SQLite migration SQL
+  api-spec/       # OpenAPI 3.0 spec (single source of truth)
+  sqlite-schema/  # SQLite migration SQL (shared between web sql.js and Flutter sqflite)
   design-tokens/  # Design token JSON → CSS/Dart
 ```
