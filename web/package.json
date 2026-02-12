@@ -1,0 +1,41 @@
+{
+  "name": "palimpsest-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "nuxt typecheck",
+    "generate:api-types": "openapi-typescript ../shared/api-spec/openapi.yaml -o ./types/api.d.ts"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "^0.5.1",
+    "@vueuse/core": "^10.9.0",
+    "@vueuse/nuxt": "^10.9.0",
+    "naive-ui": "^2.38.1",
+    "nuxt": "^3.11.2",
+    "pinia": "^2.1.7",
+    "sql.js": "^1.10.3",
+    "vue": "^3.4.27",
+    "vue-router": "^4.3.2"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^0.3.13",
+    "@nuxt/test-utils": "^3.12.1",
+    "@playwright/test": "^1.44.0",
+    "@unocss/nuxt": "^0.60.0",
+    "@vue/test-utils": "^2.4.6",
+    "eslint": "^9.3.0",
+    "openapi-typescript": "^7.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

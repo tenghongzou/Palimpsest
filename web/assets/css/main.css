@@ -1,0 +1,23 @@
+/* Global styles for Palimpsest */
+
+:root {
+  --color-primary: #1890ff;
+
+  /* Reader themes */
+  --reader-bg-white: #ffffff;
+  --reader-text-white: #333333;
+  --reader-bg-yellow: #f5f0e0;
+  --reader-text-yellow: #4a4a4a;
+  --reader-bg-green: #e0f0e0;
+  --reader-text-green: #3a4a3a;
+  --reader-bg-dark: #2c2c2c;
+  --reader-text-dark: #c0c0c0;
+  --reader-bg-black: #000000;
+  --reader-text-black: #808080;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
