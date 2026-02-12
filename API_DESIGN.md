@@ -1,4 +1,4 @@
-# NovelHub — API 設計文件
+# Palimpsest — API 設計文件
 
 ## 1. API 設計原則
 
@@ -11,7 +11,7 @@
 ### Base URL
 
 ```
-Production:  https://api.novelhub.com/api/v1
+Production:  https://api.palimpsest.cc/api/v1
 Development: http://localhost:8080/api/v1
 ```
 
@@ -200,7 +200,7 @@ GET /api/v1/novels
   "id": "uuid-xxxx",
   "title": "鬥破蒼穹",
   "author_name": "天蠶土豆",
-  "cover_url": "https://cdn.novelhub.com/covers/xxxx.jpg",
+  "cover_url": "https://cdn.palimpsest.cc/covers/xxxx.jpg",
   "description": "這裡是蒼茫的鬥氣大陸...",
   "status": "completed",
   "language": "zh-CN",

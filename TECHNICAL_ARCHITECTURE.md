@@ -1,4 +1,4 @@
-# NovelHub — 技術架構文件
+# Palimpsest — 技術架構文件
 
 ## 1. 系統架構總覽
 

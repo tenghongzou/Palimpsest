@@ -1,4 +1,4 @@
-# NovelHub — 跨平台策略文件
+# Palimpsest — 跨平台策略文件
 
 ## 1. 需求分析
 

@@ -1,4 +1,4 @@
-# NovelHub — 專案總覽
+# Palimpsest — 專案總覽
 
 ## 1. 專案願景
 

@@ -1,4 +1,4 @@
-# NovelHub — 資料庫設計文件
+# Palimpsest — 資料庫設計文件
 
 ## 1. 資料庫架構總覽
 
@@ -655,7 +655,7 @@ CREATE TABLE local_meta (
 ### 4.1 Key 命名規範
 
 ```
-格式：novelhub:{entity}:{id}:{field}
+格式：palimpsest:{entity}:{id}:{field}
 ```
 
 ### 4.2 關鍵資料結構

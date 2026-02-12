@@ -1,4 +1,4 @@
-# NovelHub — 開發路線圖
+# Palimpsest — 開發路線圖
 
 ## 1. 開發階段總覽
 
