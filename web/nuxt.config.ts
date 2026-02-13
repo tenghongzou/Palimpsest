@@ -9,6 +9,31 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  components: {
+    dirs: [
+      { path: '~/components', pathPrefix: false },
+    ],
+  },
+
+  build: {
+    transpile: [
+      'naive-ui',
+      'vueuc',
+      '@css-render/vue3-ssr',
+      '@juggle/resize-observer',
+    ],
+  },
+
+  vite: {
+    optimizeDeps: {
+      include: [
+        'naive-ui',
+        'vueuc',
+        'date-fns-tz/formatInTimeZone',
+      ],
+    },
+  },
+
   runtimeConfig: {
     apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8080',
     public: {

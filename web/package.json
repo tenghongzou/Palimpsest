@@ -2,6 +2,7 @@
   "name": "palimpsest-web",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.18.3",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -17,15 +18,25 @@
     "generate:api-types": "openapi-typescript ../shared/api-spec/openapi.yaml -o ./types/api.d.ts"
   },
   "dependencies": {
+    "@css-render/vue3-ssr": "^0.15.14",
     "@pinia/nuxt": "^0.5.1",
+    "@vicons/ionicons5": "^0.13.0",
     "@vueuse/core": "^10.9.0",
     "@vueuse/nuxt": "^10.9.0",
     "naive-ui": "^2.38.1",
     "nuxt": "^3.11.2",
     "pinia": "^2.1.7",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "sql.js": "^1.10.3",
     "vue": "^3.4.27",
     "vue-router": "^4.3.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@parcel/watcher",
+      "vue-demi"
+    ]
   },
   "devDependencies": {
     "@nuxt/eslint": "^0.3.13",
@@ -36,6 +47,6 @@
     "eslint": "^9.3.0",
     "openapi-typescript": "^7.0.0",
     "typescript": "^5.4.5",
-    "vitest": "^1.6.0"
+    "vitest": "^3.2.0"
   }
 }

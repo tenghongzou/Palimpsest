@@ -24,7 +24,6 @@ export const useReaderStore = defineStore('reader', () => {
 
   function updateSettings(partial: Partial<ReaderSettings>) {
     settings.value = { ...settings.value, ...partial }
-    // TODO: persist to local storage and sync to server
   }
 
   function resetSettings() {
@@ -32,4 +31,8 @@ export const useReaderStore = defineStore('reader', () => {
   }
 
   return { settings, currentChapterId, updateSettings, resetSettings }
+}, {
+  persist: {
+    pick: ['settings'],
+  },
 })

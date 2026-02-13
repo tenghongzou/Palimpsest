@@ -73,3 +73,36 @@ func (r *NovelRepository) FindChapter(id uuid.UUID) (*model.Chapter, error) {
 	err := r.db.First(&chapter, "id = ?", id).Error
 	return &chapter, err
 }
+
+func (r *NovelRepository) ListCategories() ([]model.Category, error) {
+	var categories []model.Category
+	err := r.db.Where("is_active = ? AND parent_id IS NULL", true).
+		Preload("Children").
+		Order("sort_order ASC").
+		Find(&categories).Error
+	return categories, err
+}
+
+func (r *NovelRepository) Create(novel *model.Novel) error {
+	return r.db.Create(novel).Error
+}
+
+func (r *NovelRepository) Update(novel *model.Novel) error {
+	return r.db.Save(novel).Error
+}
+
+func (r *NovelRepository) Delete(id uuid.UUID) error {
+	return r.db.Delete(&model.Novel{}, "id = ?", id).Error
+}
+
+func (r *NovelRepository) CreateChapter(chapter *model.Chapter) error {
+	return r.db.Create(chapter).Error
+}
+
+func (r *NovelRepository) UpdateChapter(chapter *model.Chapter) error {
+	return r.db.Save(chapter).Error
+}
+
+func (r *NovelRepository) DeleteChapter(id uuid.UUID) error {
+	return r.db.Delete(&model.Chapter{}, "id = ?", id).Error
+}

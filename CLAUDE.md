@@ -25,11 +25,12 @@ golangci-lint run                # Lint
 
 ### Web Frontend (Nuxt 3)
 ```bash
-npm run dev                      # Dev server
-npm run build                    # Production build
-npx vitest                       # Run unit tests
-npx vitest run path/to/test      # Run single test
-npx playwright test              # E2E tests
+pnpm dev                         # Dev server
+pnpm build                       # Production build
+pnpm test                        # Run unit tests
+pnpm vitest run path/to/test     # Run single test
+pnpm test:e2e                    # E2E tests
+pnpm typecheck                   # TypeScript type check
 ```
 
 ### Flutter (Mobile/Desktop)
@@ -48,7 +49,7 @@ docker-compose up -d             # Start local dev services (PostgreSQL, Redis, 
 
 ### Type Generation from OpenAPI Spec
 ```bash
-npx openapi-typescript ./shared/api-spec/openapi.yaml -o ./web/types/api.d.ts  # Web types
+pnpm --dir web generate:api-types  # Web types (from OpenAPI spec)
 dart run build_runner build      # Flutter models (json_serializable)
 ```
 
