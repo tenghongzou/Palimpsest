@@ -74,7 +74,10 @@ func main() {
 	}
 
 	// --- Meilisearch ---
-	meiliClient := meilisearch.New(cfg.Meili.Host, meilisearch.WithAPIKey(cfg.Meili.APIKey))
+	meiliClient := meilisearch.NewClient(meilisearch.ClientConfig{
+		Host:   cfg.Meili.Host,
+		APIKey: cfg.Meili.APIKey,
+	})
 
 	// --- MinIO ---
 	minioClient, err := minio.New(cfg.MinIO.Endpoint, &minio.Options{

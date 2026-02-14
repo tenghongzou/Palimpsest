@@ -7,11 +7,11 @@ import (
 )
 
 type SearchService struct {
-	meili    meilisearch.ServiceManager
+	meili    *meilisearch.Client
 	novelRepo *repository.NovelRepository
 }
 
-func NewSearchService(meili meilisearch.ServiceManager, novelRepo *repository.NovelRepository) *SearchService {
+func NewSearchService(meili *meilisearch.Client, novelRepo *repository.NovelRepository) *SearchService {
 	return &SearchService{meili: meili, novelRepo: novelRepo}
 }
 
