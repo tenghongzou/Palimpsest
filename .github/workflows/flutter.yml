@@ -34,4 +34,4 @@ jobs:
         run: flutter pub get
 
       - name: Run unit tests
-        run: flutter test test/core/
+        run: flutter test

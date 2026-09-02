@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -12,6 +13,11 @@ type Config struct {
 	JWT      JWTConfig
 	MinIO    MinIOConfig
 	Meili    MeilisearchConfig
+	CORS     CORSConfig
+}
+
+type CORSConfig struct {
+	AllowedOrigins []string
 }
 
 type ServerConfig struct {
@@ -97,9 +103,29 @@ func Load() (*Config, error) {
 			Host:   getEnv("MEILI_HOST", "http://localhost:7700"),
 			APIKey: getEnv("MEILI_API_KEY", ""),
 		},
+		CORS: CORSConfig{
+			AllowedOrigins: parseOrigins(getEnv("CORS_ALLOWED_ORIGINS", "*")),
+		},
 	}
 
 	return cfg, nil
+}
+
+func parseOrigins(raw string) []string {
+	if raw == "" || raw == "*" {
+		return []string{"*"}
+	}
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if o := strings.TrimSpace(p); o != "" {
+			origins = append(origins, o)
+		}
+	}
+	if len(origins) == 0 {
+		return []string{"*"}
+	}
+	return origins
 }
 
 func getEnv(key, fallback string) string {
