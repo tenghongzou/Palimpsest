@@ -2,7 +2,7 @@
   "name": "palimpsest-web",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.18.3",
+  "packageManager": "pnpm@12.4.1",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -30,13 +30,6 @@
     "sql.js": "^1.10.3",
     "vue": "^3.4.27",
     "vue-router": "^4.3.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "@parcel/watcher",
-      "vue-demi"
-    ]
   },
   "devDependencies": {
     "@nuxt/eslint": "^0.3.13",

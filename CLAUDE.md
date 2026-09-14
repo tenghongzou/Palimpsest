@@ -8,7 +8,7 @@ Palimpsest is a cross-platform Chinese novel reading application (similar to Qid
 
 ## Tech Stack
 
-- **Backend:** Go 1.22+ (Gin framework), GORM v2, PostgreSQL 16+, Redis 7+, Meilisearch 1.6+, MinIO
+- **Backend:** Go 1.27+ (Gin framework), GORM v2, PostgreSQL 16+, Redis 7+, Meilisearch 1.6+, MinIO
 - **Web Frontend:** Nuxt 3, Vue 3, TypeScript 5.x, Pinia, Naive UI, UnoCSS, sql.js (WebAssembly SQLite)
 - **Mobile/Desktop:** Flutter 3.x, Dart 3.x, Riverpod 2.x, sqflite, Dio 5.x, go_router
 - **Infrastructure:** Docker Compose (dev), Kubernetes (prod), GitHub Actions CI/CD
