@@ -12,7 +12,7 @@ class SearchRepository {
   SearchRepository(this._apiClient);
 
   Future<SearchResult> search(String query, {int page = 1, int pageSize = 20}) async {
-    final response = await _apiClient.dio.get('/search', queryParameters: {
+    final response = await _apiClient.dio.get('/search/novels', queryParameters: {
       'q': query,
       'page': page,
       'page_size': pageSize,
@@ -21,12 +21,12 @@ class SearchRepository {
     final hits = (data['hits'] as List).map((e) => _parseNovel(e)).toList();
     return SearchResult(
       hits: hits,
-      total: data['total'] as int? ?? hits.length,
+      total: data['estimated_total'] as int? ?? hits.length,
     );
   }
 
   Future<List<String>> getHotKeywords() async {
-    final response = await _apiClient.dio.get('/search/hot');
+    final response = await _apiClient.dio.get('/search/hot-keywords');
     return (response.data['data'] as List).cast<String>();
   }
 

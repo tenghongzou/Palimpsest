@@ -27,11 +27,11 @@ class BookshelfRepository {
     await _apiClient.dio.delete('/bookshelf/$novelId');
   }
 
-  Future<void> updateProgress(String novelId, String chapterId, double progress) async {
-    await _apiClient.dio.put('/bookshelf/progress', data: {
-      'novel_id': novelId,
+  /// [scrollOffset] is the position within the chapter, from 0.0 to 1.0.
+  Future<void> updateProgress(String novelId, String chapterId, double scrollOffset) async {
+    await _apiClient.dio.put('/reading-progress/$novelId', data: {
       'chapter_id': chapterId,
-      'progress': progress,
+      'scroll_offset': scrollOffset,
     });
   }
 
