@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/sync/sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/chapter_provider.dart';
 import '../providers/reader_provider.dart';
 import '../../domain/entities/reading_settings.dart';
@@ -21,6 +23,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Record progress once the chapter is shown; it is queued locally and
+    // uploaded when online.
+    ref.listen(chapterProvider(widget.chapterId), (_, next) {
+      final chapter = next.valueOrNull;
+      if (chapter == null || ref.read(authStateProvider).valueOrNull == null) return;
+      ref.read(syncServiceProvider).recordProgress(novelId: chapter.novelId, chapterId: chapter.id);
+    });
+
     final chapterAsync = ref.watch(chapterProvider(widget.chapterId));
     final settings = ref.watch(readerSettingsProvider);
     final theme = AppTheme.readerThemes[settings.theme] ?? AppTheme.readerThemes['white']!;
@@ -42,6 +52,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (chapter.fromCache)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            '離線模式：顯示的是本機快取的章節',
+                            style: TextStyle(fontSize: 12, color: theme.text.withValues(alpha: 0.6)),
+                          ),
+                        ),
+                      ),
                     Center(
                       child: Text(
                         chapter.title,

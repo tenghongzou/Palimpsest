@@ -16,12 +16,13 @@ class DatabaseHelper {
     return openDatabase(
       path,
       version: _currentVersion,
-      onCreate: _onCreate,
+      onCreate: createSchema,
       onUpgrade: _onUpgrade,
     );
   }
 
-  static Future<void> _onCreate(Database db, int version) async {
+  /// Creates the full schema; public so tests can build an in-memory database.
+  static Future<void> createSchema(Database db, int version) async {
     // Uses same schema as shared/sqlite-schema/migrations/
     await db.execute('''
       CREATE TABLE local_novels (

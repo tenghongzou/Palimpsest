@@ -8,6 +8,9 @@ class Chapter {
   final String? prevChapterId;
   final String? nextChapterId;
 
+  /// True when served from the offline cache because the network failed.
+  final bool fromCache;
+
   const Chapter({
     required this.id,
     required this.novelId,
@@ -17,5 +20,6 @@ class Chapter {
     this.wordCount = 0,
     this.prevChapterId,
     this.nextChapterId,
+    this.fromCache = false,
   });
 }
