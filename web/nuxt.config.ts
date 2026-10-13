@@ -3,6 +3,7 @@ export default defineNuxtConfig({
 
   modules: [
     '@pinia/nuxt',
+    'pinia-plugin-persistedstate/nuxt',
     '@unocss/nuxt',
     '@vueuse/nuxt',
   ],
