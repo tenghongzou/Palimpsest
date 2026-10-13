@@ -204,14 +204,15 @@ pnpm dev          # http://localhost:3000
 
 ### 4. 啟動 Flutter App
 
-`mobile/` 目前只包含 Dart 原始碼，尚未提交各平台的原生專案目錄。第一次執行前，請先產生需要的平台：
+`mobile/` 已包含 Android 與 iOS 原生專案（以 Flutter 3.47.2 產生，與 CI 相同版本；套件名稱 `cc.palimpsest.palimpsest`）。請使用 Flutter 3.47.x：
 
 ```bash
 cd mobile
-flutter create --platforms=android,ios .   # 依需求加入 windows、macos、linux
 flutter pub get
 flutter run
 ```
+
+之後要支援桌面版時，再執行 `flutter create --platforms=windows,macos,linux .`。
 
 App 預設連到 `http://10.0.2.2:8080/api/v1`（Android 模擬器對應的主機位址）。其他環境請用 `--dart-define` 覆寫：
 
@@ -236,6 +237,7 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 |------|--------|------|
 | `SERVER_PORT` | `8080` | HTTP 監聽埠 |
 | `GIN_MODE` | `debug` | `debug` / `release` / `test` |
+| `TRUSTED_PROXIES` | 私有網段（`127.0.0.0/8`、`10.0.0.0/8`、`172.16.0.0/12`、`192.168.0.0/16`、`::1`） | 只信任這些代理送來的 `X-Forwarded-For`，用來判斷限流的用戶端 IP |
 | `DB_HOST` / `DB_PORT` | `localhost` / `5432` | PostgreSQL 位址 |
 | `DB_USER` / `DB_PASSWORD` | `palimpsest` / `palimpsest` | PostgreSQL 帳密 |
 | `DB_NAME` / `DB_SSLMODE` | `palimpsest` / `disable` | 資料庫名稱與 SSL 模式 |
@@ -248,6 +250,8 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 | `MEILI_HOST` | `http://localhost:7700` | Meilisearch 位址 |
 | `MEILI_API_KEY` | （空） | Meilisearch API Key |
 | `CORS_ALLOWED_ORIGINS` | `*` | 允許的來源，以逗號分隔，例如 `https://a.com,https://b.com` |
+| `GOOGLE_TRANSLATE_API_KEY` | （空） | Google Cloud Translation v2 API Key。未設定時只提供繁簡轉換，英文翻譯回傳 503 |
+| `GOOGLE_TRANSLATE_ENDPOINT` | （空） | 覆寫翻譯 API 位址（測試或代理用） |
 
 ### Web（`web/nuxt.config.ts`）
 
@@ -371,15 +375,19 @@ dart analyze
 | 小說、章節、分類 API（含 Redis 快取） | ✅ | |
 | 書架與閱讀進度 API | ✅ | |
 | 排行榜 | ✅ | 優先讀 Redis Sorted Set，無資料時退回資料庫查詢 |
-| Meilisearch 搜尋與索引 | ✅ | 熱門關鍵字目前回傳空陣列 |
+| Meilisearch 搜尋與索引 | ✅ | 啟動時重建索引，後台新增 / 修改 / 發布 / 刪除時同步；熱門關鍵字以 Redis Sorted Set 統計 |
 | 管理後台 API | 🚧 | 小說、章節、用戶、統計可用；檢舉相關端點為佔位 |
-| 翻譯 API（路由、快取、限流） | 🚧 | **OpenCC 與 Google Translate 尚未整合**，目前原文回傳 |
-| 全域 API 限流（公開 60 / 登入 120 次/分） | 📋 | 目前僅翻譯路由有套用限流 |
+| 翻譯 API | ✅ | 繁簡轉換用 OpenCC（台灣用語）；英文用 Google Cloud Translation v2，未設定 API Key 時回傳 503 |
+| 全域 API 限流（公開 60 / 登入 120 次/分） | ✅ | 翻譯另有每分鐘 20 次的共用額度；BFF 會轉送用戶端 IP |
+| OpenAPI 規格 | ✅ | 涵蓋所有路由，`go test` 會檢查規格與 Router 是否一致 |
 | Web 主要頁面、Pinia stores、BFF 代理 | ✅ | |
 | Web 管理後台頁面 | 🚧 | 統計總覽待實作 |
-| Web 離線快取（sql.js）與資料同步 | 🚧 | `useLocalDb`、`useSync` 為骨架 |
+| Web Token 自動刷新 | ✅ | 401 時自動用 Refresh Token 換新並重試 |
+| Web 離線快取（sql.js）與資料同步 | ✅ | 閱讀過的章節與下一章會快取到 IndexedDB；離線進度在恢復連線後上傳（最後閱讀者為準） |
+| Flutter 離線快取與進度同步 | ✅ | 章節快取、離線進度佇列，恢復連線時上傳 |
+| Flutter 閱讀器導覽（上下章、目錄、書籤、翻譯） | 🚧 | 按鈕目前沒有作用 |
 | Flutter 登入、書城、閱讀器、書架、搜尋、個人頁 | ✅ | |
-| Flutter 原生平台專案目錄 | 📋 | 需先執行 `flutter create` |
+| Flutter 原生平台專案目錄 | ✅ | Android、iOS（桌面版待 Phase 3） |
 | 社群功能（書評、留言、按讚） | 📋 | 資料表已設計，API 待開發 |
 | Kubernetes 部署設定 | 📋 | |
 
