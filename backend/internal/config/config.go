@@ -14,6 +14,13 @@ type Config struct {
 	MinIO    MinIOConfig
 	Meili    MeilisearchConfig
 	CORS     CORSConfig
+	Translation TranslationConfig
+}
+
+type TranslationConfig struct {
+	GoogleAPIKey string
+	// GoogleEndpoint overrides the Cloud Translation v2 URL (for tests or proxies).
+	GoogleEndpoint string
 }
 
 type CORSConfig struct {
@@ -23,6 +30,9 @@ type CORSConfig struct {
 type ServerConfig struct {
 	Port string
 	Mode string // debug, release, test
+	// TrustedProxies are the proxies whose X-Forwarded-For header is believed
+	// when determining the client IP (used for rate limiting).
+	TrustedProxies []string
 }
 
 type DatabaseConfig struct {
@@ -72,6 +82,8 @@ func Load() (*Config, error) {
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
 			Mode: getEnv("GIN_MODE", "debug"),
+			TrustedProxies: parseList(getEnv("TRUSTED_PROXIES",
+				"127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16")),
 		},
 		DB: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -106,6 +118,10 @@ func Load() (*Config, error) {
 		CORS: CORSConfig{
 			AllowedOrigins: parseOrigins(getEnv("CORS_ALLOWED_ORIGINS", "*")),
 		},
+		Translation: TranslationConfig{
+			GoogleAPIKey:   getEnv("GOOGLE_TRANSLATE_API_KEY", ""),
+			GoogleEndpoint: getEnv("GOOGLE_TRANSLATE_ENDPOINT", ""),
+		},
 	}
 
 	return cfg, nil
@@ -126,6 +142,17 @@ func parseOrigins(raw string) []string {
 		return []string{"*"}
 	}
 	return origins
+}
+
+// parseList splits a comma-separated value, dropping empty entries.
+func parseList(raw string) []string {
+	var out []string
+	for _, p := range strings.Split(raw, ",") {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func getEnv(key, fallback string) string {

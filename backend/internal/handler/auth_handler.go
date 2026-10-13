@@ -37,10 +37,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, model.SuccessResponse(gin.H{
-		"user":   user,
-		"tokens": tokens,
-	}))
+	c.JSON(http.StatusCreated, model.SuccessResponse(service.AuthResult{User: user, TokenPair: *tokens}))
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -63,10 +60,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, model.SuccessResponse(gin.H{
-		"user":   user,
-		"tokens": tokens,
-	}))
+	c.JSON(http.StatusOK, model.SuccessResponse(service.AuthResult{User: user, TokenPair: *tokens}))
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
@@ -76,13 +70,17 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.authSvc.RefreshToken(&req)
+	user, tokens, err := h.authSvc.RefreshToken(&req)
 	if err != nil {
+		if errors.Is(err, service.ErrUserBanned) {
+			c.JSON(http.StatusForbidden, model.ErrorResponse(40301, "account is banned"))
+			return
+		}
 		c.JSON(http.StatusUnauthorized, model.ErrorResponse(40104, "invalid refresh token"))
 		return
 	}
 
-	c.JSON(http.StatusOK, model.SuccessResponse(tokens))
+	c.JSON(http.StatusOK, model.SuccessResponse(service.AuthResult{User: user, TokenPair: *tokens}))
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {

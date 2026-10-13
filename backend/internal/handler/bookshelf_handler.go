@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -82,9 +83,10 @@ func (h *BookshelfHandler) UpdateProgress(c *gin.Context) {
 	}
 
 	var req struct {
-		ChapterID      string  `json:"chapter_id" binding:"required"`
-		ParagraphIndex int     `json:"paragraph_index"`
-		ScrollOffset   float64 `json:"scroll_offset"`
+		ChapterID      string     `json:"chapter_id" binding:"required"`
+		ParagraphIndex int        `json:"paragraph_index" binding:"min=0"`
+		ScrollOffset   float64    `json:"scroll_offset" binding:"min=0,max=1"`
+		ReadAt         *time.Time `json:"read_at"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, model.ErrorResponse(40001, err.Error()))
@@ -97,12 +99,26 @@ func (h *BookshelfHandler) UpdateProgress(c *gin.Context) {
 		return
 	}
 
-	progress, err := h.bookshelfSvc.UpdateProgress(userID, novelID, chapterID, req.ParagraphIndex, req.ScrollOffset)
+	var readAt time.Time
+	if req.ReadAt != nil {
+		readAt = *req.ReadAt
+	}
+	progress, err := h.bookshelfSvc.UpdateProgress(userID, novelID, chapterID, req.ParagraphIndex, req.ScrollOffset, readAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to update progress"))
 		return
 	}
 
+	c.JSON(http.StatusOK, model.SuccessResponse(progress))
+}
+
+func (h *BookshelfHandler) ListProgress(c *gin.Context) {
+	userID := c.MustGet("userID").(uuid.UUID)
+	progress, err := h.bookshelfSvc.ListProgress(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to list reading progress"))
+		return
+	}
 	c.JSON(http.StatusOK, model.SuccessResponse(progress))
 }
 

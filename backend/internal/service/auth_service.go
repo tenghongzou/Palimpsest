@@ -30,7 +30,8 @@ type RegisterRequest struct {
 }
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	// Login accepts either a username or an email address.
+	Login    string `json:"login" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -51,6 +52,12 @@ type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int    `json:"expires_in"`
+}
+
+// AuthResult is returned by register, login and refresh.
+type AuthResult struct {
+	User *model.User `json:"user"`
+	TokenPair
 }
 
 type AuthService struct {
@@ -109,9 +116,9 @@ func (s *AuthService) Register(req *RegisterRequest) (*model.User, *TokenPair, e
 }
 
 func (s *AuthService) Login(req *LoginRequest) (*model.User, *TokenPair, error) {
-	user, err := s.userRepo.FindByUsername(req.Username)
+	user, err := s.userRepo.FindByUsername(req.Login)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		user, err = s.userRepo.FindByEmail(req.Username)
+		user, err = s.userRepo.FindByEmail(req.Login)
 	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -140,21 +147,25 @@ func (s *AuthService) Login(req *LoginRequest) (*model.User, *TokenPair, error) 
 	return user, tokens, nil
 }
 
-func (s *AuthService) RefreshToken(req *RefreshRequest) (*TokenPair, error) {
-	claims, err := jwtpkg.ValidateToken(s.cfg.JWT.Secret, req.RefreshToken)
+func (s *AuthService) RefreshToken(req *RefreshRequest) (*model.User, *TokenPair, error) {
+	claims, err := jwtpkg.ValidateTokenType(s.cfg.JWT.Secret, req.RefreshToken, jwtpkg.TypeRefresh)
 	if err != nil {
-		return nil, ErrInvalidToken
+		return nil, nil, ErrInvalidToken
 	}
 
 	user, err := s.userRepo.FindByID(claims.UserID)
 	if err != nil {
-		return nil, ErrUserNotFound
+		return nil, nil, ErrUserNotFound
 	}
 	if user.Status == "banned" {
-		return nil, ErrUserBanned
+		return nil, nil, ErrUserBanned
 	}
 
-	return s.generateTokenPair(user.ID, user.Role)
+	tokens, err := s.generateTokenPair(user.ID, user.Role)
+	if err != nil {
+		return nil, nil, err
+	}
+	return user, tokens, nil
 }
 
 func (s *AuthService) ForgotPassword(req *ForgotPasswordRequest) (string, error) {
@@ -166,12 +177,12 @@ func (s *AuthService) ForgotPassword(req *ForgotPasswordRequest) (string, error)
 		return "", err
 	}
 
-	return jwtpkg.GenerateAccessToken(s.cfg.JWT.Secret, user.ID, "password-reset", time.Hour)
+	return jwtpkg.GenerateToken(s.cfg.JWT.Secret, user.ID, user.Role, jwtpkg.TypePasswordReset, time.Hour)
 }
 
 func (s *AuthService) ResetPassword(req *ResetPasswordRequest) error {
-	claims, err := jwtpkg.ValidateToken(s.cfg.JWT.Secret, req.Token)
-	if err != nil || claims.Role != "password-reset" {
+	claims, err := jwtpkg.ValidateTokenType(s.cfg.JWT.Secret, req.Token, jwtpkg.TypePasswordReset)
+	if err != nil {
 		return ErrInvalidToken
 	}
 
@@ -198,7 +209,7 @@ func (s *AuthService) generateTokenPair(userID uuid.UUID, role string) (*TokenPa
 		return nil, err
 	}
 
-	refreshToken, err := jwtpkg.GenerateAccessToken(s.cfg.JWT.Secret, userID, role, refreshExpiry)
+	refreshToken, err := jwtpkg.GenerateToken(s.cfg.JWT.Secret, userID, role, jwtpkg.TypeRefresh, refreshExpiry)
 	if err != nil {
 		return nil, err
 	}

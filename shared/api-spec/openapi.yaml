@@ -1,8 +1,12 @@
 openapi: 3.0.3
 info:
   title: Palimpsest API
-  description: REST API for Palimpsest novel reading platform
-  version: 0.1.0
+  description: |
+    REST API for the Palimpsest novel reading platform.
+
+    Every response is wrapped in an envelope: `{ "code": 0, "message": "success", "data": ... }`.
+    `code` is 0 on success; otherwise it is one of the error codes listed under `ErrorResponse`.
+  version: 0.2.0
   contact:
     name: Palimpsest Team
 
@@ -14,153 +18,308 @@ servers:
 
 tags:
   - name: auth
-    description: Authentication endpoints
-  - name: users
-    description: User management
+    description: Authentication
   - name: novels
     description: Novel browsing
   - name: chapters
     description: Chapter content
-  - name: bookshelf
-    description: User bookshelf
+  - name: categories
+    description: Categories
   - name: search
-    description: Search functionality
+    description: Search
   - name: rankings
     description: Novel rankings
+  - name: bookshelf
+    description: User bookshelf and reading progress
   - name: translation
-    description: Translation services
+    description: Chinese conversion (OpenCC) and machine translation
   - name: admin
-    description: Admin management
+    description: Admin management (admin role required)
 
 paths:
+  # ---------------------------------------------------------------- auth
   /auth/register:
     post:
       tags: [auth]
+      operationId: register
+      security: []
       summary: Register a new user
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterRequest'
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
       responses:
         '201':
           description: Registration successful
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
+              schema: { $ref: '#/components/schemas/AuthResultResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
   /auth/login:
     post:
       tags: [auth]
-      summary: Login with email/username and password
+      operationId: login
+      security: []
+      summary: Login with username or email and password
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
+            schema: { $ref: '#/components/schemas/LoginRequest' }
       responses:
         '200':
           description: Login successful
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
+              schema: { $ref: '#/components/schemas/AuthResultResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /auth/refresh:
     post:
       tags: [auth]
-      summary: Refresh access token
+      operationId: refreshToken
+      security: []
+      summary: Exchange a refresh token for a new token pair
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [refresh_token]
-              properties:
-                refresh_token:
-                  type: string
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResultResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      security: []
+      summary: Logout (client discards its tokens)
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+
+  /auth/forgot-password:
+    post:
+      tags: [auth]
+      operationId: forgotPassword
+      security: []
+      summary: Request a password reset email
+      description: Always succeeds to prevent email enumeration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /auth/reset-password:
+    post:
+      tags: [auth]
+      operationId: resetPassword
+      security: []
+      summary: Reset password with a reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  # -------------------------------------------------------------- novels
   /novels:
     get:
       tags: [novels]
-      summary: List novels with filtering and pagination
+      operationId: listNovels
+      security: []
+      summary: List published novels with filtering and pagination
       parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: page_size
-          in: query
-          schema: { type: integer, default: 20, maximum: 50 }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
         - name: category_id
           in: query
           schema: { type: integer }
         - name: status
           in: query
-          schema: { type: string, enum: [ongoing, completed] }
+          schema: { $ref: '#/components/schemas/NovelStatus' }
         - name: language
           in: query
-          schema: { type: string, enum: [zh-TW, zh-CN, en] }
+          schema: { $ref: '#/components/schemas/Language' }
         - name: sort_by
           in: query
-          schema: { type: string, enum: [latest, popular, rating, words] }
+          schema: { type: string, enum: [latest, popular, rating, words, favorites], default: latest }
       responses:
         '200':
           description: Paginated novel list
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/NovelListResponse'
+              schema: { $ref: '#/components/schemas/NovelPageResponse' }
 
   /novels/{novelId}:
     get:
       tags: [novels]
+      operationId: getNovel
+      security: []
       summary: Get novel details
       parameters:
-        - name: novelId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/NovelId'
       responses:
         '200':
           description: Novel details
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+              schema: { $ref: '#/components/schemas/NovelResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /novels/{novelId}/chapters:
     get:
       tags: [chapters]
-      summary: List chapters for a novel
+      operationId: listChapters
+      security: []
+      summary: List published chapters of a novel (table of contents, no content)
       parameters:
-        - name: novelId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/NovelId'
         - name: order
           in: query
           schema: { type: string, enum: [asc, desc], default: asc }
+      responses:
+        '200':
+          description: Chapter list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChapterListResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
+  /novels/{novelId}/chapters/{chapterId}:
+    get:
+      tags: [chapters]
+      operationId: getChapter
+      security: []
+      summary: Get chapter content
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+        - $ref: '#/components/parameters/ChapterId'
+      responses:
+        '200':
+          description: Chapter with content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChapterResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /chapters/{chapterId}:
+    get:
+      tags: [chapters]
+      operationId: getChapterById
+      security: []
+      summary: Get chapter content by chapter id alone (used by readers that route by chapter)
+      parameters:
+        - $ref: '#/components/parameters/ChapterId'
+      responses:
+        '200':
+          description: Chapter with content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChapterResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /categories:
+    get:
+      tags: [categories]
+      operationId: listCategories
+      security: []
+      summary: List categories (tree)
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Category' }
+
+  # -------------------------------------------------------------- search
   /search/novels:
     get:
       tags: [search]
-      summary: Search novels
+      operationId: searchNovels
+      security: []
+      summary: Full-text search novels (Meilisearch)
       parameters:
         - name: q
           in: query
           required: true
           schema: { type: string }
-        - name: sort_by
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
           in: query
-          schema: { type: string, enum: [relevance, latest, popular] }
+          schema: { $ref: '#/components/schemas/NovelStatus' }
+        - name: language
+          in: query
+          schema: { $ref: '#/components/schemas/Language' }
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/SearchResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
+  /search/suggestions:
+    get:
+      tags: [search]
+      operationId: searchSuggestions
+      security: []
+      summary: Title suggestions for a partial query (max 5)
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/StringList' }
+
+  /search/hot-keywords:
+    get:
+      tags: [search]
+      operationId: hotKeywords
+      security: []
+      summary: Top 10 most searched keywords
+      responses:
+        '200': { $ref: '#/components/responses/StringList' }
+
+  # ------------------------------------------------------------ rankings
   /rankings/{type}:
     get:
       tags: [rankings]
+      operationId: getRanking
+      security: []
       summary: Get novel rankings
       parameters:
         - name: type
@@ -169,37 +328,555 @@ paths:
           schema: { type: string, enum: [views, favorites, rating, latest, completed] }
         - name: period
           in: query
-          schema: { type: string, enum: [daily, weekly, monthly, all] }
+          schema: { type: string, enum: [daily, weekly, monthly, all], default: weekly }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated ranking
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NovelPageResponse' }
 
+  # ----------------------------------------------------------- bookshelf
   /bookshelf:
     get:
       tags: [bookshelf]
-      summary: Get user bookshelf
-      security:
-        - bearerAuth: []
+      operationId: listBookshelf
+      summary: Get the current user's bookshelf
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: sort_by
+          in: query
+          schema: { type: string, enum: [recent, added, title], default: recent }
+      responses:
+        '200':
+          description: Bookshelf items
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BookshelfItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [bookshelf]
-      summary: Add novel to bookshelf
-      security:
-        - bearerAuth: []
+      operationId: addToBookshelf
+      summary: Add a novel to the bookshelf
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddBookshelfRequest' }
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BookshelfItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
+  /bookshelf/{novelId}:
+    delete:
+      tags: [bookshelf]
+      operationId: removeFromBookshelf
+      summary: Remove a novel from the bookshelf
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /reading-progress:
+    get:
+      tags: [bookshelf]
+      operationId: listReadingProgress
+      summary: List all reading progress of the current user (for sync)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Reading progress, most recent first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ReadingProgress' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /reading-progress/{novelId}:
+    get:
+      tags: [bookshelf]
+      operationId: getReadingProgress
+      summary: Get reading progress for a novel
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      responses:
+        '200':
+          description: Reading progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadingProgressResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [bookshelf]
+      operationId: updateReadingProgress
+      summary: Update reading progress for a novel
+      description: |
+        Last read wins: if `read_at` is older than the stored progress, the
+        update is ignored and the stored progress is returned. Offline clients
+        should send the time the position was actually read.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProgressRequest' }
+      responses:
+        '200':
+          description: Updated progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadingProgressResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # --------------------------------------------------------- translation
   /translation/convert:
     post:
       tags: [translation]
+      operationId: convertChinese
+      security: []
       summary: Convert between Traditional and Simplified Chinese (OpenCC)
+      description: Public endpoint. Rate limited to 20 requests/minute per client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConvertRequest' }
+      responses:
+        '200':
+          description: Converted text
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TextTranslationResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /translation/text:
+    post:
+      tags: [translation]
+      operationId: translateText
+      summary: Translate a text snippet
+      description: Rate limited to 20 requests/minute per user.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TranslateTextRequest' }
+      responses:
+        '200':
+          description: Translated text
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TextTranslationResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /translation/chapter:
+    post:
+      tags: [translation]
+      operationId: translateChapter
+      summary: Translate a whole chapter (cached for 7 days)
+      description: Rate limited to 20 requests/minute per user.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TranslateChapterRequest' }
+      responses:
+        '200':
+          description: Translated chapter
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ChapterTranslation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  # --------------------------------------------------------------- admin
+  /admin/novels:
+    get:
+      tags: [admin]
+      operationId: adminListNovels
+      summary: List all novels (including unpublished)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated novels
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NovelPageResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [admin]
+      operationId: adminCreateNovel
+      summary: Create a novel
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NovelInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NovelResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/novels/{novelId}:
+    put:
+      tags: [admin]
+      operationId: adminUpdateNovel
+      summary: Update a novel
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NovelInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NovelResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteNovel
+      summary: Soft-delete a novel
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+
+  /admin/novels/{novelId}/publish:
+    post:
+      tags: [admin]
+      operationId: adminPublishNovel
+      summary: Publish a novel
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NovelResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/novels/{novelId}/chapters:
+    post:
+      tags: [admin]
+      operationId: adminCreateChapter
+      summary: Create a chapter
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChapterInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChapterResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /admin/novels/{novelId}/chapters/batch:
+    post:
+      tags: [admin]
+      operationId: adminBatchImportChapters
+      summary: Batch import chapters
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConvertRequest'
+              type: array
+              items: { $ref: '#/components/schemas/ChapterInput' }
+      responses:
+        '201':
+          description: Imported
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          imported: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
-  /translation/chapter:
-    post:
-      tags: [translation]
-      summary: Translate a chapter to target language
-      security:
-        - bearerAuth: []
+  /admin/chapters/{chapterId}:
+    put:
+      tags: [admin]
+      operationId: adminUpdateChapter
+      summary: Update a chapter
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ChapterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChapterInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChapterResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteChapter
+      summary: Delete a chapter
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ChapterId'
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+
+  /admin/users:
+    get:
+      tags: [admin]
+      operationId: adminListUsers
+      summary: List users
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/User' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+
+  /admin/users/{userId}:
+    get:
+      tags: [admin]
+      operationId: adminGetUser
+      summary: Get a user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/User' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/users/{userId}/status:
+    put:
+      tags: [admin]
+      operationId: adminUpdateUserStatus
+      summary: Ban or unban a user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [active, banned] }
+      responses:
+        '200':
+          description: New status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status: { type: string }
+
+  /admin/reviews:
+    get:
+      tags: [admin]
+      operationId: adminListReviews
+      summary: List the latest 50 reviews
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Review' }
+
+  /admin/reviews/{reviewId}:
+    put:
+      tags: [admin]
+      operationId: adminModerateReview
+      summary: Approve or reject a review
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [approved, rejected] }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+
+  /admin/reports:
+    get:
+      tags: [admin]
+      operationId: adminListReports
+      summary: List reports (not yet implemented, returns an empty list)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Reports
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { type: object }
+
+  /admin/reports/{reportId}:
+    put:
+      tags: [admin]
+      operationId: adminResolveReport
+      summary: Resolve a report (not yet implemented)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+
+  /admin/stats:
+    get:
+      tags: [admin]
+      operationId: adminStats
+      summary: Overview counts
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/AdminStats' }
 
 components:
   securitySchemes:
@@ -208,74 +885,251 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1, minimum: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+    NovelId:
+      name: novelId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ChapterId:
+      name: chapterId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Empty:
+      description: Success with no data
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Envelope' }
+    Message:
+      description: Success with a message
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Envelope'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      message: { type: string }
+    StringList:
+      description: List of strings
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Envelope'
+              - type: object
+                properties:
+                  data:
+                    type: array
+                    items: { type: string }
+    BadRequest:
+      description: Validation error (40001-40099)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Authentication error (40101-40199)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Authorization error (40301-40399)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Not found (40401-40499)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Conflict (40901-40999)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    TooManyRequests:
+      description: Rate limit exceeded (42901-42999)
+      headers:
+        X-RateLimit-Limit:
+          schema: { type: integer }
+        X-RateLimit-Remaining:
+          schema: { type: integer }
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ServiceUnavailable:
+      description: Upstream translation provider not configured or failing (50301)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   schemas:
-    ApiResponse:
+    # ------------------------------------------------------------ envelope
+    Envelope:
       type: object
+      required: [code, message]
       properties:
         code:
           type: integer
-          description: "0 = success, non-zero = error"
+          description: 0 = success
         message:
           type: string
-        data:
-          type: object
 
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: integer, example: 40001 }
+        message: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    Pagination:
+      type: object
+      required: [page, page_size, total, total_pages]
+      properties:
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+
+    Language:
+      type: string
+      enum: [zh-TW, zh-CN, en]
+
+    NovelStatus:
+      type: string
+      enum: [ongoing, completed, hiatus]
+
+    # ---------------------------------------------------------------- auth
     RegisterRequest:
       type: object
-      required: [username, email, password, nickname]
+      required: [username, email, password]
       properties:
         username: { type: string, minLength: 3, maxLength: 50 }
         email: { type: string, format: email }
-        password: { type: string, minLength: 8 }
+        password: { type: string, minLength: 8, maxLength: 72 }
         nickname: { type: string, maxLength: 50 }
 
     LoginRequest:
       type: object
       required: [login, password]
       properties:
-        login: { type: string }
+        login:
+          type: string
+          description: Username or email
         password: { type: string }
 
-    AuthResponse:
+    RefreshRequest:
       type: object
+      required: [refresh_token]
       properties:
-        code: { type: integer }
-        data:
-          type: object
+        refresh_token: { type: string }
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, new_password]
+      properties:
+        token: { type: string }
+        new_password: { type: string, minLength: 8, maxLength: 72 }
+
+    AuthResult:
+      type: object
+      required: [user, access_token, refresh_token, expires_in]
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds
+
+    AuthResultResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
           properties:
-            user: { $ref: '#/components/schemas/User' }
-            access_token: { type: string }
-            refresh_token: { type: string }
-            expires_in: { type: integer }
+            data: { $ref: '#/components/schemas/AuthResult' }
 
     User:
       type: object
+      required: [id, username, nickname, role, status, language_pref]
       properties:
         id: { type: string, format: uuid }
         username: { type: string }
         email: { type: string }
+        phone: { type: string }
         nickname: { type: string }
         avatar_url: { type: string }
+        bio: { type: string }
         role: { type: string, enum: [reader, author, admin, super_admin] }
-        language_pref: { type: string }
+        status: { type: string, enum: [active, banned] }
+        language_pref: { $ref: '#/components/schemas/Language' }
+        total_read_words: { type: integer, format: int64 }
+        total_read_seconds: { type: integer, format: int64 }
+        last_login_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
+    # -------------------------------------------------------------- novels
     Novel:
       type: object
+      required: [id, title, author_name, status, language]
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
         author_name: { type: string }
+        author_id: { type: string, format: uuid }
         cover_url: { type: string }
         description: { type: string }
-        status: { type: string, enum: [ongoing, completed, hiatus] }
-        language: { type: string }
-        total_words: { type: integer }
+        status: { $ref: '#/components/schemas/NovelStatus' }
+        language: { $ref: '#/components/schemas/Language' }
+        total_words: { type: integer, format: int64 }
         total_chapters: { type: integer }
-        view_count: { type: integer }
+        view_count: { type: integer, format: int64 }
         favorite_count: { type: integer }
+        review_count: { type: integer }
         avg_rating: { type: number }
+        is_published: { type: boolean }
+        is_featured: { type: boolean }
+        latest_chapter_id: { type: string, format: uuid }
         latest_chapter_title: { type: string }
         latest_chapter_at: { type: string, format: date-time }
+        published_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
         categories:
           type: array
           items: { $ref: '#/components/schemas/Category' }
@@ -283,43 +1137,252 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Tag' }
 
+    NovelInput:
+      type: object
+      required: [title, author_name]
+      properties:
+        title: { type: string, maxLength: 200 }
+        author_name: { type: string, maxLength: 100 }
+        cover_url: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/NovelStatus' }
+        language: { $ref: '#/components/schemas/Language' }
+        is_featured: { type: boolean }
+
+    NovelResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Novel' }
+
+    NovelPageResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [items, pagination]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/Novel' }
+                pagination: { $ref: '#/components/schemas/Pagination' }
+
     Category:
       type: object
+      required: [id, name, slug]
       properties:
         id: { type: integer }
+        parent_id: { type: integer }
         name: { type: string }
         slug: { type: string }
+        icon_url: { type: string }
+        sort_order: { type: integer }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/Category' }
 
     Tag:
       type: object
+      required: [id, name]
       properties:
         id: { type: integer }
         name: { type: string }
+        usage_count: { type: integer }
 
-    NovelListResponse:
+    # ------------------------------------------------------------ chapters
+    Chapter:
       type: object
+      required: [id, novel_id, title, chapter_number]
       properties:
-        code: { type: integer }
-        data:
-          type: object
+        id: { type: string, format: uuid }
+        novel_id: { type: string, format: uuid }
+        volume_id: { type: string, format: uuid }
+        title: { type: string }
+        content:
+          type: string
+          description: Omitted in chapter lists
+        chapter_number: { type: integer }
+        word_count: { type: integer }
+        is_published: { type: boolean }
+        is_free: { type: boolean }
+        published_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ChapterInput:
+      type: object
+      required: [title, content, chapter_number]
+      properties:
+        novel_id: { type: string, format: uuid }
+        volume_id: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        content: { type: string }
+        chapter_number: { type: integer }
+        word_count: { type: integer }
+        is_published: { type: boolean }
+        is_free: { type: boolean }
+
+    ChapterResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
           properties:
-            items:
+            data: { $ref: '#/components/schemas/Chapter' }
+
+    ChapterListResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
               type: array
-              items: { $ref: '#/components/schemas/Novel' }
-            pagination: { $ref: '#/components/schemas/Pagination' }
+              items: { $ref: '#/components/schemas/Chapter' }
 
-    Pagination:
+    # -------------------------------------------------------------- search
+    SearchResult:
       type: object
+      required: [hits, query]
       properties:
-        page: { type: integer }
-        page_size: { type: integer }
-        total: { type: integer }
-        total_pages: { type: integer }
+        hits:
+          type: array
+          description: Meilisearch documents (subset of Novel fields)
+          items:
+            type: object
+            additionalProperties: true
+        query: { type: string }
+        processing_time_ms: { type: integer }
+        estimated_total: { type: integer }
 
+    # ----------------------------------------------------------- bookshelf
+    BookshelfItem:
+      type: object
+      required: [id, user_id, novel_id]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        novel_id: { type: string, format: uuid }
+        group_name: { type: string }
+        sort_order: { type: integer }
+        is_notified: { type: boolean }
+        added_at: { type: string, format: date-time }
+        novel: { $ref: '#/components/schemas/Novel' }
+
+    AddBookshelfRequest:
+      type: object
+      required: [novel_id]
+      properties:
+        novel_id: { type: string, format: uuid }
+        group_name: { type: string, default: default }
+
+    ReadingProgress:
+      type: object
+      required: [novel_id, chapter_id]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        novel_id: { type: string, format: uuid }
+        chapter_id: { type: string, format: uuid }
+        paragraph_index: { type: integer }
+        scroll_offset: { type: number, minimum: 0, maximum: 1 }
+        read_duration: { type: integer }
+        read_at: { type: string, format: date-time }
+        synced_at: { type: string, format: date-time }
+
+    ReadingProgressResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ReadingProgress' }
+
+    UpdateProgressRequest:
+      type: object
+      required: [chapter_id]
+      properties:
+        chapter_id: { type: string, format: uuid }
+        paragraph_index: { type: integer, minimum: 0 }
+        scroll_offset: { type: number, minimum: 0, maximum: 1 }
+        read_at:
+          type: string
+          format: date-time
+          description: When the position was read; defaults to now
+
+    # --------------------------------------------------------- translation
     ConvertRequest:
       type: object
       required: [text, from, to]
       properties:
-        text: { type: string }
+        text: { type: string, maxLength: 50000 }
         from: { type: string, enum: [zh-TW, zh-CN] }
         to: { type: string, enum: [zh-TW, zh-CN] }
+
+    TranslateTextRequest:
+      type: object
+      required: [text, to]
+      properties:
+        text: { type: string, maxLength: 5000 }
+        from:
+          type: string
+          description: Source language; auto-detected when omitted
+          enum: [zh-TW, zh-CN, en]
+        to: { $ref: '#/components/schemas/Language' }
+
+    TextTranslation:
+      type: object
+      required: [text, to]
+      properties:
+        text: { type: string }
+        from: { type: string }
+        to: { type: string }
+
+    TextTranslationResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TextTranslation' }
+
+    TranslateChapterRequest:
+      type: object
+      required: [chapter_id, target_lang]
+      properties:
+        chapter_id: { type: string, format: uuid }
+        target_lang: { $ref: '#/components/schemas/Language' }
+
+    ChapterTranslation:
+      type: object
+      required: [chapter_id, original_lang, target_lang, translated_content, is_cached]
+      properties:
+        chapter_id: { type: string, format: uuid }
+        original_lang: { $ref: '#/components/schemas/Language' }
+        target_lang: { $ref: '#/components/schemas/Language' }
+        translated_title: { type: string }
+        translated_content: { type: string }
+        is_cached: { type: boolean }
+
+    # --------------------------------------------------------------- admin
+    Review:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        novel_id: { type: string, format: uuid }
+        title: { type: string }
+        content: { type: string }
+        rating: { type: number }
+        like_count: { type: integer }
+        status: { type: string, enum: [approved, pending, rejected] }
+        user: { $ref: '#/components/schemas/User' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AdminStats:
+      type: object
+      required: [users, novels, chapters]
+      properties:
+        users: { type: integer }
+        novels: { type: integer }
+        chapters: { type: integer }

@@ -58,7 +58,8 @@ func (r *NovelRepository) FindByID(id uuid.UUID) (*model.Novel, error) {
 
 func (r *NovelRepository) ListChapters(novelID uuid.UUID, order string) ([]model.Chapter, error) {
 	var chapters []model.Chapter
-	q := r.db.Where("novel_id = ? AND is_published = ?", novelID, true)
+	// The table of contents never needs chapter bodies, which can be large.
+	q := r.db.Omit("content").Where("novel_id = ? AND is_published = ?", novelID, true)
 	if order == "desc" {
 		q = q.Order("chapter_number DESC")
 	} else {
@@ -81,6 +82,13 @@ func (r *NovelRepository) ListCategories() ([]model.Category, error) {
 		Order("sort_order ASC").
 		Find(&categories).Error
 	return categories, err
+}
+
+// ListPublishedBatch returns published novels ordered by id, for bulk jobs such as reindexing.
+func (r *NovelRepository) ListPublishedBatch(offset, limit int) ([]model.Novel, error) {
+	var novels []model.Novel
+	err := r.db.Where("is_published = ?", true).Order("id").Offset(offset).Limit(limit).Find(&novels).Error
+	return novels, err
 }
 
 func (r *NovelRepository) Create(novel *model.Novel) error {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -31,6 +32,9 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 	}
 
 	r := gin.New()
+	if err := r.SetTrustedProxies(cfg.Server.TrustedProxies); err != nil {
+		log.Fatalf("invalid TRUSTED_PROXIES: %v", err)
+	}
 
 	// Middleware chain: Recovery -> Logger -> CORS
 	r.Use(gin.Recovery())
@@ -42,8 +46,10 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	// API v1
+	// API v1: 60 req/min per IP for anonymous clients, 120 req/min per user when authenticated
 	v1 := r.Group("/api/v1")
+	v1.Use(middleware.GlobalRateLimiter(rdb, cfg, 60, 120, time.Minute))
+	translationLimit := middleware.RateLimiterWithRedis(rdb, "translation", 20, time.Minute)
 
 	// --- Auth routes (public) ---
 	auth := v1.Group("/auth")
@@ -61,10 +67,12 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 	v1.GET("/novels/:id", h.Novel.GetByID)
 	v1.GET("/novels/:id/chapters", h.Novel.ListChapters)
 	v1.GET("/novels/:id/chapters/:chapterId", h.Novel.GetChapter)
+	v1.GET("/chapters/:chapterId", h.Novel.GetChapter)
 	v1.GET("/categories", h.Novel.ListCategories)
 	v1.GET("/search/novels", h.Search.SearchNovels)
 	v1.GET("/search/suggestions", h.Search.Suggestions)
 	v1.GET("/search/hot-keywords", h.Search.HotKeywords)
+	v1.POST("/translation/convert", translationLimit, h.Translation.Convert)
 
 	// --- Rankings ---
 	v1.GET("/rankings/:type", func(c *gin.Context) {
@@ -98,14 +106,14 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 		protected.DELETE("/bookshelf/:novelId", h.Bookshelf.Remove)
 
 		// Reading progress
+		protected.GET("/reading-progress", h.Bookshelf.ListProgress)
 		protected.PUT("/reading-progress/:novelId", h.Bookshelf.UpdateProgress)
 		protected.GET("/reading-progress/:novelId", h.Bookshelf.GetProgress)
 
-		// Translation (with rate limiting: 20 req/min)
+		// Translation (shares the 20 req/min quota with /translation/convert)
 		translation := protected.Group("/translation")
-		translation.Use(middleware.RateLimiterWithRedis(rdb, 20, time.Minute))
+		translation.Use(translationLimit)
 		{
-			translation.POST("/convert", h.Translation.Convert)
 			translation.POST("/chapter", h.Translation.TranslateChapter)
 			translation.POST("/text", h.Translation.TranslateText)
 		}

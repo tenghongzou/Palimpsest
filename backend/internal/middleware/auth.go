@@ -30,7 +30,7 @@ func Auth(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		claims, err := jwtpkg.ValidateToken(cfg.JWT.Secret, token)
+		claims, err := jwtpkg.ValidateTokenType(cfg.JWT.Secret, token, jwtpkg.TypeAccess)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"code":    40103,

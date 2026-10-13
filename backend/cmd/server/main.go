@@ -17,6 +17,7 @@ import (
 	"github.com/tenghongzou/palimpsest/backend/internal/config"
 	"github.com/tenghongzou/palimpsest/backend/internal/handler"
 	"github.com/tenghongzou/palimpsest/backend/internal/model"
+	"github.com/tenghongzou/palimpsest/backend/internal/pkg/translate"
 	"github.com/tenghongzou/palimpsest/backend/internal/repository"
 	"github.com/tenghongzou/palimpsest/backend/internal/service"
 	"gorm.io/driver/postgres"
@@ -62,6 +63,7 @@ func main() {
 	); err != nil {
 		log.Fatalf("failed to auto-migrate: %v", err)
 	}
+	dropLegacyIndexes(db)
 
 	// --- Redis ---
 	rdb := redis.NewClient(&redis.Options{
@@ -99,9 +101,15 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, cfg)
 	novelSvc := service.NewNovelService(novelRepo, cacheRepo)
 	bookshelfSvc := service.NewBookshelfService(bookshelfRepo, db)
-	searchSvc := service.NewSearchService(meiliClient, novelRepo)
+	searchSvc := service.NewSearchService(meiliClient, rdb, novelRepo)
 	rankingSvc := service.NewRankingService(rdb, novelRepo)
-	translationSvc := service.NewTranslationService(cacheRepo, db)
+	var translator translate.MachineTranslator
+	if g := translate.NewGoogleTranslator(cfg.Translation.GoogleAPIKey, cfg.Translation.GoogleEndpoint); g != nil {
+		translator = g
+	} else {
+		log.Printf("WARNING: GOOGLE_TRANSLATE_API_KEY not set; only zh-TW/zh-CN conversion is available")
+	}
+	translationSvc := service.NewTranslationService(cacheRepo, db, translator)
 
 	// --- Handlers ---
 	authH := handler.NewAuthHandler(authSvc)
@@ -109,7 +117,21 @@ func main() {
 	bookshelfH := handler.NewBookshelfHandler(bookshelfSvc)
 	searchH := handler.NewSearchHandler(searchSvc)
 	translationH := handler.NewTranslationHandler(translationSvc)
-	adminH := handler.NewAdminHandler(novelRepo, db)
+	adminH := handler.NewAdminHandler(novelRepo, searchSvc, db)
+
+	// Configure the search index and backfill it without blocking startup.
+	go func() {
+		if err := searchSvc.EnsureIndex(); err != nil {
+			log.Printf("WARNING: Meilisearch index setup failed: %v", err)
+			return
+		}
+		n, err := searchSvc.ReindexAll()
+		if err != nil {
+			log.Printf("WARNING: Meilisearch reindex failed after %d novels: %v", n, err)
+			return
+		}
+		log.Printf("Meilisearch: indexed %d published novels", n)
+	}()
 
 	// --- Router ---
 	handlers := &Handlers{
@@ -150,4 +172,25 @@ func main() {
 	sqlDB.Close()
 	rdb.Close()
 	log.Println("Server exited")
+}
+
+// dropLegacyIndexes removes indexes created by earlier model definitions that
+// AutoMigrate does not clean up. Chapter and volume numbers used to be unique
+// across all novels instead of per novel, so only one novel could have a
+// "chapter 1".
+func dropLegacyIndexes(db *gorm.DB) {
+	legacy := []struct {
+		model interface{}
+		index string
+	}{
+		{&model.Chapter{}, "idx_novel_chapter"},
+		{&model.Volume{}, "idx_novel_volume"},
+	}
+	for _, l := range legacy {
+		if db.Migrator().HasIndex(l.model, l.index) {
+			if err := db.Migrator().DropIndex(l.model, l.index); err != nil {
+				log.Printf("WARNING: failed to drop legacy index %s: %v", l.index, err)
+			}
+		}
+	}
 }

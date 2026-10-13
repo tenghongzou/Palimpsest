@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -9,16 +10,29 @@ import (
 	"github.com/google/uuid"
 	"github.com/tenghongzou/palimpsest/backend/internal/model"
 	"github.com/tenghongzou/palimpsest/backend/internal/repository"
+	"github.com/tenghongzou/palimpsest/backend/internal/service"
 	"gorm.io/gorm"
 )
 
 type AdminHandler struct {
 	novelRepo *repository.NovelRepository
+	searchSvc *service.SearchService
 	db        *gorm.DB
 }
 
-func NewAdminHandler(novelRepo *repository.NovelRepository, db *gorm.DB) *AdminHandler {
-	return &AdminHandler{novelRepo: novelRepo, db: db}
+func NewAdminHandler(novelRepo *repository.NovelRepository, searchSvc *service.SearchService, db *gorm.DB) *AdminHandler {
+	return &AdminHandler{novelRepo: novelRepo, searchSvc: searchSvc, db: db}
+}
+
+// syncSearch updates the search index after a novel changes. Failures are
+// logged rather than returned: the database write already succeeded.
+func (h *AdminHandler) syncSearch(novel *model.Novel) {
+	if h.searchSvc == nil {
+		return
+	}
+	if err := h.searchSvc.SyncNovel(novel); err != nil {
+		log.Printf("admin: failed to sync novel %s to search index: %v", novel.ID, err)
+	}
 }
 
 // Novel management
@@ -53,6 +67,7 @@ func (h *AdminHandler) CreateNovel(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to create novel"))
 		return
 	}
+	h.syncSearch(&novel)
 	c.JSON(http.StatusCreated, model.SuccessResponse(novel))
 }
 
@@ -75,6 +90,7 @@ func (h *AdminHandler) UpdateNovel(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to update novel"))
 		return
 	}
+	h.syncSearch(novel)
 	c.JSON(http.StatusOK, model.SuccessResponse(novel))
 }
 
@@ -87,6 +103,11 @@ func (h *AdminHandler) DeleteNovel(c *gin.Context) {
 	if err := h.novelRepo.Delete(id); err != nil {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to delete novel"))
 		return
+	}
+	if h.searchSvc != nil {
+		if err := h.searchSvc.RemoveNovel(id.String()); err != nil {
+			log.Printf("admin: failed to remove novel %s from search index: %v", id, err)
+		}
 	}
 	c.JSON(http.StatusOK, model.SuccessResponse(nil))
 }
@@ -107,16 +128,24 @@ func (h *AdminHandler) PublishNovel(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to publish"))
 		return
 	}
+	h.syncSearch(novel)
 	c.JSON(http.StatusOK, model.SuccessResponse(novel))
 }
 
 // Chapter management
 func (h *AdminHandler) CreateChapter(c *gin.Context) {
+	novelID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, model.ErrorResponse(40001, "invalid novel id"))
+		return
+	}
+
 	var chapter model.Chapter
 	if err := c.ShouldBindJSON(&chapter); err != nil {
 		c.JSON(http.StatusBadRequest, model.ErrorResponse(40001, err.Error()))
 		return
 	}
+	chapter.NovelID = novelID
 	if err := h.novelRepo.CreateChapter(&chapter); err != nil {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to create chapter"))
 		return
@@ -160,10 +189,19 @@ func (h *AdminHandler) DeleteChapter(c *gin.Context) {
 }
 
 func (h *AdminHandler) BatchImportChapters(c *gin.Context) {
+	novelID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, model.ErrorResponse(40001, "invalid novel id"))
+		return
+	}
+
 	var chapters []model.Chapter
 	if err := c.ShouldBindJSON(&chapters); err != nil {
 		c.JSON(http.StatusBadRequest, model.ErrorResponse(40001, err.Error()))
 		return
+	}
+	for i := range chapters {
+		chapters[i].NovelID = novelID
 	}
 	if err := h.db.Create(&chapters).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "batch import failed"))
