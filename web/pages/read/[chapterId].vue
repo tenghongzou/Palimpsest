@@ -2,6 +2,9 @@
   <div class="min-h-screen" @click="toggleToolbar">
     <n-spin :show="loading" class="min-h-screen">
       <template v-if="chapter">
+        <div v-if="offline" class="text-center text-xs text-gray-500 pt-2">
+          離線模式：顯示的是本機快取的章節
+        </div>
         <ReaderContent
           :content="displayContent"
           :title="chapter.title"
@@ -13,6 +16,9 @@
           <n-button type="primary" @click.stop="goNextChapter">下一章</n-button>
         </div>
       </template>
+      <div v-else-if="error && !loading" class="text-center text-gray-500 py-24">
+        無法載入章節，且此章節沒有離線快取。
+      </div>
     </n-spin>
 
     <ReaderToolbar
@@ -21,7 +27,7 @@
       @next="goNextChapter"
       @open-settings="showSettings = true"
       @open-chapter-list="showChapterList = true"
-      @toggle-bookmark="saveProgress"
+      @toggle-bookmark="saveProgress()"
       @translate="showTranslate = true"
     />
 
@@ -91,7 +97,6 @@ import {
   NSpin, NButton, NDrawer, NDrawerContent,
   NSlider, NSelect,
 } from 'naive-ui'
-import type { Chapter } from '~/types/novel'
 
 definePageMeta({ layout: 'reader' })
 
@@ -100,7 +105,10 @@ const router = useRouter()
 const chapterId = computed(() => route.params.chapterId as string)
 const readerStore = useReaderStore()
 
-const { chapter, loading, settings, goNextChapter, goPrevChapter, saveProgress } = useReader(chapterId)
+const {
+  chapter, chapterList, loading, error, offline, settings,
+  goNextChapter, goPrevChapter, saveProgress,
+} = useReader(chapterId)
 const { translating, translateChapter } = useTranslation()
 
 const showToolbar = ref(false)
@@ -109,7 +117,6 @@ const showChapterList = ref(false)
 const showTranslate = ref(false)
 const translatedContent = ref<string | null>(null)
 const targetLang = ref('zh-CN')
-const chapterList = ref<Chapter[]>([])
 
 const localSettings = reactive({ ...readerStore.settings })
 
@@ -163,13 +170,7 @@ watch(chapterId, () => {
   translatedContent.value = null
 })
 
-watch(chapter, async (ch) => {
-  if (ch) {
-    const res = await $fetch<{ code: number; data: Chapter[] }>(`/api/v1/novels/${ch.novel_id}/chapters`, {
-      params: { order: 'asc' },
-    })
-    chapterList.value = res.data
-    saveProgress()
-  }
+watch(chapter, (ch) => {
+  if (ch) saveProgress()
 })
 </script>
