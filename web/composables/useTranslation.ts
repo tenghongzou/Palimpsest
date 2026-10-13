@@ -1,23 +1,13 @@
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T
-}
+import type { ApiResponse } from '~/utils/api'
 
 export function useTranslation() {
   const translating = ref(false)
-  const authStore = useAuthStore()
-
-  function authHeaders() {
-    return { Authorization: `Bearer ${authStore.accessToken}` }
-  }
 
   async function convertText(text: string, from: string, to: string): Promise<string> {
     translating.value = true
     try {
-      const res = await $fetch<ApiResponse<{ text: string }>>('/api/v1/translation/convert', {
+      const res = await apiFetch<ApiResponse<{ text: string }>>('/translation/convert', {
         method: 'POST',
-        headers: authHeaders(),
         body: { text, from, to },
       })
       return res.data.text
@@ -30,12 +20,11 @@ export function useTranslation() {
   async function translateChapter(chapterId: string, targetLang: string): Promise<string> {
     translating.value = true
     try {
-      const res = await $fetch<ApiResponse<{ content: string }>>('/api/v1/translation/chapter', {
+      const res = await apiFetch<ApiResponse<{ translated_content: string }>>('/translation/chapter', {
         method: 'POST',
-        headers: authHeaders(),
-        body: { chapter_id: chapterId, target_language: targetLang },
+        body: { chapter_id: chapterId, target_lang: targetLang },
       })
-      return res.data.content
+      return res.data.translated_content
     }
     finally {
       translating.value = false
@@ -45,10 +34,9 @@ export function useTranslation() {
   async function translateText(text: string, from: string, to: string): Promise<string> {
     translating.value = true
     try {
-      const res = await $fetch<ApiResponse<{ text: string }>>('/api/v1/translation/text', {
+      const res = await apiFetch<ApiResponse<{ text: string }>>('/translation/text', {
         method: 'POST',
-        headers: authHeaders(),
-        body: { text, source_language: from, target_language: to },
+        body: { text, from, to },
       })
       return res.data.text
     }

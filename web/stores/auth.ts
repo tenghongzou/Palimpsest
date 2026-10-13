@@ -49,10 +49,11 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth()
   }
 
-  async function refresh() {
+  /** Exchanges the refresh token for a new session. Returns false (and logs out) on failure. */
+  async function refresh(): Promise<boolean> {
     if (!refreshToken.value) {
       clearAuth()
-      return
+      return false
     }
     try {
       const data = await $fetch<{ code: number; data: AuthResponse }>('/api/v1/auth/refresh', {
@@ -60,9 +61,11 @@ export const useAuthStore = defineStore('auth', () => {
         body: { refresh_token: refreshToken.value },
       })
       setAuth(data.data)
+      return true
     }
     catch {
       clearAuth()
+      return false
     }
   }
 

@@ -1,10 +1,5 @@
+import type { ApiResponse } from '~/utils/api'
 import type { Novel } from '~/types/novel'
-
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T
-}
 
 interface BookshelfItem {
   id: string
@@ -19,18 +14,12 @@ interface BookshelfItem {
 export function useBookshelf() {
   const items = ref<BookshelfItem[]>([])
   const loading = ref(true)
-  const authStore = useAuthStore()
-
-  function authHeaders() {
-    return { Authorization: `Bearer ${authStore.accessToken}` }
-  }
 
   async function fetchBookshelf(sortBy: 'recent' | 'added' | 'title' = 'recent') {
     loading.value = true
     try {
-      const res = await $fetch<ApiResponse<BookshelfItem[]>>('/api/v1/bookshelf', {
-        headers: authHeaders(),
-        params: { sort: sortBy },
+      const res = await apiFetch<ApiResponse<BookshelfItem[]>>('/bookshelf', {
+        params: { sort_by: sortBy },
       })
       items.value = res.data
     }
@@ -40,18 +29,14 @@ export function useBookshelf() {
   }
 
   async function addToBookshelf(novelId: string, groupName = 'default') {
-    await $fetch('/api/v1/bookshelf', {
+    await apiFetch('/bookshelf', {
       method: 'POST',
-      headers: authHeaders(),
       body: { novel_id: novelId, group_name: groupName },
     })
   }
 
   async function removeFromBookshelf(novelId: string) {
-    await $fetch(`/api/v1/bookshelf/${novelId}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    })
+    await apiFetch(`/bookshelf/${novelId}`, { method: 'DELETE' })
     items.value = items.value.filter(item => item.novel_id !== novelId)
   }
 

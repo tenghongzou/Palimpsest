@@ -118,11 +118,11 @@ export function useSearch() {
   async function search(query: string, params: Record<string, any> = {}) {
     loading.value = true
     try {
-      const res = await $fetch<ApiResponse<{ hits: Novel[]; total: number }>>('/api/v1/search', {
+      const res = await $fetch<ApiResponse<{ hits: Novel[]; estimated_total: number }>>('/api/v1/search/novels', {
         params: { q: query, ...params },
       })
       results.value = res.data.hits
-      total.value = res.data.total
+      total.value = res.data.estimated_total
     }
     finally {
       loading.value = false
@@ -130,7 +130,7 @@ export function useSearch() {
   }
 
   async function fetchHotKeywords() {
-    const res = await $fetch<ApiResponse<string[]>>('/api/v1/search/hot')
+    const res = await $fetch<ApiResponse<string[]>>('/api/v1/search/hot-keywords')
     hotKeywords.value = res.data
   }
 
