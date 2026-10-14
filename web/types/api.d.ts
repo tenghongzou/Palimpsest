@@ -397,7 +397,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Full-text search novels (Meilisearch) */
+        /**
+         * Full-text search novels (Meilisearch)
+         * @description Rate limited to 30 requests/minute per user (or per IP when anonymous).
+         */
         get: operations["searchNovels"];
         put?: never;
         post?: never;
@@ -2531,6 +2534,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     searchSuggestions: {

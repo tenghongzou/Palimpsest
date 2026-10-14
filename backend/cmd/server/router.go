@@ -56,9 +56,12 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	// API v1: 60 req/min per IP for anonymous clients, 120 req/min per user when authenticated
+	// API v1: 60 req/min per IP for anonymous clients, 120 req/min per user
+	// when authenticated, 300 req/min for admins.
 	v1 := r.Group("/api/v1")
-	v1.Use(middleware.GlobalRateLimiter(rdb, cfg, 60, 120, time.Minute))
+	v1.Use(middleware.GlobalRateLimiter(rdb, cfg, middleware.GlobalLimits{Public: 60, User: 120, Admin: 300}, time.Minute))
+	// Full-text search is the most expensive public query.
+	searchLimit := middleware.RateLimiterWithRedis(rdb, "search", 30, time.Minute)
 	translationLimit := middleware.RateLimiterWithRedis(rdb, "translation", 20, time.Minute)
 	// Each credential endpoint gets its own tight per-IP quota against brute forcing.
 	credentialLimit := middleware.RateLimiterWithRedis(rdb, "", 5, time.Minute)
@@ -86,7 +89,7 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 	v1.GET("/chapters/:chapterId", h.Novel.GetChapter)
 	v1.GET("/chapters/:chapterId/comments", optionalAuth, h.Community.ListComments)
 	v1.GET("/categories", h.Novel.ListCategories)
-	v1.GET("/search/novels", h.Search.SearchNovels)
+	v1.GET("/search/novels", searchLimit, h.Search.SearchNovels)
 	v1.GET("/search/suggestions", h.Search.Suggestions)
 	v1.GET("/search/hot-keywords", h.Search.HotKeywords)
 	v1.POST("/translation/convert", translationLimit, h.Translation.Convert)
