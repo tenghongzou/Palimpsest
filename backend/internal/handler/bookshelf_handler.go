@@ -143,9 +143,10 @@ func (h *BookshelfHandler) GetProgress(c *gin.Context) {
 		return
 	}
 
+	// A novel the user has not read yet is not an error: data is null.
 	progress, err := h.bookshelfSvc.GetProgress(userID, novelID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, model.ErrorResponse(40401, "no reading progress found"))
+		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to load reading progress"))
 		return
 	}
 

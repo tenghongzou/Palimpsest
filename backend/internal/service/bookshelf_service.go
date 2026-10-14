@@ -331,9 +331,14 @@ func (s *BookshelfService) ListProgress(userID uuid.UUID, novelIDs []uuid.UUID) 
 	return progress, err
 }
 
+// GetProgress returns the user's position in a novel, or nil if they have
+// never read it.
 func (s *BookshelfService) GetProgress(userID, novelID uuid.UUID) (*model.ReadingProgress, error) {
 	var progress model.ReadingProgress
 	err := s.db.Where("user_id = ? AND novel_id = ?", userID, novelID).First(&progress).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}

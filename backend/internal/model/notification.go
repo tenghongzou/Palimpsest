@@ -24,11 +24,19 @@ type Notification struct {
 	NovelID   *uuid.UUID `gorm:"type:uuid" json:"novel_id,omitempty"`
 	ChapterID *uuid.UUID `gorm:"type:uuid" json:"chapter_id,omitempty"`
 	CommentID *uuid.UUID `gorm:"type:uuid" json:"comment_id,omitempty"`
-	ActorID   *uuid.UUID `gorm:"type:uuid" json:"-"`
-	ReadAt    *time.Time `json:"read_at"`
-	CreatedAt time.Time  `gorm:"index:idx_notifications_user,priority:2,sort:desc" json:"created_at"`
-	Actor     *UserBrief `gorm:"foreignKey:ActorID" json:"actor,omitempty"`
+	// Params lets clients write the title and body in their UI language;
+	// Title and Body hold the zh-TW text as a fallback.
+	Params    NotificationParams `gorm:"type:jsonb;serializer:json" json:"params,omitempty"`
+	ActorID   *uuid.UUID         `gorm:"type:uuid" json:"-"`
+	ReadAt    *time.Time         `json:"read_at"`
+	CreatedAt time.Time          `gorm:"index:idx_notifications_user,priority:2,sort:desc" json:"created_at"`
+	Actor     *UserBrief         `gorm:"foreignKey:ActorID" json:"actor,omitempty"`
 }
+
+// NotificationParams are the values a notification's text is built from:
+//   - chapter_update: novel, chapter (title of the latest chapter), chapter_number
+//   - comment_reply: actor (display name)
+type NotificationParams map[string]string
 
 // Device types a client may register as.
 var DeviceTypes = []string{"web", "android", "ios", "windows", "macos", "linux"}

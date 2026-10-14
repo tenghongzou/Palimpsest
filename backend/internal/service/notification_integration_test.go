@@ -71,6 +71,9 @@ func TestReplyNotificationsAndParagraphCounts(t *testing.T) {
 		*n.ChapterID != ch || *n.NovelID != novel.ID || *n.CommentID != thread.ID || n.ReadAt != nil {
 		t.Errorf("alice notification = %+v", n)
 	}
+	if name := bob.Nickname; n.Params["actor"] == "" || (name != "" && n.Params["actor"] != name) {
+		t.Errorf("reply params = %v", n.Params)
+	}
 	if _, total, _ := notes.List(bob.ID, false, 1, 20); total != 1 {
 		t.Errorf("bob notifications = %d, want 1", total)
 	}
@@ -130,6 +133,10 @@ func TestChapterUpdateNotifications(t *testing.T) {
 	}
 	if n := items[0]; n.Type != model.NotificationChapterUpdate || *n.ChapterID != chapters[2].ID || n.Body != "更新至：第4章" {
 		t.Errorf("notification = %+v", n)
+	}
+	// The folded notification's params follow the latest chapter too.
+	if p := items[0].Params; p["novel"] != novel.Title || p["chapter"] != chapters[3].Title || p["chapter_number"] != "4" {
+		t.Errorf("chapter params = %v", p)
 	}
 	for _, u := range []*model.User{muted, stranger} {
 		if _, total, _ := notes.List(u.ID, false, 1, 20); total != 0 {

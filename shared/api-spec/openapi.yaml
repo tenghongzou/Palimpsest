@@ -971,17 +971,25 @@ paths:
       tags: [bookshelf]
       operationId: getReadingProgress
       summary: Get reading progress for a novel
+      description: '`data` is null when the user has not read the novel yet.'
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/NovelId'
       responses:
         '200':
-          description: Reading progress
+          description: Reading progress, or null
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ReadingProgressResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                        allOf:
+                          - $ref: '#/components/schemas/ReadingProgress'
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
     put:
       tags: [bookshelf]
       operationId: updateReadingProgress
@@ -3203,6 +3211,14 @@ components:
         read_at: { type: string, format: date-time, nullable: true }
         created_at: { type: string, format: date-time }
         actor: { $ref: '#/components/schemas/UserBrief' }
+        params:
+          type: object
+          additionalProperties: { type: string }
+          description: |
+            Values for writing the title and body in the client's UI language;
+            `title` and `body` hold zh-TW text as a fallback (system
+            notifications have no params). chapter_update: `novel`, `chapter`
+            (latest chapter title), `chapter_number`. comment_reply: `actor`.
 
     DeviceType:
       type: string

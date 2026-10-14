@@ -1,6 +1,8 @@
 package service
 
 import (
+	"encoding/json"
+	"strconv"
 	"time"
 	"unicode/utf8"
 
@@ -104,6 +106,7 @@ func (s *NotificationService) NotifyReply(reply, parent *model.Comment) error {
 	return s.db.Create(&model.Notification{
 		UserID: parent.UserID, Type: model.NotificationCommentReply,
 		Title: name + " 回覆了你的留言", Body: excerpt(reply.Content, 100),
+		Params:  model.NotificationParams{"actor": name},
 		NovelID: &chapter.NovelID, ChapterID: &chapterID, CommentID: &threadID, ActorID: &reply.UserID,
 	}).Error
 }
@@ -134,6 +137,12 @@ func (s *NotificationService) NotifyChapters(novelID uuid.UUID, published []mode
 	}
 	title := "《" + novel.Title + "》有新章節"
 	body := "更新至：" + last.Title
+	params, err := json.Marshal(model.NotificationParams{
+		"novel": novel.Title, "chapter": last.Title, "chapter_number": strconv.Itoa(last.ChapterNumber),
+	})
+	if err != nil {
+		return err
+	}
 
 	subscribers := s.db.Table("bookshelf_items AS b").Select("b.user_id").
 		Joins("JOIN users u ON u.id = b.user_id AND u.deleted_at IS NULL AND u.status = 'active'").
@@ -142,16 +151,16 @@ func (s *NotificationService) NotifyChapters(novelID uuid.UUID, published []mode
 		pending := tx.Model(&model.Notification{}).
 			Where("type = ? AND novel_id = ? AND read_at IS NULL", model.NotificationChapterUpdate, novelID)
 		if err := pending.Session(&gorm.Session{}).Where("user_id IN (?)", subscribers).
-			Updates(map[string]interface{}{"title": title, "body": body, "created_at": time.Now()}).Error; err != nil {
+			Updates(map[string]interface{}{"title": title, "body": body, "params": gorm.Expr("?::jsonb", string(params)), "created_at": time.Now()}).Error; err != nil {
 			return err
 		}
 		return tx.Exec(`
-			INSERT INTO notifications (user_id, type, title, body, novel_id, chapter_id, created_at)
-			SELECT s.user_id, ?, ?, ?, ?, ?, NOW() FROM (?) AS s
+			INSERT INTO notifications (user_id, type, title, body, params, novel_id, chapter_id, created_at)
+			SELECT s.user_id, ?, ?, ?, ?::jsonb, ?, ?, NOW() FROM (?) AS s
 			WHERE NOT EXISTS (
 				SELECT 1 FROM notifications n
 				WHERE n.user_id = s.user_id AND n.type = ? AND n.novel_id = ? AND n.read_at IS NULL)`,
-			model.NotificationChapterUpdate, title, body, novelID, first.ID, subscribers,
+			model.NotificationChapterUpdate, title, body, string(params), novelID, first.ID, subscribers,
 			model.NotificationChapterUpdate, novelID).Error
 	})
 }

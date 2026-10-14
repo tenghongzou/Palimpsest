@@ -104,6 +104,11 @@ func TestBookshelfFavoritesAndProgress(t *testing.T) {
 	novel, chapters := testutil.Novel(t, db, 3)
 	repository.NewNovelRepository(db).RefreshStats(novel.ID)
 
+	// Not having read a novel yet is not an error.
+	if p, err := svc.GetProgress(user.ID, novel.ID); p != nil || err != nil {
+		t.Errorf("GetProgress before reading = %+v, %v", p, err)
+	}
+
 	if _, err := svc.Add(user.ID, novel.ID, ""); err != nil {
 		t.Fatalf("Add: %v", err)
 	}
