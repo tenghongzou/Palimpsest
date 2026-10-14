@@ -1,5 +1,13 @@
 # Palimpsest — API 設計文件
 
+> [!IMPORTANT]
+> 本文件是早期的設計規劃。實際的 API 契約以 [`shared/api-spec/openapi.yaml`](../shared/api-spec/openapi.yaml) 為準（`go test ./cmd/server` 會檢查規格與路由一致）。與本文件的主要差異：
+>
+> - 後台的審核與上下架使用 `PUT /admin/reviews/:id`、`PUT /admin/reports/:id`、`PUT /admin/users/:id/status`、`POST /admin/novels/:id/publish`（可帶 `{"is_published": false}` 下架），而非 `PATCH`。
+> - 後台統計為單一端點 `GET /admin/stats`；章節編輯與刪除使用 `/admin/chapters/:chapterId`。
+> - 章節內容另有 `GET /chapters/:chapterId`，並回傳 `prev_chapter` / `next_chapter`；`count_view=false` 可避免離線下載計入點閱。
+> - 尚未實作：裝置管理 `/users/me/devices`。
+
 ## 1. API 設計原則
 
 - **風格**：RESTful API

@@ -42,7 +42,7 @@ func newLimitedRouter(t *testing.T, handlers ...gin.HandlerFunc) (*gin.Engine, *
 
 	cfg := newTestConfig()
 	r := gin.New()
-	r.Use(GlobalRateLimiter(rdb, cfg, 2, 3, time.Minute))
+	r.Use(GlobalRateLimiter(rdb, cfg, GlobalLimits{Public: 2, User: 3, Admin: 5}, time.Minute))
 	r.Use(handlers...)
 	ok := func(c *gin.Context) { c.Status(http.StatusOK) }
 	r.GET("/a", ok)
@@ -76,6 +76,19 @@ func TestGlobalRateLimiterPublic(t *testing.T) {
 	}
 	if w.Header().Get("Retry-After") == "" {
 		t.Error("expected Retry-After header")
+	}
+}
+
+func TestGlobalRateLimiterAdminsGetTheirOwnLimit(t *testing.T) {
+	r, _ := newLimitedRouter(t)
+	token, _ := jwtpkg.GenerateAccessToken(newTestConfig().JWT.Secret, uuid.New(), "admin", time.Hour)
+	for i := 0; i < 5; i++ {
+		if w := doRequest(r, "/a", token); w.Code != http.StatusOK {
+			t.Fatalf("admin request %d: expected 200, got %d", i+1, w.Code)
+		}
+	}
+	if w := doRequest(r, "/a", token); w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 after the admin limit, got %d", w.Code)
 	}
 }
 

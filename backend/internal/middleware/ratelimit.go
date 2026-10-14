@@ -61,22 +61,33 @@ func limitRequest(c *gin.Context, rdb *redis.Client, key string, limit int, wind
 	return true
 }
 
-// GlobalRateLimiter applies the API-wide limits: authLimit per user for
-// requests carrying a valid access token, publicLimit per client IP otherwise.
+// GlobalLimits are the API-wide request quotas per window.
+type GlobalLimits struct {
+	Public int // per client IP, for anonymous requests
+	User   int // per user, for requests with a valid access token
+	Admin  int // per user, for admins (bulk catalogue work)
+}
+
+// GlobalRateLimiter applies the API-wide limits: per user for requests
+// carrying a valid access token (admins get their own, larger quota), per
+// client IP otherwise.
 // It runs before route-level Auth, so it validates the token itself; an
 // invalid token simply falls back to the IP limit.
-func GlobalRateLimiter(rdb *redis.Client, cfg *config.Config, publicLimit, authLimit int, window time.Duration) gin.HandlerFunc {
+func GlobalRateLimiter(rdb *redis.Client, cfg *config.Config, limits GlobalLimits, window time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if rdb == nil {
 			c.Next()
 			return
 		}
 		key := "palimpsest:ratelimit:global:ip:" + c.ClientIP()
-		limit := publicLimit
+		limit := limits.Public
 		if token, ok := strings.CutPrefix(c.GetHeader("Authorization"), "Bearer "); ok {
 			if claims, err := jwtpkg.ValidateTokenType(cfg.JWT.Secret, token, jwtpkg.TypeAccess); err == nil {
 				key = "palimpsest:ratelimit:global:user:" + claims.UserID.String()
-				limit = authLimit
+				limit = limits.User
+				if claims.Role == "admin" {
+					limit = limits.Admin
+				}
 			}
 		}
 		if limitRequest(c, rdb, key, limit, window) {
