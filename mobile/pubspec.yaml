@@ -52,8 +52,25 @@ dev_dependencies:
   build_runner: ^2.4.9
   json_serializable: ^6.8.0
   riverpod_generator: ^2.4.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/
+
+# App icon generation: `dart run flutter_launcher_icons`
+# NOTE: v0.14.4 also rewrites ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS
+# in ios/Runner.xcodeproj/project.pbxproj to "AppIcon" — revert that file after running.
+# Sources live in assets/icon/ (not bundled: the `assets/` entry above is non-recursive).
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: true
+  min_sdk_android: 21
+  adaptive_icon_background: "#1890FF"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  adaptive_icon_monochrome: "assets/icon/app_icon_monochrome.png"
+  # Foreground PNGs are already padded to the 66/108 safe zone; no extra inset.
+  adaptive_icon_foreground_inset: 0
+  ios: true
+  remove_alpha_ios: true
