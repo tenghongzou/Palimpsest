@@ -51,3 +51,11 @@ export function formatDateTime(date: string | Date | null | undefined): string {
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleString('zh-TW', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
+
+const NUMBERED_TITLE = /^\s*第\s*[0-9０-９零〇一二兩三四五六七八九十百千萬]+\s*[章回節卷]/
+
+/** A chapter's label in lists: "第3章 標題", unless the title already carries its own number. */
+export function chapterLabel(number: number, title: string): string {
+  if (NUMBERED_TITLE.test(title)) return title
+  return title ? `第${number}章 ${title}` : `第${number}章`
+}

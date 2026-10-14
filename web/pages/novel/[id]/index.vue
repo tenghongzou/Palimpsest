@@ -27,7 +27,7 @@
             <NuxtLink v-for="cat in novel.categories" :key="cat.id" :to="`/category/${cat.slug}`" class="no-underline">
               <n-tag size="small" round class="cursor-pointer">{{ cat.name }}</n-tag>
             </NuxtLink>
-            <n-tag v-for="tag in novel.tags" :key="tag.id" size="small" round type="info">
+            <n-tag v-for="tag in visibleTags" :key="tag.id" size="small" round type="info">
               {{ tag.name }}
             </n-tag>
           </div>
@@ -72,7 +72,7 @@
             :class="{ 'font-semibold text-primary': resume?.chapterId === ch.id }"
             data-testid="chapter-link"
           >
-            第{{ ch.chapter_number }}章 {{ ch.title }}
+            {{ chapterLabel(ch.chapter_number, ch.title) }}
           </NuxtLink>
         </div>
         <n-empty v-if="!chapters.length" description="尚無章節" />
@@ -88,7 +88,7 @@ import { NSpin, NTag, NRate, NButton, NCard, NEmpty, NResult, useMessage } from 
 import type { ApiResponse } from '~/utils/api'
 import type { ApiReadingProgress } from '~/types/models'
 import { getProgress } from '~/utils/localDb'
-import { NOVEL_STATUS, formatRelativeTime, formatViewCount, formatWordCount } from '~/utils/format'
+import { NOVEL_STATUS, chapterLabel, formatRelativeTime, formatViewCount, formatWordCount } from '~/utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -97,6 +97,13 @@ const message = useMessage()
 const authStore = useAuthStore()
 
 const { novel, chapters, loading, error, fetchNovel } = useNovel(novelId)
+// A tag named like one of the categories would only repeat it.
+const visibleTags = computed(() => {
+  const n = novel.value
+  if (!n) return []
+  const categoryNames = new Set((n.categories ?? []).map(c => c.name))
+  return (n.tags ?? []).filter(t => !categoryNames.has(t.name))
+})
 const { addToBookshelf } = useBookshelf()
 const { readDb } = useLocalDb()
 const addingBookshelf = ref(false)
@@ -117,7 +124,7 @@ const resume = computed(() => {
   if (!p) return null
   const ch = chapters.value.find(c => c.id === p.chapter_id)
   if (!ch) return null
-  return { chapterId: ch.id, paragraph: p.paragraph_index ?? 0, title: `第${ch.chapter_number}章 ${ch.title}` }
+  return { chapterId: ch.id, paragraph: p.paragraph_index ?? 0, title: chapterLabel(ch.chapter_number, ch.title) }
 })
 
 useHead({ title: computed(() => novel.value ? `${novel.value.title} — Palimpsest` : 'Palimpsest') })
