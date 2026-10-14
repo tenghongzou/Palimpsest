@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../reader/presentation/providers/reader_provider.dart';
 import '../../../reader/presentation/widgets/reading_settings_panel.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class ReadingSettingsPage extends ConsumerStatefulWidget {
   const ReadingSettingsPage({super.key});
@@ -25,11 +26,11 @@ class _ReadingSettingsPageState extends ConsumerState<ReadingSettingsPage> {
     final theme = AppTheme.readerThemes[settings.theme] ?? AppTheme.readerThemes['white']!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('閱讀設定'),
+        title: Text(context.l10n.readingSettings),
         actions: [
           TextButton(
             onPressed: () => ref.read(readerSettingsProvider.notifier).resetToDefaults(),
-            child: const Text('恢復預設'),
+            child: Text(context.l10n.readingSettingsReset),
           ),
         ],
       ),
@@ -40,7 +41,7 @@ class _ReadingSettingsPageState extends ConsumerState<ReadingSettingsPage> {
             padding: EdgeInsets.symmetric(horizontal: settings.margin.toDouble(), vertical: 16),
             color: theme.background,
             child: Text(
-              '　　海霧終年不散的港口，燈塔看守人每晚都會收到一封沒有寄件人的信。',
+              '　　${context.l10n.readingSettingsPreview}',
               style: TextStyle(
                 color: theme.text,
                 fontSize: settings.fontSize.toDouble(),

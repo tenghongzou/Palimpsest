@@ -19,10 +19,19 @@ export interface ChapterImportOptions {
   is_free?: boolean
 }
 
+/** A problem found in the input, as an i18n key (`admin.import.errors.*`) with its parameters. */
+export interface ImportProblem {
+  key: string
+  params?: Record<string, string | number>
+}
+
 export interface ChapterImportResult {
   chapters: ImportedChapter[]
-  errors: string[]
+  errors: ImportProblem[]
 }
+
+const problem = (name: string, params?: ImportProblem['params']): ImportProblem =>
+  ({ key: `admin.import.errors.${name}`, ...(params ? { params } : {}) })
 
 const DIGITS: Record<string, number> = {
   零: 0, 〇: 0, 一: 1, 二: 2, 兩: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9,
@@ -72,13 +81,13 @@ function trimBlankLines(lines: string[]): string {
 
 function parseText(text: string, opts: ChapterImportOptions): ChapterImportResult {
   const chapters: ImportedChapter[] = []
-  const errors: string[] = []
+  const errors: ImportProblem[] = []
   let current: { title: string, number: number, lines: string[] } | null = null
 
   const flush = () => {
     if (!current) return
     const content = trimBlankLines(current.lines)
-    if (!content) errors.push(`「${current.title}」沒有內容`)
+    if (!content) errors.push(problem('noContent', { title: current.title }))
     chapters.push({
       title: current.title.slice(0, 200),
       content,
@@ -100,20 +109,20 @@ function parseText(text: string, opts: ChapterImportOptions): ChapterImportResul
   }
   flush()
 
-  if (chapters.length === 0) errors.push('找不到章節標題（例如「第一章 標題」或「Chapter 1」）')
+  if (chapters.length === 0) errors.push(problem('noHeadings'))
   return { chapters, errors }
 }
 
 function parseJson(text: string, opts: ChapterImportOptions): ChapterImportResult {
-  const errors: string[] = []
+  const errors: ImportProblem[] = []
   let data: unknown
   try {
     data = JSON.parse(text)
   }
   catch {
-    return { chapters: [], errors: ['JSON 格式錯誤'] }
+    return { chapters: [], errors: [problem('invalidJson')] }
   }
-  if (!Array.isArray(data)) return { chapters: [], errors: ['JSON 必須是章節陣列'] }
+  if (!Array.isArray(data)) return { chapters: [], errors: [problem('notArray')] }
 
   let next = opts.startNumber ?? 1
   const chapters: ImportedChapter[] = []
@@ -125,8 +134,8 @@ function parseJson(text: string, opts: ChapterImportOptions): ChapterImportResul
       ? row.chapter_number
       : next
     next = number + 1
-    if (!title) errors.push(`第 ${i + 1} 筆缺少 title`)
-    if (!content) errors.push(`第 ${i + 1} 筆缺少 content`)
+    if (!title) errors.push(problem('missingTitle', { n: i + 1 }))
+    if (!content) errors.push(problem('missingContent', { n: i + 1 }))
     chapters.push({
       title: title.slice(0, 200),
       content,
@@ -135,25 +144,25 @@ function parseJson(text: string, opts: ChapterImportOptions): ChapterImportResul
       is_free: typeof row.is_free === 'boolean' ? row.is_free : opts.is_free,
     })
   })
-  if (chapters.length === 0) errors.push('沒有任何章節')
+  if (chapters.length === 0) errors.push(problem('noChapters'))
   return { chapters, errors }
 }
 
 /** Parses pasted text or JSON into chapters and lists any problems found. */
 export function parseChapterImport(input: string, opts: ChapterImportOptions = {}): ChapterImportResult {
   const text = input.trim()
-  if (!text) return { chapters: [], errors: ['請貼上章節內容'] }
+  if (!text) return { chapters: [], errors: [problem('empty')] }
 
   const result = text.startsWith('[') ? parseJson(text, opts) : parseText(text, opts)
 
   const seen = new Set<number>()
   for (const ch of result.chapters) {
-    if (ch.chapter_number < 1) result.errors.push(`章節編號必須大於 0：${ch.title}`)
-    if (seen.has(ch.chapter_number)) result.errors.push(`章節編號重複：${ch.chapter_number}`)
+    if (ch.chapter_number < 1) result.errors.push(problem('invalidNumber', { title: ch.title }))
+    if (seen.has(ch.chapter_number)) result.errors.push(problem('duplicateNumber', { n: ch.chapter_number }))
     seen.add(ch.chapter_number)
   }
   if (result.chapters.length > MAX_IMPORT_CHAPTERS) {
-    result.errors.push(`一次最多匯入 ${MAX_IMPORT_CHAPTERS} 章（目前 ${result.chapters.length} 章）`)
+    result.errors.push(problem('tooMany', { max: MAX_IMPORT_CHAPTERS, count: result.chapters.length }))
   }
   return result
 }

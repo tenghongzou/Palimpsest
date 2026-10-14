@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/l10n.dart';
 import '../network/api_error.dart';
 import '../network/paginated.dart';
 
@@ -94,9 +95,9 @@ class PagedListView<T> extends StatelessWidget {
     if (state.items.isEmpty && state.error != null) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('載入失敗：${describeError(state.error!)}'),
+          Text(context.l10n.commonLoadFailed(describeError(state.error!, context.l10n))),
           const SizedBox(height: 8),
-          OutlinedButton(onPressed: onRefresh, child: const Text('重試')),
+          OutlinedButton(onPressed: onRefresh, child: Text(context.l10n.commonRetry)),
         ]),
       );
     }
@@ -114,7 +115,7 @@ class PagedListView<T> extends StatelessWidget {
           if (showEmpty) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: empty ?? const Text('目前沒有內容')),
+              child: Center(child: empty ?? Text(context.l10n.commonEmpty)),
             );
           }
           if (i < state.items.length) return itemBuilder(context, state.items[i], i);
@@ -134,12 +135,12 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.error != null) {
-      return Center(child: TextButton(onPressed: onLoadMore, child: const Text('載入失敗，點此重試')));
+      return Center(child: TextButton(onPressed: onLoadMore, child: Text(context.l10n.commonLoadMoreFailed)));
     }
     if (!state.hasMore) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: Text('沒有更多了', style: TextStyle(color: Colors.grey))),
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(child: Text(context.l10n.commonNoMore, style: const TextStyle(color: Colors.grey))),
       );
     }
     if (!state.isLoading) WidgetsBinding.instance.addPostFrameCallback((_) => onLoadMore());

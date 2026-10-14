@@ -56,6 +56,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Generates lib/l10n/app_localizations*.dart from the ARB files (l10n.yaml).
+  generate: true
   assets:
     - assets/
 

@@ -24,16 +24,16 @@
         v-if="commentCounts[i]"
         type="button"
         class="para-comment para-comment--count"
-        :aria-label="`第 ${i + 1} 段有 ${commentCounts[i]} 則評論，開啟段落評論`"
-        :title="`${commentCounts[i]} 則段落評論`"
+        :aria-label="$t('reader.paragraph.countAria', { n: i + 1, count: commentCounts[i] })"
+        :title="$t('reader.paragraph.countTitle', { count: commentCounts[i] }, commentCounts[i])"
         data-testid="paragraph-comment-count"
         @click.stop="emit('openParagraphComments', i)"
       >{{ commentCounts[i] > 99 ? '99+' : commentCounts[i] }}</button><button
         v-else
         type="button"
         class="para-comment para-comment--add"
-        :aria-label="`評論第 ${i + 1} 段`"
-        title="評論這一段"
+        :aria-label="$t('reader.paragraph.addAria', { n: i + 1 })"
+        :title="$t('reader.paragraph.addTitle')"
         data-testid="paragraph-comment-add"
         @click.stop="emit('openParagraphComments', i)"
       ><n-icon :component="ChatbubbleOutline" aria-hidden="true" /></button></template></p>

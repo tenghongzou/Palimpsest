@@ -8,9 +8,9 @@
         <div class="flex-1 min-w-0">
           <h2 class="text-xl font-bold" data-testid="profile-nickname">{{ user?.nickname || user?.username }}</h2>
           <div class="text-gray-500">@{{ user?.username }}</div>
-          <div class="text-sm text-gray-400 mt-1 whitespace-pre-wrap">{{ user?.bio || '這個人很懶，什麼都沒寫' }}</div>
+          <div class="text-sm text-gray-400 mt-1 whitespace-pre-wrap">{{ user?.bio || $t('profile.noBio') }}</div>
         </div>
-        <n-button @click="navigateTo('/profile/settings')">編輯資料</n-button>
+        <n-button @click="navigateTo('/profile/settings')">{{ $t('profile.editProfile') }}</n-button>
       </div>
     </n-card>
 
@@ -23,12 +23,12 @@
       </div>
     </n-spin>
 
-    <n-card title="閱讀統計">
+    <n-card :title="$t('profile.stats.title')">
       <template #header-extra>
         <n-radio-group v-model:value="period" size="small">
-          <n-radio-button value="daily">近 7 天</n-radio-button>
-          <n-radio-button value="weekly">近 8 週</n-radio-button>
-          <n-radio-button value="monthly">近 12 個月</n-radio-button>
+          <n-radio-button value="daily">{{ $t('profile.stats.last7Days') }}</n-radio-button>
+          <n-radio-button value="weekly">{{ $t('profile.stats.last8Weeks') }}</n-radio-button>
+          <n-radio-button value="monthly">{{ $t('profile.stats.last12Months') }}</n-radio-button>
         </n-radio-group>
       </template>
       <div v-if="stats?.buckets?.length" data-testid="reading-chart">
@@ -37,7 +37,7 @@
             v-for="bucket in stats.buckets"
             :key="bucket.start"
             class="flex-1 flex flex-col items-center justify-end h-full"
-            :title="`${bucketLabel(bucket.start)}：${bucket.chapters} 章、${formatWordCount(bucket.words)}、${formatDuration(bucket.seconds)}`"
+            :title="$t('profile.stats.barTitle', { period: bucketLabel(bucket.start), chapters: $t('ranking.metrics.chapters', { n: bucket.chapters }, bucket.chapters), words: formatWordCount(bucket.words), time: formatDuration(bucket.seconds) })"
           >
             <span class="text-xs text-gray-400 mb-1">{{ bucket.chapters || '' }}</span>
             <div class="w-full max-w-10 bg-blue-400 rounded-t" :style="{ height: `${barHeight(bucket.words)}%` }" />
@@ -48,10 +48,10 @@
             {{ bucketLabel(bucket.start) }}
           </div>
         </div>
-        <div class="text-xs text-gray-400 mt-2">長條高度為閱讀字數，上方數字為閱讀章數。</div>
+        <div class="text-xs text-gray-400 mt-2">{{ $t('profile.stats.legend') }}</div>
         <n-table size="small" class="mt-4" :single-line="false">
           <thead>
-            <tr><th>期間</th><th>章數</th><th>字數</th><th>時間</th></tr>
+            <tr><th>{{ $t('profile.stats.period') }}</th><th>{{ $t('profile.stats.chapters') }}</th><th>{{ $t('profile.stats.words') }}</th><th>{{ $t('profile.stats.time') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="bucket in [...stats.buckets].reverse()" :key="bucket.start">
@@ -63,22 +63,22 @@
           </tbody>
         </n-table>
       </div>
-      <n-empty v-else-if="!loadingStats" description="還沒有閱讀紀錄" />
+      <n-empty v-else-if="!loadingStats" :description="$t('profile.stats.empty')" />
     </n-card>
 
     <n-card>
       <div class="divide-y">
         <NuxtLink to="/profile/history" class="flex items-center justify-between py-3">
-          <span>閱讀紀錄</span><span class="text-gray-400">›</span>
+          <span>{{ $t('header.user.history') }}</span><span class="text-gray-400">›</span>
         </NuxtLink>
         <NuxtLink to="/profile/bookmarks" class="flex items-center justify-between py-3">
-          <span>我的書籤</span><span class="text-gray-400">›</span>
+          <span>{{ $t('header.user.bookmarks') }}</span><span class="text-gray-400">›</span>
         </NuxtLink>
         <NuxtLink to="/bookshelf" class="flex items-center justify-between py-3">
-          <span>我的書架</span><span class="text-gray-400">›</span>
+          <span>{{ $t('header.user.bookshelf') }}</span><span class="text-gray-400">›</span>
         </NuxtLink>
         <NuxtLink to="/profile/settings" class="flex items-center justify-between py-3">
-          <span>帳號與閱讀設定</span><span class="text-gray-400">›</span>
+          <span>{{ $t('profile.accountAndReading') }}</span><span class="text-gray-400">›</span>
         </NuxtLink>
       </div>
     </n-card>
@@ -89,10 +89,11 @@
 import { NCard, NAvatar, NButton, NSpin, NRadioGroup, NRadioButton, NTable, NEmpty, useMessage } from 'naive-ui'
 import type { ApiResponse } from '~/utils/api'
 import type { ApiReadingStats } from '~/types/models'
-import { formatDuration, formatWordCount } from '~/utils/format'
 
 definePageMeta({ middleware: 'auth' })
-useHead({ title: '個人中心 — Palimpsest' })
+
+const { t, formatDuration, formatWordCount, formatNumber } = useFormat()
+useHead({ title: () => t('header.user.profile') })
 
 const authStore = useAuthStore()
 const message = useMessage()
@@ -106,13 +107,13 @@ const loadingStats = ref(false)
 const totals = computed(() => {
   const s = stats.value
   return [
-    { label: '累計閱讀', value: formatWordCount(s?.total_read_words ?? user.value?.total_read_words ?? 0) },
-    { label: '閱讀時間', value: formatDuration(s?.total_read_seconds ?? user.value?.total_read_seconds ?? 0) },
-    { label: '讀過章節', value: s?.chapters_read ?? 0 },
-    { label: '讀過小說', value: s?.novels_read ?? 0 },
-    { label: '書架藏書', value: s?.bookshelf_count ?? 0 },
-    { label: '書籤', value: s?.bookmark_count ?? 0 },
-    { label: '書評', value: s?.review_count ?? 0 },
+    { label: t('profile.totals.words'), value: formatWordCount(s?.total_read_words ?? user.value?.total_read_words ?? 0) },
+    { label: t('profile.totals.time'), value: formatDuration(s?.total_read_seconds ?? user.value?.total_read_seconds ?? 0) },
+    { label: t('profile.totals.chapters'), value: formatNumber(s?.chapters_read ?? 0) },
+    { label: t('profile.totals.novels'), value: formatNumber(s?.novels_read ?? 0) },
+    { label: t('profile.totals.bookshelf'), value: formatNumber(s?.bookshelf_count ?? 0) },
+    { label: t('profile.totals.bookmarks'), value: formatNumber(s?.bookmark_count ?? 0) },
+    { label: t('profile.totals.reviews'), value: formatNumber(s?.review_count ?? 0) },
   ]
 })
 
@@ -128,7 +129,7 @@ function bucketLabel(start: string) {
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   if (period.value === 'monthly') return `${d.getFullYear()}/${mm}`
-  if (period.value === 'weekly') return `${mm}/${dd} 起`
+  if (period.value === 'weekly') return t('profile.stats.weekOf', { date: `${mm}/${dd}` })
   return `${mm}/${dd}`
 }
 
@@ -139,7 +140,7 @@ async function loadStats() {
     stats.value = res.data
   }
   catch (e) {
-    message.error(describeError(e, {}, '無法載入閱讀統計'))
+    message.error(describeError(t, e, {}, t('profile.stats.loadFailed')))
   }
   finally {
     loadingStats.value = false

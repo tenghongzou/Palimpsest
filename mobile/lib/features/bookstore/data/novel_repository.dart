@@ -10,31 +10,14 @@ final novelRepositoryProvider = Provider<NovelRepository>((ref) {
 
 typedef PaginatedNovels = Paginated<Novel>;
 
-/// `sort_by` values of GET /novels with their labels.
-const novelSortOptions = <String, String>{
-  'latest': '最近更新',
-  'popular': '人氣',
-  'rating': '評分',
-  'words': '字數',
-  'favorites': '收藏',
-  'new': '新書',
-};
+/// `sort_by` values of GET /novels (labels: see bookstore_labels.dart).
+const novelSortOptions = ['latest', 'popular', 'rating', 'words', 'favorites', 'new'];
 
-/// Ranking types of GET /rankings/{type} with their labels.
-const rankingTypes = <String, String>{
-  'views': '人氣榜',
-  'favorites': '收藏榜',
-  'rating': '評分榜',
-  'latest': '更新榜',
-  'completed': '完本榜',
-};
+/// Ranking types of GET /rankings/{type}.
+const rankingTypes = ['views', 'favorites', 'rating', 'latest', 'completed'];
 
-const rankingPeriods = <String, String>{
-  'daily': '日榜',
-  'weekly': '週榜',
-  'monthly': '月榜',
-  'all': '總榜',
-};
+/// Ranking periods of GET /rankings/{type}.
+const rankingPeriods = ['daily', 'weekly', 'monthly', 'all'];
 
 class NovelRepository {
   final ApiClient _apiClient;

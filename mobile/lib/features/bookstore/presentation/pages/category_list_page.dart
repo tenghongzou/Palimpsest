@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
 import '../../data/novel_repository.dart';
 import '../providers/bookstore_provider.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class CategoryListPage extends ConsumerWidget {
   const CategoryListPage({super.key});
@@ -15,10 +16,10 @@ class CategoryListPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('分類')),
+      appBar: AppBar(title: Text(context.l10n.categories)),
       body: categories.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('載入失敗：${describeError(e)}')),
+        error: (e, _) => Center(child: Text(context.l10n.commonLoadFailed(describeError(e, context.l10n)))),
         data: (list) => RefreshIndicator(
           onRefresh: () => ref.refresh(categoriesProvider.future),
           child: ListView.separated(

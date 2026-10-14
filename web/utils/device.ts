@@ -63,16 +63,29 @@ function detectOs(ua: string): string | null {
   return null
 }
 
+/** Names for browsers that cannot be identified, in the UI language at registration time. */
+export interface DeviceNameLabels {
+  /** e.g. "瀏覽器 on Windows" */
+  browserOn: (os: string) => string
+  /** e.g. "網頁瀏覽器" */
+  generic: string
+}
+
+export const ENGLISH_DEVICE_LABELS: DeviceNameLabels = {
+  browserOn: os => `Browser on ${os}`,
+  generic: 'Web browser',
+}
+
 /** A friendly name such as "Chrome on Windows" from a user agent string. */
-export function deviceNameFromUserAgent(ua: string | null | undefined): string {
+export function deviceNameFromUserAgent(ua: string | null | undefined, labels: DeviceNameLabels = ENGLISH_DEVICE_LABELS): string {
   const s = ua || ''
   const browser = detectBrowser(s)
   const os = detectOs(s)
   let name: string
   if (browser && os) name = `${browser} on ${os}`
   else if (browser) name = browser
-  else if (os) name = `瀏覽器 on ${os}`
-  else name = '網頁瀏覽器'
+  else if (os) name = labels.browserOn(os)
+  else name = labels.generic
   return name.slice(0, MAX_NAME_LENGTH)
 }
 

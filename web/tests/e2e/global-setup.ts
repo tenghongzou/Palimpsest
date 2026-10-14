@@ -1,6 +1,6 @@
 import { chromium, type FullConfig } from '@playwright/test'
 import fs from 'node:fs'
-import { ADMIN, ADMIN_STATE, AUTH_DIR, USER_INFO, USER_STATE, loginViaUi, uniqueSuffix, type UserInfo } from './helpers'
+import { ADMIN, ADMIN_STATE, AUTH_DIR, USER_INFO, USER_STATE, loginViaUi, uniqueSuffix, waitForHydration, type UserInfo } from './helpers'
 
 // Creates one admin session and one fresh reader session for all specs, so the
 // rate limited auth endpoints are hit only a couple of times per run.
@@ -9,14 +9,15 @@ export default async function globalSetup(config: FullConfig) {
   fs.mkdirSync(AUTH_DIR, { recursive: true })
   const browser = await chromium.launch(launchOptions)
   try {
-    const adminPage = await browser.newPage({ baseURL })
+    const adminPage = await browser.newPage({ baseURL, locale: 'zh-TW' })
     await loginViaUi(adminPage, ADMIN.login, ADMIN.password)
     await adminPage.context().storageState({ path: ADMIN_STATE })
 
     const suffix = uniqueSuffix()
     const user: UserInfo = { username: `e2e${suffix}`, email: `e2e${suffix}@example.com`, password: 'e2e-password-1' }
-    const page = await browser.newPage({ baseURL })
+    const page = await browser.newPage({ baseURL, locale: 'zh-TW' })
     await page.goto('/register')
+    await waitForHydration(page)
     await page.getByPlaceholder('4-20 個字元').fill(user.username)
     await page.getByPlaceholder('顯示名稱').fill(`讀者${suffix}`)
     await page.getByPlaceholder('your@email.com').fill(user.email)

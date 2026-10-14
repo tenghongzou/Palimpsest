@@ -16,12 +16,21 @@ import '../../../community/presentation/widgets/comments_sheet.dart';
 import '../../data/bookmark_repository.dart';
 import '../../domain/entities/chapter.dart';
 import '../../domain/entities/chapter_translation.dart';
+import '../../domain/entities/reading_settings.dart';
 import '../providers/chapter_provider.dart';
 import '../providers/reader_provider.dart';
 import '../widgets/bookmark_list.dart';
+import '../widgets/page_turn_view.dart';
+import '../widgets/reader_pagination.dart';
 import '../widgets/reading_settings_panel.dart';
 import '../widgets/toc_sheet.dart';
 import '../widgets/translate_sheet.dart';
+import '../../../../core/l10n/l10n.dart';
+
+/// Route `extra` for a chapter change made by turning past a chapter's edge
+/// in page mode: the turn animation already showed the new chapter, so the
+/// route swaps without a transition of its own.
+const seamlessChapterTurn = 'reader-seamless-chapter-turn';
 
 class ReaderPage extends ConsumerStatefulWidget {
   final String chapterId;
@@ -33,7 +42,17 @@ class ReaderPage extends ConsumerStatefulWidget {
   /// notification).
   final String? focusCommentId;
 
-  const ReaderPage({super.key, required this.chapterId, this.initialParagraph, this.focusCommentId});
+  /// Open at the chapter's last page in page mode (turning back from the
+  /// next chapter).
+  final bool startAtEnd;
+
+  const ReaderPage({
+    super.key,
+    required this.chapterId,
+    this.initialParagraph,
+    this.focusCommentId,
+    this.startAtEnd = false,
+  });
 
   @override
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
@@ -67,6 +86,22 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   /// Whether [ReaderPage.focusCommentId] was already shown.
   bool _focusShown = false;
 
+  // Page mode.
+  final _turns = PageTurnController();
+
+  /// Whether the last build showed page mode.
+  bool _pageModeActive = false;
+  Pagination? _pagination;
+  Object? _paginationKey;
+  int _page = 0;
+
+  /// Where the current page starts; kept when pages are recomputed (font
+  /// size, translation, rotation) so the reader stays at the same text.
+  PageAnchor _anchor = (0, 0);
+  late bool _openAtEnd = widget.startAtEnd;
+  final _neighbourPaginations = <String, (Object, Pagination)>{};
+  final _prefetched = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +116,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     ref.listenManual<bool>(readerSettingsProvider.select((s) => s.keepScreenOn), (_, keep) {
       _setWakelock(keep);
     }, fireImmediately: true);
+    ref.listenManual<bool>(readerSettingsProvider.select((s) => s.readingMode == 'page'), _onModeChanged);
+    _anchor = (widget.initialParagraph ?? 0, 0);
+  }
+
+  /// Keeps the reading position when switching between scroll and page mode.
+  void _onModeChanged(bool? before, bool pageMode) {
+    if (before == pageMode || _chapter == null) return;
+    // Still showing the previous mode here.
+    final paragraph = _currentParagraph();
+    _pagination = null;
+    _paginationKey = null;
+    if (pageMode) {
+      _anchor = (paragraph, 0);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _jumpToParagraph(paragraph);
+      });
+    }
   }
 
   /// Keeps the screen on while the reader is open, if the user wants that.
@@ -191,45 +244,71 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
 
   /// In page mode the left and right thirds of the screen turn pages and the
   /// middle shows the toolbar; in scroll mode any tap shows the toolbar.
-  void _onContentTap(Chapter chapter, TapUpDetails details, bool pageMode, bool autoChapter) {
+  void _onContentTap(TapUpDetails details, bool pageMode) {
     if (_showToolbar || !pageMode) {
       _toggleToolbar();
       return;
     }
     final x = details.globalPosition.dx / MediaQuery.of(context).size.width;
     if (x < 1 / 3) {
-      _pageBy(chapter, -1, autoChapter);
+      _turns.turn(-1);
     } else if (x > 2 / 3) {
-      _pageBy(chapter, 1, autoChapter);
+      _turns.turn(1);
     } else {
       _toggleToolbar();
     }
   }
 
-  /// Scrolls one screen, keeping a little overlap; at either end of the
-  /// chapter it moves to the neighbouring chapter when auto-chapter is on.
-  void _pageBy(Chapter chapter, int direction, bool autoChapter) {
-    if (!_scroll.hasClients) return;
-    final position = _scroll.position;
-    if (direction > 0 && position.pixels >= position.maxScrollExtent - 4) {
-      final next = chapter.nextChapter;
-      if (autoChapter && next != null) _openChapter(next.id);
-      return;
+  /// A page turn within the chapter finished.
+  void _onPageChanged(Chapter chapter, int page) {
+    final pagination = _pagination;
+    if (pagination == null || page >= pagination.length) return;
+    setState(() {
+      _page = page;
+      _anchor = pagination.pages[page].anchor;
+    });
+    _lastParagraph = _currentParagraph();
+    _lastFraction = _scrollFraction();
+    _idleTimer?.cancel();
+    _idleTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && DateTime.now().difference(_lastReport) >= _reportInterval) _report();
+    });
+    _prefetchNeighbours(chapter);
+  }
+
+  /// Loads the neighbouring chapter when nearing either end, so turning
+  /// past the edge can show its first (or last) page right away.
+  void _prefetchNeighbours(Chapter chapter) {
+    final pagination = _pagination;
+    if (pagination == null || !ref.read(readerSettingsProvider).autoChapter) return;
+    final targets = [
+      if (_page >= pagination.length - 2) chapter.nextChapter?.id,
+      if (_page <= 1) chapter.prevChapter?.id,
+    ];
+    for (final id in targets.whereType<String>()) {
+      if (!_prefetched.add(id)) continue;
+      ref.listenManual<AsyncValue<Chapter>>(chapterProvider(id), (before, next) {
+        // Rebuild the neighbour's page once it loads.
+        if (mounted && before?.isLoading == true && !next.isLoading) setState(() {});
+      });
     }
-    if (direction < 0 && position.pixels <= position.minScrollExtent + 4) {
-      final prev = chapter.prevChapter;
-      if (autoChapter && prev != null) _openChapter(prev.id);
-      return;
-    }
-    final target = (position.pixels + direction * (position.viewportDimension - 80))
-        .clamp(position.minScrollExtent, position.maxScrollExtent);
-    _scroll.animateTo(target, duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+  }
+
+  /// Turned past the chapter's edge onto the neighbouring chapter's page.
+  void _leaveChapter(Chapter chapter, int direction) {
+    final target = direction > 0 ? chapter.nextChapter : chapter.prevChapter;
+    if (target != null) _openChapter(target.id, seamless: true, atEnd: direction < 0);
   }
 
   // --------------------------------------------------------------- position
 
   /// Index of the first paragraph visible at the top of the screen.
   int _currentParagraph() {
+    final pagination = _pagination;
+    if (_pageModeActive && pagination != null) {
+      final page = _page.clamp(0, pagination.length - 1);
+      return pagination.pages[page].firstParagraph.clamp(0, math.max(0, _paragraphKeys.length - 1));
+    }
     final topInset = MediaQuery.of(context).padding.top + 56;
     for (var i = 0; i < _paragraphKeys.length; i++) {
       final box = _paragraphKeys[i].currentContext?.findRenderObject() as RenderBox?;
@@ -241,6 +320,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   }
 
   double _scrollFraction() {
+    final pagination = _pagination;
+    if (_pageModeActive && pagination != null) {
+      return pagination.length <= 1 ? 1 : (_page / (pagination.length - 1)).clamp(0.0, 1.0);
+    }
     if (!_scroll.hasClients) return 0;
     final max = _scroll.position.maxScrollExtent;
     if (max <= 0) return 1;
@@ -249,6 +332,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
 
   void _jumpToParagraph(int index) {
     if (index < 0 || index >= _paragraphKeys.length) return;
+    if (_pageModeActive) {
+      final pagination = _pagination;
+      setState(() {
+        _anchor = (index, 0);
+        if (pagination != null) _page = pagination.pageFor(_anchor);
+      });
+      return;
+    }
     final ctx = _paragraphKeys[index].currentContext;
     if (ctx != null) Scrollable.ensureVisible(ctx, alignment: 0.05);
   }
@@ -298,11 +389,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
 
   // ---------------------------------------------------------------- actions
 
-  void _openChapter(String chapterId, {int? paragraph}) {
+  /// Replaces this page with [chapterId]. A [seamless] change follows a
+  /// page-turn animation that already showed the chapter, so the route swaps
+  /// without a transition; [atEnd] opens at its last page.
+  void _openChapter(String chapterId, {int? paragraph, bool seamless = false, bool atEnd = false}) {
     _report();
     _leaving = true;
-    final location = paragraph != null && paragraph > 0 ? '/read/$chapterId?p=$paragraph' : '/read/$chapterId';
-    context.pushReplacement(location);
+    // A failed prefetch (e.g. offline) must not stick: load it afresh.
+    if (ref.read(chapterProvider(chapterId)).hasError) ref.invalidate(chapterProvider(chapterId));
+    final query = [
+      if (paragraph != null && paragraph > 0) 'p=$paragraph',
+      if (atEnd) 'at=end',
+    ];
+    final location = query.isEmpty ? '/read/$chapterId' : '/read/$chapterId?${query.join('&')}';
+    context.pushReplacement(location, extra: seamless ? seamlessChapterTurn : null);
   }
 
   void _close(Chapter? chapter) {
@@ -324,9 +424,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
           );
       ref.invalidate(bookmarksProvider(chapter.novelId));
       ref.invalidate(bookmarksProvider(null));
-      if (mounted) showSnack(context, '已加入書籤（第 ${paragraph + 1} 段）');
+      if (mounted) showSnack(context, context.l10n.readerBookmarkAdded(paragraph + 1));
     } catch (e) {
-      if (mounted) showSnack(context, '加入書籤失敗');
+      if (mounted) showSnack(context, context.l10n.readerBookmarkFailed);
     }
   }
 
@@ -342,7 +442,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
               child: Row(children: [
-                Text('書籤', style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text(context.l10n.bookmarks, style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 const Spacer(),
                 IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(sheetContext)),
               ]),
@@ -385,6 +485,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     final settings = ref.watch(readerSettingsProvider);
     final theme = AppTheme.readerThemes[settings.theme] ?? AppTheme.readerThemes['white']!;
     final dim = (100 - settings.brightness.clamp(10, 100)) / 100 * 0.7;
+    final pageMode = settings.readingMode == 'page';
+    _pageModeActive = pageMode && chapterAsync.hasValue;
 
     return Scaffold(
       backgroundColor: theme.background,
@@ -398,13 +500,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
           children: [
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapUp: (details) => _onContentTap(chapter, details, settings.readingMode == 'page', settings.autoChapter),
-              child: NotificationListener<ScrollNotification>(
-                onNotification: _onScroll,
-                child: _buildContent(chapter, settings.fontSize.toDouble(), settings.lineHeight,
-                    settings.letterSpacing, settings.margin.toDouble(), theme),
-              ),
+              onTapUp: (details) => _onContentTap(details, pageMode),
+              child: pageMode
+                  ? _buildPaged(chapter, settings, theme)
+                  : NotificationListener<ScrollNotification>(
+                      onNotification: _onScroll,
+                      child: _buildContent(chapter, settings.fontSize.toDouble(), settings.lineHeight,
+                          settings.letterSpacing, settings.margin.toDouble(), theme),
+                    ),
             ),
+
             if (dim > 0)
               IgnorePointer(child: Container(color: Colors.black.withValues(alpha: dim))),
             if (_showToolbar) ..._buildToolbars(chapter),
@@ -430,11 +535,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(offline ? '目前離線，且此章節尚未下載' : '載入失敗：${describeError(e)}', textAlign: TextAlign.center),
+                    Text(
+                      offline
+                          ? context.l10n.readerOfflineNotDownloaded
+                          : context.l10n.commonLoadFailed(describeError(e, context.l10n)),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 12),
                     OutlinedButton(
                       onPressed: () => ref.invalidate(chapterProvider(widget.chapterId)),
-                      child: const Text('重試'),
+                      child: Text(context.l10n.commonRetry),
                     ),
                   ],
                 ),
@@ -474,7 +584,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
             Center(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text('離線模式：顯示的是本機快取的章節', style: subtle),
+                child: Text(context.l10n.readerOfflineCopy, style: subtle),
               ),
             ),
           if (translation != null)
@@ -482,8 +592,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text('正在顯示譯文（${translationLanguages[translation.targetLang] ?? translation.targetLang}）', style: subtle),
-                  TextButton(onPressed: () => setState(() => _translation = null), child: const Text('顯示原文')),
+                  Text(
+                    context.l10n.readerShowingTranslation(
+                        translationLanguages[translation.targetLang] ?? translation.targetLang),
+                    style: subtle,
+                  ),
+                  TextButton(onPressed: () => setState(() => _translation = null), child: Text(context.l10n.readerShowOriginal)),
                 ]),
               ),
             ),
@@ -509,7 +623,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
             child: TextButton.icon(
               onPressed: () => _showComments(chapter),
               icon: Icon(Icons.chat_bubble_outline, color: theme.text, size: 18),
-              label: Text('本章留言', style: TextStyle(color: theme.text)),
+              label: Text(context.l10n.chapterComments, style: TextStyle(color: theme.text)),
             ),
           ),
         ],
@@ -554,14 +668,316 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
       children: [
         TextButton(
           onPressed: prev == null ? null : () => _openChapter(prev.id),
-          child: Text(prev == null ? '已是第一章' : '上一章', style: TextStyle(color: prev == null ? disabled : color)),
+          child: Text(prev == null ? context.l10n.readerFirstChapter : context.l10n.readerPrevChapter, style: TextStyle(color: prev == null ? disabled : color)),
         ),
         TextButton(
           onPressed: next == null ? null : () => _openChapter(next.id),
-          child: Text(next == null ? '已是最新章' : '下一章', style: TextStyle(color: next == null ? disabled : color)),
+          child: Text(next == null ? context.l10n.readerLatestChapter : context.l10n.readerNextChapter, style: TextStyle(color: next == null ? disabled : color)),
         ),
       ],
     );
+  }
+
+  // ------------------------------------------------------------- page mode
+
+  /// Measures and styles shared by every page of the current layout.
+  _PageLayout _pageLayout(BuildContext context, BoxConstraints constraints, ReadingSettings settings, ReaderTheme theme) {
+    final mq = MediaQuery.of(context);
+    final side = settings.margin.toDouble() + 16;
+    final padding = EdgeInsets.fromLTRB(side, mq.padding.top + 36, side, mq.padding.bottom + 36);
+    final fontSize = settings.fontSize.toDouble();
+    var base = DefaultTextStyle.of(context).style;
+    if (mq.boldText) base = base.merge(const TextStyle(fontWeight: FontWeight.bold));
+    final text = TextStyle(fontSize: fontSize, height: settings.lineHeight, letterSpacing: settings.letterSpacing, color: theme.text);
+    final title = TextStyle(fontSize: fontSize + 4, fontWeight: FontWeight.bold, color: theme.text);
+    final subtle = TextStyle(fontSize: 12, color: theme.text.withValues(alpha: 0.6));
+    return _PageLayout(
+      padding: padding,
+      size: Size(
+        math.max(1, constraints.maxWidth - padding.horizontal),
+        math.max(1, constraints.maxHeight - padding.vertical),
+      ),
+      textStyle: text,
+      titleStyle: title,
+      subtle: subtle,
+      measureText: base.merge(text),
+      measureTitle: base.merge(title),
+      measureSubtle: base.merge(subtle),
+      textScaler: mq.textScaler,
+      locale: Localizations.maybeLocaleOf(context),
+      textDirection: Directionality.of(context),
+      textHeightBehavior: DefaultTextHeightBehavior.maybeOf(context) ?? DefaultTextStyle.of(context).textHeightBehavior,
+      theme: theme,
+      settings: settings,
+    );
+  }
+
+  /// Pages for [chapter] (or its [translation]) in [layout], recomputed only
+  /// when something that moves page breaks changed.
+  Pagination _paginate(_PageLayout layout, Chapter chapter, ChapterTranslation? translation, Map<int, int> counts,
+      {required (Object, Pagination)? cached, required void Function(Object, Pagination) store}) {
+    final paragraphs = _paragraphsOf(chapter, translation);
+    final key = (
+      chapter,
+      translation,
+      layout.size,
+      layout.measureText,
+      layout.measureTitle,
+      layout.textScaler,
+      layout.locale,
+      layout.textDirection,
+      counts,
+    );
+    if (cached != null && cached.$1 == key) return cached.$2;
+    final pagination = PaginationSpec(
+      paragraphs: paragraphs,
+      title: translation?.title ?? chapter.title,
+      textStyle: layout.measureText,
+      titleStyle: layout.measureTitle,
+      noticeStyle: layout.measureSubtle,
+      size: layout.size,
+      textScaler: layout.textScaler,
+      locale: layout.locale,
+      textDirection: layout.textDirection,
+      textHeightBehavior: layout.textHeightBehavior,
+      offlineNotice: chapter.fromCache,
+      translationNotice: translation != null,
+      commentCounts: counts,
+    ).paginate();
+    store(key, pagination);
+    return pagination;
+  }
+
+  List<String> _paragraphsOf(Chapter chapter, ChapterTranslation? translation) => translation == null
+      ? chapter.paragraphs
+      : translation.content.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+
+  /// Whether paragraph comments can be shown for [chapter] as displayed.
+  bool _commentable(Chapter chapter, ChapterTranslation? translation) =>
+      !chapter.fromCache &&
+      (translation == null || _paragraphsOf(chapter, translation).length == chapter.paragraphs.length);
+
+  Widget _buildPaged(Chapter chapter, ReadingSettings settings, ReaderTheme theme) {
+    final translation = _translation;
+    final commentable = _commentable(chapter, translation);
+    final counts = commentable
+        ? ref.watch(paragraphCountsProvider(chapter.id)).valueOrNull ?? const <int, int>{}
+        : const <int, int>{};
+    return LayoutBuilder(builder: (context, constraints) {
+      final layout = _pageLayout(context, constraints, settings, theme);
+      final cached = _paginationKey == null || _pagination == null ? null : (_paginationKey!, _pagination!);
+      final pagination = _paginate(layout, chapter, translation, counts,
+          cached: cached, store: (key, _) => _paginationKey = key);
+      if (!identical(pagination, _pagination)) {
+        _pagination = pagination;
+        if (_openAtEnd) {
+          _openAtEnd = false;
+          _page = pagination.length - 1;
+          _anchor = pagination.pages[_page].anchor;
+        } else {
+          _page = pagination.pageFor(_anchor);
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _prefetchNeighbours(chapter);
+        });
+      }
+      return PageTurnView(
+        controller: _turns,
+        page: _page,
+        pageCount: pagination.length,
+        contentKey: pagination,
+        effect: PageTurnEffect.parse(settings.effectivePageAnimation),
+        background: theme.background,
+        canLeave: (direction) =>
+            settings.autoChapter && (direction > 0 ? chapter.nextChapter : chapter.prevChapter) != null,
+        onPageChanged: (page) => _onPageChanged(chapter, page),
+        onLeave: (direction) => _leaveChapter(chapter, direction),
+        pageBuilder: (context, index) {
+          if (index >= 0 && index < pagination.length) {
+            return _buildPage(layout, chapter, translation, pagination, index, counts, commentable);
+          }
+          return _buildNeighbourPage(layout, chapter, index < 0 ? -1 : 1);
+        },
+      );
+    });
+  }
+
+  /// The first page of the next chapter or the last of the previous one,
+  /// shown while turning past this chapter's edge; a loading page until it
+  /// has loaded.
+  Widget _buildNeighbourPage(_PageLayout layout, Chapter chapter, int direction) {
+    final target = direction > 0 ? chapter.nextChapter : chapter.prevChapter;
+    if (target == null) return const SizedBox.shrink();
+    final neighbour = ref.read(chapterProvider(target.id)).valueOrNull;
+    if (neighbour == null) {
+      return Padding(
+        padding: layout.padding,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(target.title, textAlign: TextAlign.center, style: layout.titleStyle),
+              const SizedBox(height: 24),
+              SizedBox.square(
+                dimension: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: layout.theme.text.withValues(alpha: 0.6)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final pagination = _paginate(layout, neighbour, null, const {},
+        cached: _neighbourPaginations[neighbour.id],
+        store: (key, value) => _neighbourPaginations[neighbour.id] = (key, value));
+    final index = direction > 0 ? 0 : pagination.length - 1;
+    return _buildPage(layout, neighbour, null, pagination, index, const {}, false);
+  }
+
+  Widget _buildPage(_PageLayout layout, Chapter chapter, ChapterTranslation? translation, Pagination pagination,
+      int index, Map<int, int> counts, bool commentable) {
+    final page = pagination.pages[index];
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Padding(
+          padding: layout.padding,
+          // Measured to fit; clipped rather than overflowing if a font
+          // renders a hair taller than measured.
+          child: ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.topCenter,
+              minHeight: 0,
+              maxHeight: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final block in page.blocks)
+                    _buildBlock(layout, block, chapter, translation, counts, commentable),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: layout.padding.right,
+          bottom: bottomInset + 10,
+          child: Text(context.l10n.readerPageOf(index + 1, pagination.length), style: layout.subtle),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBlock(_PageLayout layout, PageBlock block, Chapter chapter, ChapterTranslation? translation,
+      Map<int, int> counts, bool commentable) {
+    final theme = layout.theme;
+    switch (block) {
+      case NoticeBlock(kind: NoticeKind.offline):
+        return SizedBox(
+          height: block.height,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: FittedBox(fit: BoxFit.scaleDown, child: Text(context.l10n.readerOfflineCopy, style: layout.subtle)),
+          ),
+        );
+      case NoticeBlock(kind: NoticeKind.translation):
+        final t = translation;
+        return SizedBox(
+          height: block.height,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(
+                  t == null
+                      ? ''
+                      : context.l10n.readerShowingTranslation(translationLanguages[t.targetLang] ?? t.targetLang),
+                  style: layout.subtle,
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: () => setState(() => _translation = null),
+                  child: Text(context.l10n.readerShowOriginal),
+                ),
+              ]),
+            ),
+          ),
+        );
+      case TitleBlock():
+        return SizedBox(
+          height: block.height,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Text(translation?.title ?? chapter.title, textAlign: TextAlign.center, style: layout.titleStyle),
+          ),
+        );
+      case ParagraphBlock():
+        final paragraphs = _paragraphsOf(chapter, translation);
+        final original = block.index < paragraphs.length ? paragraphs[block.index] : '';
+        final count = block.last ? counts[block.index] ?? 0 : 0;
+        final scaler = layout.textScaler;
+        final content = Text.rich(
+          TextSpan(children: [
+            TextSpan(text: block.text),
+            if (count > 0)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: SizedBox.fromSize(
+                  size: commentBubbleSize(count, scaler),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _ParagraphCommentBubble(
+                      key: ValueKey('paragraph-comments-${block.index}'),
+                      count: count,
+                      color: theme.text,
+                      onTap: () => _showParagraphComments(chapter, block.index, original),
+                    ),
+                  ),
+                ),
+              ),
+          ]),
+          style: layout.textStyle,
+        );
+        return Padding(
+          padding: EdgeInsets.only(bottom: block.spacing),
+          child: SizedBox(
+            height: block.height,
+            child: commentable
+                ? GestureDetector(
+                    onLongPress: () => _showParagraphComments(chapter, block.index, original),
+                    child: content,
+                  )
+                : content,
+          ),
+        );
+      case FooterBlock():
+        final rowHeight = (block.height - FooterBlock.gap) / 2;
+        return SizedBox(
+          height: block.height,
+          child: Column(
+            children: [
+              const SizedBox(height: FooterBlock.gap),
+              SizedBox(height: rowHeight, child: _buildChapterNav(chapter, theme.text)),
+              SizedBox(
+                height: rowHeight,
+                child: Center(
+                  child: TextButton.icon(
+                    onPressed: () => _showComments(chapter),
+                    icon: Icon(Icons.chat_bubble_outline, color: theme.text, size: 18),
+                    label: Text(context.l10n.chapterComments, style: TextStyle(color: theme.text)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+    }
   }
 
   List<Widget> _buildToolbars(Chapter chapter) {
@@ -578,10 +994,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
             bottom: false,
             child: Row(
               children: [
-                IconButton(tooltip: '返回', icon: const Icon(Icons.arrow_back), onPressed: () => _close(chapter)),
+                IconButton(tooltip: context.l10n.commonBack, icon: const Icon(Icons.arrow_back), onPressed: () => _close(chapter)),
                 Expanded(child: Text(chapter.title, overflow: TextOverflow.ellipsis)),
                 IconButton(
-                  tooltip: '加入書籤',
+                  tooltip: context.l10n.readerAddBookmark,
                   icon: const Icon(Icons.bookmark_add_outlined),
                   onPressed: () => _addBookmark(chapter),
                 ),
@@ -606,28 +1022,28 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
                   children: [
                     TextButton(
                       onPressed: chapter.prevChapter == null ? null : () => _openChapter(chapter.prevChapter!.id),
-                      child: const Text('上一章'),
+                      child: Text(context.l10n.readerPrevChapter),
                     ),
                     const Spacer(),
                     TextButton(
                       onPressed: chapter.nextChapter == null ? null : () => _openChapter(chapter.nextChapter!.id),
-                      child: const Text('下一章'),
+                      child: Text(context.l10n.readerNextChapter),
                     ),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    IconButton(tooltip: '目錄', icon: const Icon(Icons.list), onPressed: () => _showToc(chapter)),
-                    IconButton(tooltip: '書籤', icon: const Icon(Icons.bookmarks_outlined), onPressed: () => _showBookmarks(chapter)),
+                    IconButton(tooltip: context.l10n.readerToc, icon: const Icon(Icons.list), onPressed: () => _showToc(chapter)),
+                    IconButton(tooltip: context.l10n.bookmarks, icon: const Icon(Icons.bookmarks_outlined), onPressed: () => _showBookmarks(chapter)),
                     IconButton(
-                      tooltip: '留言',
+                      tooltip: context.l10n.readerComments,
                       icon: const Icon(Icons.chat_bubble_outline),
                       onPressed: () => _showComments(chapter),
                     ),
-                    IconButton(tooltip: '翻譯', icon: const Icon(Icons.translate), onPressed: () => _showTranslate(chapter)),
+                    IconButton(tooltip: context.l10n.readerTranslate, icon: const Icon(Icons.translate), onPressed: () => _showTranslate(chapter)),
                     IconButton(
-                      tooltip: '閱讀設定',
+                      tooltip: context.l10n.readingSettings,
                       icon: const Icon(Icons.settings),
                       onPressed: () => setState(() => _showSettings = !_showSettings),
                     ),
@@ -647,7 +1063,47 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   }
 }
 
+/// Styles and measures for laying out pages in page mode.
+class _PageLayout {
+  final EdgeInsets padding;
+
+  /// The text area of a page.
+  final Size size;
+  final TextStyle textStyle;
+  final TextStyle titleStyle;
+  final TextStyle subtle;
+
+  /// The styles above merged with the ambient default style, as rendered.
+  final TextStyle measureText;
+  final TextStyle measureTitle;
+  final TextStyle measureSubtle;
+  final TextScaler textScaler;
+  final Locale? locale;
+  final TextDirection textDirection;
+  final TextHeightBehavior? textHeightBehavior;
+  final ReaderTheme theme;
+  final ReadingSettings settings;
+
+  const _PageLayout({
+    required this.padding,
+    required this.size,
+    required this.textStyle,
+    required this.titleStyle,
+    required this.subtle,
+    required this.measureText,
+    required this.measureTitle,
+    required this.measureSubtle,
+    required this.textScaler,
+    required this.locale,
+    required this.textDirection,
+    required this.textHeightBehavior,
+    required this.theme,
+    required this.settings,
+  });
+}
+
 /// The comment count shown at the end of a commented paragraph.
+
 class _ParagraphCommentBubble extends StatelessWidget {
   final int count;
   final Color color;
@@ -660,7 +1116,7 @@ class _ParagraphCommentBubble extends StatelessWidget {
     final tint = color.withValues(alpha: 0.5);
     return Semantics(
       button: true,
-      label: '本段有 $count 則留言',
+      label: context.l10n.readerParagraphCommentCount(count),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,

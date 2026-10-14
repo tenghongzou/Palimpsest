@@ -20,6 +20,12 @@ export default defineConfig({
   use: {
     baseURL,
     headless: true,
+    // Specs match zh-TW copy: pin the browser language (the UI locale is detected
+    // from it on first visit). i18n.spec.ts overrides it per test.
+    locale: 'zh-TW',
+    // Keep the service worker out of the way of request mocking (page.route) and
+    // offline emulation; pwa.spec.ts opts back in.
+    serviceWorkers: 'block',
     trace: 'retain-on-failure',
     launchOptions: executablePath ? { executablePath } : {},
   },

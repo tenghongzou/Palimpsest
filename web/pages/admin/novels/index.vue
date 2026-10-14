@@ -1,14 +1,14 @@
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold">小說管理</h1>
-      <n-button type="primary" @click="router.push('/admin/novels/new')">新增小說</n-button>
+      <h1 class="text-xl font-bold">{{ $t('admin.menu.novels') }}</h1>
+      <n-button type="primary" @click="router.push('/admin/novels/new')">{{ $t('admin.novels.create') }}</n-button>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
       <n-input
         v-model:value="filters.q"
-        placeholder="搜尋書名或作者"
+        :placeholder="$t('admin.novels.searchPlaceholder')"
         clearable
         class="max-w-64"
         @keyup.enter="load(1)"
@@ -16,8 +16,8 @@
       />
       <n-select
         v-model:value="filters.status"
-        :options="NOVEL_STATUS_OPTIONS"
-        placeholder="全部狀態"
+        :options="novelStatusOptions"
+        :placeholder="$t('category.allStatuses')"
         clearable
         class="w-32"
         @update:value="load(1)"
@@ -25,12 +25,12 @@
       <n-select
         v-model:value="filters.is_published"
         :options="publishedOptions"
-        placeholder="上架狀態"
+        :placeholder="$t('admin.novels.publishState')"
         clearable
         class="w-32"
         @update:value="load(1)"
       />
-      <n-button @click="load(1)">搜尋</n-button>
+      <n-button @click="load(1)">{{ $t('common.search') }}</n-button>
     </div>
 
     <n-data-table
@@ -55,7 +55,10 @@ import type { ApiResponse } from '~/utils/api'
 import type { ApiNovel } from '~/types/models'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
-useHead({ title: '小說管理 — Palimpsest' })
+
+const { t } = useI18n()
+const { novelStatusOptions, novelStatusLabel, dateTime } = useAdminLabels()
+useHead({ title: () => t('admin.menu.novels') })
 
 const router = useRouter()
 const message = useMessage()
@@ -67,10 +70,10 @@ const { items, loading, filters, tablePagination, load } = useAdminList<ApiNovel
   is_published: string | null
 }>('/admin/novels', { q: '', status: null, is_published: null })
 
-const publishedOptions = [
-  { label: '已上架', value: 'true' },
-  { label: '未上架', value: 'false' },
-]
+const publishedOptions = computed(() => [
+  { label: t('admin.novels.published'), value: 'true' },
+  { label: t('admin.novels.unpublished'), value: 'false' },
+])
 
 function clearSearch() {
   filters.q = ''
@@ -84,36 +87,36 @@ async function togglePublish(novel: ApiNovel) {
       method: 'POST',
       body: { is_published: publish },
     })
-    message.success(publish ? '已上架' : '已下架')
+    message.success(publish ? t('admin.novels.published') : t('admin.novels.unpublishedToast'))
     await load()
   }
   catch (error) {
-    message.error(describeError(error, {}, '操作失敗'))
+    message.error(describeError(t, error, {}, t('common.operationFailed')))
   }
 }
 
 function confirmDelete(novel: ApiNovel) {
   dialog.warning({
-    title: '刪除小說',
-    content: `確定要刪除「${novel.title}」嗎？此操作會一併隱藏其章節。`,
-    positiveText: '刪除',
-    negativeText: '取消',
+    title: t('admin.novels.delete'),
+    content: t('admin.novels.confirmDelete', { name: novel.title }),
+    positiveText: t('common.delete'),
+    negativeText: t('common.cancel'),
     onPositiveClick: async () => {
       try {
         await apiFetch(`/admin/novels/${novel.id}`, { method: 'DELETE' })
-        message.success('已刪除')
+        message.success(t('common.deleted'))
         await load()
       }
       catch (error) {
-        message.error(describeError(error, {}, '刪除失敗'))
+        message.error(describeError(t, error, {}, t('common.deleteFailed')))
       }
     },
   })
 }
 
-const columns: DataTableColumns<ApiNovel> = [
+const columns = computed<DataTableColumns<ApiNovel>>(() => [
   {
-    title: '書名',
+    title: t('admin.novels.title'),
     key: 'title',
     minWidth: 180,
     render: row => h('a', {
@@ -121,43 +124,43 @@ const columns: DataTableColumns<ApiNovel> = [
       onClick: () => router.push(`/admin/novels/${row.id}`),
     }, row.title),
   },
-  { title: '作者', key: 'author_name', width: 120 },
+  { title: t('admin.novels.author'), key: 'author_name', width: 120 },
   {
-    title: '狀態',
+    title: t('admin.columns.status'),
     key: 'status',
     width: 90,
-    render: row => labelOf(NOVEL_STATUS_OPTIONS, row.status),
+    render: row => novelStatusLabel(row.status),
   },
   {
-    title: '上架',
+    title: t('admin.novels.publishColumn'),
     key: 'is_published',
     width: 90,
-    render: row => h(NTag, { size: 'small', type: row.is_published ? 'success' : 'default' }, () => row.is_published ? '已上架' : '未上架'),
+    render: row => h(NTag, { size: 'small', type: row.is_published ? 'success' : 'default' }, () => row.is_published ? t('admin.novels.published') : t('admin.novels.unpublished')),
   },
   {
-    title: '推薦',
+    title: t('admin.novels.featured'),
     key: 'is_featured',
     width: 70,
-    render: row => row.is_featured ? '是' : '',
+    render: row => row.is_featured ? t('common.yes') : '',
   },
-  { title: '章節', key: 'total_chapters', width: 70 },
-  { title: '更新時間', key: 'updated_at', width: 170, render: row => adminDateTime(row.updated_at) },
+  { title: t('admin.reports.targets.chapter'), key: 'total_chapters', width: 70 },
+  { title: t('admin.columns.updatedAt'), key: 'updated_at', width: 170, render: row => dateTime(row.updated_at) },
   {
-    title: '操作',
+    title: t('admin.columns.actions'),
     key: 'actions',
     width: 260,
     render: row => h(NSpace, { size: 'small' }, () => [
-      h(NButton, { size: 'small', onClick: () => router.push(`/admin/novels/${row.id}`) }, () => '編輯'),
-      h(NButton, { size: 'small', onClick: () => router.push(`/admin/novels/${row.id}/chapters`) }, () => '章節'),
+      h(NButton, { size: 'small', onClick: () => router.push(`/admin/novels/${row.id}`) }, () => t('common.edit')),
+      h(NButton, { size: 'small', onClick: () => router.push(`/admin/novels/${row.id}/chapters`) }, () => t('admin.reports.targets.chapter')),
       h(NButton, {
         size: 'small',
         type: row.is_published ? 'warning' : 'primary',
         onClick: () => togglePublish(row),
-      }, () => row.is_published ? '下架' : '上架'),
-      h(NButton, { size: 'small', type: 'error', onClick: () => confirmDelete(row) }, () => '刪除'),
+      }, () => row.is_published ? t('admin.novels.unpublish') : t('admin.novels.publish')),
+      h(NButton, { size: 'small', type: 'error', onClick: () => confirmDelete(row) }, () => t('common.delete')),
     ]),
   },
-]
+])
 
 onMounted(() => load(1))
 </script>

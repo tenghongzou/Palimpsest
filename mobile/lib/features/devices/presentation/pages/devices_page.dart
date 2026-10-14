@@ -6,6 +6,7 @@ import '../../../../core/widgets/common_widgets.dart';
 import '../../data/device_registration.dart';
 import '../../data/device_repository.dart';
 import '../../domain/entities/user_device.dart';
+import '../../../../core/l10n/l10n.dart';
 
 final devicesProvider = FutureProvider.autoDispose<List<UserDevice>>((ref) {
   return ref.read(deviceRepositoryProvider).list();
@@ -24,27 +25,27 @@ class DevicesPage extends ConsumerWidget {
     final devices = ref.watch(devicesProvider);
     final currentId = ref.watch(currentDeviceIdProvider).valueOrNull;
 
+    final l = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('登入裝置')),
+      appBar: AppBar(title: Text(l.devicesTitle)),
       body: devices.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => EmptyState(
           icon: isNetworkError(e) ? Icons.wifi_off : Icons.error_outline,
-          message: isNetworkError(e) ? '目前離線，連線後即可查看登入裝置' : '載入失敗：${describeError(e)}',
-          actionLabel: '重試',
+          message: isNetworkError(e) ? l.devicesOffline : l.commonLoadFailed(describeError(e, l)),
+          actionLabel: l.commonRetry,
           onAction: () => ref.invalidate(devicesProvider),
         ),
         data: (list) => RefreshIndicator(
           onRefresh: () => ref.refresh(devicesProvider.future),
           child: ListView(
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Text('以下裝置目前登入你的帳號。移除後，該裝置不會再收到通知推播，直到它再次開啟 App。',
-                    style: TextStyle(fontSize: 13, color: Colors.grey)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(l.devicesIntro, style: const TextStyle(fontSize: 13, color: Colors.grey)),
               ),
               if (list.isEmpty)
-                const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('沒有登入裝置'))),
+                Padding(padding: const EdgeInsets.all(32), child: Center(child: Text(l.devicesEmpty))),
               ...list.map((d) => _DeviceTile(
                     device: d,
                     isCurrent: d.deviceId == currentId,
@@ -58,14 +59,15 @@ class DevicesPage extends ConsumerWidget {
   }
 
   Future<void> _remove(BuildContext context, WidgetRef ref, UserDevice device) async {
+    final l = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('移除裝置'),
-        content: Text('確定要移除「${device.label}」嗎？'),
+        title: Text(l.devicesRemoveTitle),
+        content: Text(l.devicesRemoveConfirm(device.label(l))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('移除')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l.commonCancel)),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(l.commonRemove)),
         ],
       ),
     );
@@ -73,9 +75,9 @@ class DevicesPage extends ConsumerWidget {
     try {
       await ref.read(deviceRepositoryProvider).remove(device.id);
       ref.invalidate(devicesProvider);
-      if (context.mounted) showSnack(context, '已移除裝置');
+      if (context.mounted) showSnack(context, l.devicesRemoved);
     } catch (e) {
-      if (context.mounted) showSnack(context, describeError(e));
+      if (context.mounted) showSnack(context, describeError(e, l));
     }
   }
 }
@@ -106,11 +108,12 @@ class _DeviceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lastActive = device.lastActiveAt;
+    final l = context.l10n;
     return ListTile(
       leading: Icon(_icon),
       title: Row(
         children: [
-          Flexible(child: Text(device.label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Flexible(child: Text(device.label(l), maxLines: 1, overflow: TextOverflow.ellipsis)),
           if (isCurrent)
             Container(
               margin: const EdgeInsets.only(left: 8),
@@ -119,14 +122,14 @@ class _DeviceTile extends StatelessWidget {
                 color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text('此裝置', style: TextStyle(fontSize: 11)),
+              child: Text(l.devicesThisDevice, style: const TextStyle(fontSize: 11)),
             ),
         ],
       ),
-      subtitle: Text(lastActive == null ? '' : '最後活動：${formatRelative(lastActive)}'),
+      subtitle: Text(lastActive == null ? '' : l.devicesLastActive(formatRelative(lastActive, l))),
       trailing: isCurrent
           ? null
-          : IconButton(tooltip: '移除裝置', icon: const Icon(Icons.delete_outline), onPressed: onRemove),
+          : IconButton(tooltip: l.devicesRemoveTitle, icon: const Icon(Icons.delete_outline), onPressed: onRemove),
     );
   }
 }

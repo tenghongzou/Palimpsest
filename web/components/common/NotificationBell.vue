@@ -2,8 +2,8 @@
   <NuxtLink
     to="/notifications"
     class="notification-bell"
-    :aria-label="unread ? `通知（${unread} 則未讀）` : '通知'"
-    :title="unread ? `${unread} 則未讀通知` : '通知'"
+    :aria-label="unread ? $t('notifications.bellAria', { n: unread }, unread) : $t('notifications.title')"
+    :title="unread ? $t('notifications.bellTitle', { n: unread }, unread) : $t('notifications.title')"
     data-testid="notification-bell"
   >
     <n-badge :value="badge" :show="unread > 0" data-testid="notification-badge">

@@ -3,13 +3,13 @@ import type { ApiResponse, Paginated, Pagination } from '~/utils/api'
 
 export type NovelSort = 'latest' | 'popular' | 'rating' | 'words' | 'favorites' | 'new'
 
-export const NOVEL_SORT_OPTIONS: { label: string, value: NovelSort }[] = [
-  { label: '最近更新', value: 'latest' },
-  { label: '人氣', value: 'popular' },
-  { label: '評分', value: 'rating' },
-  { label: '字數', value: 'words' },
-  { label: '收藏', value: 'favorites' },
-  { label: '最新上架', value: 'new' },
+export const NOVEL_SORT_OPTIONS: { labelKey: string, value: NovelSort }[] = [
+  { labelKey: 'novel.sort.latest', value: 'latest' },
+  { labelKey: 'novel.sort.popular', value: 'popular' },
+  { labelKey: 'novel.sort.rating', value: 'rating' },
+  { labelKey: 'novel.sort.words', value: 'words' },
+  { labelKey: 'novel.sort.favorites', value: 'favorites' },
+  { labelKey: 'novel.sort.new', value: 'new' },
 ]
 
 export interface NovelListQuery {
@@ -128,12 +128,12 @@ export function useCategories() {
 export type RankingType = 'views' | 'favorites' | 'rating' | 'latest' | 'completed'
 export type RankingPeriod = 'daily' | 'weekly' | 'monthly' | 'all'
 
-export const RANKING_TYPES: { key: RankingType, label: string }[] = [
-  { key: 'views', label: '人氣榜' },
-  { key: 'favorites', label: '收藏榜' },
-  { key: 'rating', label: '評分榜' },
-  { key: 'latest', label: '更新榜' },
-  { key: 'completed', label: '完結榜' },
+export const RANKING_TYPES: { key: RankingType, labelKey: string }[] = [
+  { key: 'views', labelKey: 'ranking.types.views' },
+  { key: 'favorites', labelKey: 'ranking.types.favorites' },
+  { key: 'rating', labelKey: 'ranking.types.rating' },
+  { key: 'latest', labelKey: 'ranking.types.latest' },
+  { key: 'completed', labelKey: 'ranking.types.completed' },
 ]
 
 export function useRanking() {

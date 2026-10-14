@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/database_helper.dart';
 import '../../../core/database/offline_store.dart';
-import '../../../core/network/api_error.dart';
 import '../../bookstore/domain/entities/novel.dart';
 import '../../reader/data/reader_repository.dart';
 import '../../reader/domain/entities/chapter.dart';
@@ -18,7 +17,10 @@ class DownloadTask {
   final int done;
   final int total;
   final DownloadStatus status;
-  final String? error;
+
+  /// Why it failed: a [DownloadNeedsNetwork] or a request error (shown with
+  /// `describeError`).
+  final Object? error;
 
   const DownloadTask({
     required this.novelId,
@@ -32,7 +34,7 @@ class DownloadTask {
   bool get isActive => status == DownloadStatus.queued || status == DownloadStatus.running;
   double get fraction => total == 0 ? 0 : done / total;
 
-  DownloadTask copyWith({int? done, int? total, DownloadStatus? status, String? error}) => DownloadTask(
+  DownloadTask copyWith({int? done, int? total, DownloadStatus? status, Object? error}) => DownloadTask(
         novelId: novelId,
         title: title,
         done: done ?? this.done,
@@ -123,7 +125,7 @@ class DownloadManager extends StateNotifier<Map<String, DownloadTask>> {
       final s = await store();
       await s.saveNovel(novel);
       final toc = await reader.getToc(id);
-      if (toc.fromCache) throw const _DownloadError('需要網路連線才能下載');
+      if (toc.fromCache) throw const DownloadNeedsNetwork();
       final have = await s.downloadedChapterIds(id);
       final chapters = toc.entries;
       var done = chapters.where((c) => have.contains(c.id)).length;
@@ -139,8 +141,7 @@ class DownloadManager extends StateNotifier<Map<String, DownloadTask>> {
       }
       _update(id, (t) => t.copyWith(status: DownloadStatus.completed));
     } catch (e) {
-      final message = e is _DownloadError ? e.message : describeError(e);
-      _update(id, (t) => t.copyWith(status: DownloadStatus.failed, error: message));
+      _update(id, (t) => t.copyWith(status: DownloadStatus.failed, error: e));
     }
   }
 
@@ -175,8 +176,8 @@ class DownloadManager extends StateNotifier<Map<String, DownloadTask>> {
   }
 }
 
-class _DownloadError implements Exception {
-  final String message;
-
-  const _DownloadError(this.message);
+/// The chapter list could only come from the offline cache: downloading
+/// needs a connection.
+class DownloadNeedsNetwork implements Exception {
+  const DownloadNeedsNetwork();
 }

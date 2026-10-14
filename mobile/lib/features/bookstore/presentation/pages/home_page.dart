@@ -9,6 +9,7 @@ import '../../domain/entities/home_data.dart';
 import '../../domain/entities/novel.dart';
 import '../providers/bookstore_provider.dart';
 import '../widgets/novel_card.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -18,9 +19,9 @@ class HomePage extends ConsumerWidget {
     final home = ref.watch(homeProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Palimpsest'),
+        title: Text(context.l10n.appTitle),
         actions: [
-          IconButton(tooltip: '搜尋', icon: const Icon(Icons.search), onPressed: () => context.push('/search')),
+          IconButton(tooltip: context.l10n.search, icon: const Icon(Icons.search), onPressed: () => context.push('/search')),
           const NotificationBell(),
         ],
       ),
@@ -30,9 +31,9 @@ class HomePage extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => ListView(children: [
             const SizedBox(height: 120),
-            Center(child: Text('載入失敗：${describeError(e)}')),
+            Center(child: Text(context.l10n.commonLoadFailed(describeError(e, context.l10n)))),
             const SizedBox(height: 8),
-            Center(child: OutlinedButton(onPressed: () => ref.invalidate(homeProvider), child: const Text('重試'))),
+            Center(child: OutlinedButton(onPressed: () => ref.invalidate(homeProvider), child: Text(context.l10n.commonRetry))),
           ]),
           data: (data) => ListView(
             padding: const EdgeInsets.all(16),
@@ -43,11 +44,11 @@ class HomePage extends ConsumerWidget {
               ],
               const _QuickEntries(),
               const SizedBox(height: 16),
-              ..._section(context, '編輯推薦', data.featured, null),
-              ..._section(context, '熱門推薦', data.popular, '/ranking/views'),
-              ..._section(context, '最新更新', data.latestUpdates, '/ranking/latest'),
-              ..._section(context, '新書上架', data.newArrivals, '/novels?sort_by=new'),
-              ..._section(context, '完本精選', data.completed, '/ranking/completed'),
+              ..._section(context, context.l10n.homeFeatured, data.featured, null),
+              ..._section(context, context.l10n.homePopular, data.popular, '/ranking/views'),
+              ..._section(context, context.l10n.homeLatest, data.latestUpdates, '/ranking/latest'),
+              ..._section(context, context.l10n.homeNewArrivals, data.newArrivals, '/novels?sort_by=new'),
+              ..._section(context, context.l10n.homeCompleted, data.completed, '/ranking/completed'),
             ],
           ),
         ),
@@ -90,10 +91,10 @@ class _QuickEntries extends StatelessWidget {
         );
     return Row(
       children: [
-        entry(Icons.leaderboard_outlined, '排行榜', '/ranking/views'),
-        entry(Icons.category_outlined, '分類', '/categories'),
-        entry(Icons.library_books_outlined, '全部作品', '/novels'),
-        entry(Icons.task_alt, '完本', '/ranking/completed'),
+        entry(Icons.leaderboard_outlined, context.l10n.rankings, '/ranking/views'),
+        entry(Icons.category_outlined, context.l10n.categories, '/categories'),
+        entry(Icons.library_books_outlined, context.l10n.allNovels, '/novels'),
+        entry(Icons.task_alt, context.l10n.homeCompletedShort, '/ranking/completed'),
       ],
     );
   }
@@ -172,7 +173,7 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           if (onMore != null)
-            TextButton(onPressed: onMore, child: const Text('更多')),
+            TextButton(onPressed: onMore, child: Text(context.l10n.commonMore)),
         ],
       ),
     );

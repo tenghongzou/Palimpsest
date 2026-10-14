@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test'
-import { uniqueSuffix } from './helpers'
+import { test, expect, uniqueSuffix } from './helpers'
 
 // Auth endpoints allow 5 requests/minute per IP: this file registers once,
 // logs in once, and calls forgot/reset password once each.

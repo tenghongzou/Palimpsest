@@ -9,6 +9,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/community_repository.dart';
 import '../../domain/entities/community.dart';
 import 'report_dialog.dart';
+import '../../../../core/l10n/l10n.dart';
 
 final reviewsProvider = StateNotifierProvider.autoDispose
     .family<PagedNotifier<Review>, PagedState<Review>, String>((ref, novelId) {
@@ -38,11 +39,11 @@ class ReviewSection extends ConsumerWidget {
       children: [
         Row(
           children: [
-            Text('書評', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(context.l10n.reviews, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const Spacer(),
             TextButton.icon(
               icon: Icon(mine == null ? Icons.rate_review_outlined : Icons.edit_outlined),
-              label: Text(mine == null ? '撰寫書評' : '編輯我的書評'),
+              label: Text(mine == null ? context.l10n.reviewWrite : context.l10n.reviewEditMine),
               onPressed: () => _openEditor(context, ref, mine),
             ),
           ],
@@ -50,11 +51,11 @@ class ReviewSection extends ConsumerWidget {
         if (state.isInitialLoading)
           const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
         else if (state.items.isEmpty && state.error != null)
-          Text('書評載入失敗：${describeError(state.error!)}')
+          Text(context.l10n.reviewsLoadFailed(describeError(state.error!, context.l10n)))
         else if (state.items.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('還沒有書評，成為第一個評論的讀者吧', style: TextStyle(color: Colors.grey)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(context.l10n.reviewsEmpty, style: const TextStyle(color: Colors.grey)),
           )
         else ...[
           ...state.items.map((r) => _ReviewTile(
@@ -69,7 +70,7 @@ class ReviewSection extends ConsumerWidget {
             Center(
               child: TextButton(
                 onPressed: state.isLoading ? null : notifier.loadMore,
-                child: Text(state.isLoading ? '載入中…' : '載入更多書評'),
+                child: Text(state.isLoading ? context.l10n.commonLoading : context.l10n.reviewsLoadMore),
               ),
             ),
         ],
@@ -79,7 +80,7 @@ class ReviewSection extends ConsumerWidget {
 
   bool _requireLogin(BuildContext context, WidgetRef ref) {
     if (ref.read(authStateProvider).valueOrNull != null) return true;
-    showSnack(context, '請先登入');
+    showSnack(context, context.l10n.errorUnauthorized);
     context.push('/login');
     return false;
   }
@@ -92,7 +93,7 @@ class ReviewSection extends ConsumerWidget {
           .map((x) => x.id == r.id ? x.withLike(liked: result.liked, likeCount: result.likeCount) : x)
           .toList());
     } catch (e) {
-      if (context.mounted) showSnack(context, describeError(e));
+      if (context.mounted) showSnack(context, describeError(e, context.l10n));
     }
   }
 
@@ -100,9 +101,9 @@ class ReviewSection extends ConsumerWidget {
     try {
       await ref.read(communityRepositoryProvider).deleteReview(r.id);
       await ref.read(reviewsProvider(novelId).notifier).refresh();
-      if (context.mounted) showSnack(context, '已刪除書評');
+      if (context.mounted) showSnack(context, context.l10n.reviewDeleted);
     } catch (e) {
-      if (context.mounted) showSnack(context, describeError(e));
+      if (context.mounted) showSnack(context, describeError(e, context.l10n));
     }
   }
 
@@ -123,10 +124,13 @@ class ReviewSection extends ConsumerWidget {
         await repo.updateReview(existing.id, title: input.title, content: input.content, rating: input.rating);
       }
       await ref.read(reviewsProvider(novelId).notifier).refresh();
-      if (context.mounted) showSnack(context, existing == null ? '已發表書評' : '已更新書評');
+      if (context.mounted) {
+        showSnack(context, existing == null ? context.l10n.reviewPublished : context.l10n.reviewUpdated);
+      }
     } catch (e) {
       if (!context.mounted) return;
-      showSnack(context, httpStatus(e) == 409 ? '你已經評論過這本書，可以編輯原本的書評' : '送出失敗：${describeError(e)}');
+      final l = context.l10n;
+      showSnack(context, httpStatus(e) == 409 ? l.reviewAlreadyExists : l.submitFailed(describeError(e, l)));
     }
   }
 }
@@ -164,7 +168,8 @@ class _ReviewTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${userName.isEmpty ? '讀者' : userName} · ${formatRelative(review.createdAt)}',
+                    '${userName.isEmpty ? context.l10n.anonymousReader : userName} · '
+                    '${formatRelative(review.createdAt, context.l10n)}',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -186,7 +191,7 @@ class _ReviewTile extends StatelessWidget {
                 ),
                 const Spacer(),
                 PopupMenuButton<String>(
-                  tooltip: '更多',
+                  tooltip: context.l10n.commonMore,
                   icon: const Icon(Icons.more_horiz, size: 18),
                   onSelected: (v) {
                     if (v == 'edit') {
@@ -198,9 +203,9 @@ class _ReviewTile extends StatelessWidget {
                     }
                   },
                   itemBuilder: (_) => [
-                    if (isMine) const PopupMenuItem(value: 'edit', child: Text('編輯')),
-                    if (isMine) const PopupMenuItem(value: 'delete', child: Text('刪除')),
-                    if (!isMine) const PopupMenuItem(value: 'report', child: Text('檢舉')),
+                    if (isMine) PopupMenuItem(value: 'edit', child: Text(context.l10n.commonEdit)),
+                    if (isMine) PopupMenuItem(value: 'delete', child: Text(context.l10n.commonDelete)),
+                    if (!isMine) PopupMenuItem(value: 'report', child: Text(context.l10n.report)),
                   ],
                 ),
               ],
@@ -273,11 +278,11 @@ class _ReviewEditorState extends State<_ReviewEditor> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.existing == null ? '撰寫書評' : '編輯書評', style: Theme.of(context).textTheme.titleMedium),
+            Text(widget.existing == null ? context.l10n.reviewWrite : context.l10n.reviewEdit, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Row(
               children: [
-                const Text('評分'),
+                Text(context.l10n.reviewRating),
                 Expanded(
                   child: Slider(
                     value: _rating,
@@ -294,8 +299,8 @@ class _ReviewEditorState extends State<_ReviewEditor> {
             TextFormField(
               controller: _title,
               maxLength: 200,
-              decoration: const InputDecoration(labelText: '標題', border: OutlineInputBorder()),
-              validator: (v) => v == null || v.trim().isEmpty ? '請輸入標題' : null,
+              decoration: InputDecoration(labelText: context.l10n.reviewTitle, border: const OutlineInputBorder()),
+              validator: (v) => v == null || v.trim().isEmpty ? context.l10n.reviewTitleRequired : null,
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -303,8 +308,8 @@ class _ReviewEditorState extends State<_ReviewEditor> {
               maxLength: 10000,
               minLines: 4,
               maxLines: 8,
-              decoration: const InputDecoration(labelText: '內容', border: OutlineInputBorder()),
-              validator: (v) => v == null || v.trim().isEmpty ? '請輸入內容' : null,
+              decoration: InputDecoration(labelText: context.l10n.reviewContent, border: const OutlineInputBorder()),
+              validator: (v) => v == null || v.trim().isEmpty ? context.l10n.reviewContentRequired : null,
             ),
             const SizedBox(height: 8),
             FilledButton(
@@ -312,7 +317,7 @@ class _ReviewEditorState extends State<_ReviewEditor> {
                 if (_formKey.currentState?.validate() != true) return;
                 Navigator.pop(context, _ReviewInput(_title.text.trim(), _content.text.trim(), _rating));
               },
-              child: const Text('送出'),
+              child: Text(context.l10n.commonSubmit),
             ),
           ],
         ),

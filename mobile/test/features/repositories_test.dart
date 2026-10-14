@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart' show Locale;
+import 'package:palimpsest/core/l10n/l10n.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:palimpsest/core/database/offline_store.dart';
 import 'package:palimpsest/core/network/api_client.dart';
@@ -151,7 +153,8 @@ void main() {
         await repo.translateChapter(chapterIds[1], 'en');
         fail('expected a 503');
       } catch (e) {
-        expect(translationErrorMessage(e, 'en'), contains('英文翻譯服務目前尚未開放'));
+        expect(translationErrorMessage(e, 'en', lookupAppLocalizations(const Locale('zh', 'TW'))), contains('英文翻譯服務目前尚未開放'));
+        expect(translationErrorMessage(e, 'en', lookupAppLocalizations(const Locale('en'))), contains("isn't available yet"));
       }
 
       final first = await repo.translateChapter(chapterIds[1], 'zh-CN');

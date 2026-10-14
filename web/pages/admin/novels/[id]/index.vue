@@ -2,60 +2,60 @@
   <div class="space-y-4 max-w-3xl">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <n-button text @click="router.push('/admin/novels')">← 返回列表</n-button>
-        <h1 class="text-xl font-bold">{{ isNew ? '新增小說' : '編輯小說' }}</h1>
+        <n-button text @click="router.push('/admin/novels')">{{ $t('admin.novels.backToList') }}</n-button>
+        <h1 class="text-xl font-bold">{{ isNew ? $t('admin.novels.create') : $t('admin.novels.edit') }}</h1>
         <n-tag v-if="novel" size="small" :type="novel.is_published ? 'success' : 'default'">
-          {{ novel.is_published ? '已上架' : '未上架' }}
+          {{ novel.is_published ? $t('admin.novels.published') : $t('admin.novels.unpublished') }}
         </n-tag>
       </div>
       <div v-if="novel" class="flex gap-2">
-        <n-button @click="router.push(`/admin/novels/${novel.id}/chapters`)">管理章節</n-button>
+        <n-button @click="router.push(`/admin/novels/${novel.id}/chapters`)">{{ $t('admin.novels.manageChapters') }}</n-button>
         <n-button :type="novel.is_published ? 'warning' : 'primary'" :loading="publishing" @click="togglePublish">
-          {{ novel.is_published ? '下架' : '上架' }}
+          {{ novel.is_published ? $t('admin.novels.unpublish') : $t('admin.novels.publish') }}
         </n-button>
       </div>
     </div>
 
     <n-spin :show="loading">
       <n-card>
-        <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="90">
-          <n-form-item label="書名" path="title">
-            <n-input v-model:value="form.title" placeholder="書名" maxlength="200" />
+        <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" :label-width="locale === 'en' ? 120 : 90">
+          <n-form-item :label="$t('admin.novels.title')" path="title">
+            <n-input v-model:value="form.title" :placeholder="$t('admin.novels.title')" maxlength="200" />
           </n-form-item>
-          <n-form-item label="作者" path="author_name">
-            <n-input v-model:value="form.author_name" placeholder="作者名稱" maxlength="100" />
+          <n-form-item :label="$t('admin.novels.author')" path="author_name">
+            <n-input v-model:value="form.author_name" :placeholder="$t('admin.novels.authorPlaceholder')" maxlength="100" />
           </n-form-item>
-          <n-form-item label="簡介" path="description">
-            <n-input v-model:value="form.description" type="textarea" placeholder="小說簡介" :autosize="{ minRows: 3, maxRows: 10 }" />
+          <n-form-item :label="$t('novel.synopsis')" path="description">
+            <n-input v-model:value="form.description" type="textarea" :placeholder="$t('admin.novels.synopsisPlaceholder')" :autosize="{ minRows: 3, maxRows: 10 }" />
           </n-form-item>
-          <n-form-item label="連載狀態" path="status">
-            <n-select v-model:value="form.status" :options="NOVEL_STATUS_OPTIONS" />
+          <n-form-item :label="$t('admin.novels.serialStatus')" path="status">
+            <n-select v-model:value="form.status" :options="novelStatusOptions" />
           </n-form-item>
-          <n-form-item label="語言" path="language">
+          <n-form-item :label="$t('admin.novels.language')" path="language">
             <n-select v-model:value="form.language" :options="LANGUAGE_OPTIONS" />
           </n-form-item>
-          <n-form-item label="首頁推薦" path="is_featured">
+          <n-form-item :label="$t('admin.novels.featuredOnHome')" path="is_featured">
             <n-switch v-model:value="form.is_featured" />
           </n-form-item>
-          <n-form-item label="封面" path="cover_url">
+          <n-form-item :label="$t('admin.novels.cover')" path="cover_url">
             <AdminImageUpload v-model="form.cover_url" kind="covers" />
           </n-form-item>
-          <n-form-item label="分類" path="category_ids">
+          <n-form-item :label="$t('category.title')" path="category_ids">
             <n-select
               v-model:value="form.category_ids"
               :options="categoryOptions"
               multiple
               filterable
-              placeholder="選擇分類"
+              :placeholder="$t('admin.novels.categoriesPlaceholder')"
               data-testid="novel-categories"
             />
           </n-form-item>
-          <n-form-item label="標籤" path="tags">
+          <n-form-item :label="$t('admin.novels.tags')" path="tags">
             <n-dynamic-tags v-model:value="form.tags" :max="20" />
           </n-form-item>
           <div class="flex justify-end gap-2">
-            <n-button @click="router.push('/admin/novels')">取消</n-button>
-            <n-button type="primary" :loading="saving" @click="save">儲存</n-button>
+            <n-button @click="router.push('/admin/novels')">{{ $t('common.cancel') }}</n-button>
+            <n-button type="primary" :loading="saving" @click="save">{{ $t('common.save') }}</n-button>
           </div>
         </n-form>
       </n-card>
@@ -73,13 +73,15 @@ import type { ApiCategory, ApiNovel, ApiNovelInput } from '~/types/models'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
+const { t, locale } = useI18n()
+const { novelStatusOptions } = useAdminLabels()
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 
 const novelId = computed(() => route.params.id as string)
 const isNew = computed(() => novelId.value === 'new')
-useHead({ title: computed(() => `${isNew.value ? '新增' : '編輯'}小說 — Palimpsest`) })
+useHead({ title: () => (isNew.value ? t('admin.novels.create') : t('admin.novels.edit')) })
 
 const novel = ref<ApiNovel | null>(null)
 const categories = ref<ApiCategory[]>([])
@@ -100,17 +102,17 @@ const form = reactive({
   tags: [] as string[],
 })
 
-const rules: FormRules = {
-  title: { required: true, message: '請輸入書名', trigger: 'blur' },
-  author_name: { required: true, message: '請輸入作者', trigger: 'blur' },
-}
+const rules = computed<FormRules>(() => ({
+  title: { required: true, message: t('admin.novels.titleRequired'), trigger: 'blur' },
+  author_name: { required: true, message: t('admin.novels.authorRequired'), trigger: 'blur' },
+}))
 
-// Children are listed right after their parent as "父分類 / 子分類".
+// Children are listed right after their parent as "Parent / Child".
 const categoryOptions = computed(() => {
   const parents = categories.value.filter(c => !c.parent_id)
   const options: { label: string, value: number }[] = []
   for (const p of parents) {
-    options.push({ label: p.is_active === false ? `${p.name}（停用）` : p.name, value: p.id })
+    options.push({ label: p.is_active === false ? t('admin.novels.disabledCategory', { name: p.name }) : p.name, value: p.id })
     for (const c of categories.value.filter(x => x.parent_id === p.id)) {
       options.push({ label: `${p.name} / ${c.name}`, value: c.id })
     }
@@ -132,7 +134,7 @@ function fillForm(n: ApiNovel) {
   form.is_featured = !!n.is_featured
   form.cover_url = n.cover_url ?? ''
   form.category_ids = (n.categories ?? []).map(c => c.id)
-  form.tags = (n.tags ?? []).map(t => t.name)
+  form.tags = (n.tags ?? []).map(tag => tag.name)
 }
 
 async function load() {
@@ -146,7 +148,7 @@ async function load() {
     if (n) fillForm(n.data)
   }
   catch (error) {
-    message.error(describeError(error, {}, '載入失敗'))
+    message.error(describeError(t, error, {}, t('common.loadFailed')))
   }
   finally {
     loading.value = false
@@ -169,24 +171,24 @@ async function save() {
     is_featured: form.is_featured,
     cover_url: form.cover_url.trim(),
     category_ids: form.category_ids,
-    tags: form.tags.map(t => t.trim()).filter(Boolean),
+    tags: form.tags.map(tag => tag.trim()).filter(Boolean),
   }
   saving.value = true
   try {
     if (isNew.value) {
       const res = await apiFetch<ApiResponse<ApiNovel>>('/admin/novels', { method: 'POST', body })
-      message.success('已建立小說')
+      message.success(t('admin.novels.created'))
       fillForm(res.data)
       await router.replace(`/admin/novels/${res.data.id}`)
     }
     else {
       const res = await apiFetch<ApiResponse<ApiNovel>>(`/admin/novels/${novelId.value}`, { method: 'PUT', body })
       fillForm(res.data)
-      message.success('已儲存')
+      message.success(t('common.saved'))
     }
   }
   catch (error) {
-    message.error(describeError(error, {}, '儲存失敗'))
+    message.error(describeError(t, error, {}, t('common.saveFailed')))
   }
   finally {
     saving.value = false
@@ -203,10 +205,10 @@ async function togglePublish() {
       body: { is_published: publish },
     })
     novel.value = { ...novel.value, ...res.data }
-    message.success(publish ? '已上架' : '已下架')
+    message.success(publish ? t('admin.novels.published') : t('admin.novels.unpublishedToast'))
   }
   catch (error) {
-    message.error(describeError(error, {}, '操作失敗'))
+    message.error(describeError(t, error, {}, t('common.operationFailed')))
   }
   finally {
     publishing.value = false

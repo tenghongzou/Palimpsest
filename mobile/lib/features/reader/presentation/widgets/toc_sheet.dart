@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/utils/formatters.dart';
 import '../providers/chapter_provider.dart';
+import '../../../../core/l10n/l10n.dart';
 
 /// Shows the table of contents; resolves to the chosen chapter id.
 Future<String?> showTocSheet(BuildContext context, {required String novelId, required String currentChapterId}) {
@@ -34,10 +35,10 @@ class TocSheet extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
           child: Row(
             children: [
-              Text('目錄', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text(context.l10n.readerToc, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(width: 8),
               if (toc.valueOrNull?.fromCache ?? false)
-                const Text('（離線：僅顯示已存章節）', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(context.l10n.tocOfflineNote, style: const TextStyle(fontSize: 12, color: Colors.grey)),
               const Spacer(),
               IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
             ],
@@ -47,7 +48,7 @@ class TocSheet extends ConsumerWidget {
         Expanded(
           child: toc.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('目錄載入失敗：${describeError(e)}')),
+            error: (e, _) => Center(child: Text(context.l10n.tocLoadFailed(describeError(e, context.l10n)))),
             data: (toc) {
               final current = toc.entries.indexWhere((c) => c.id == currentChapterId);
               final controller = ScrollController(
@@ -63,7 +64,7 @@ class TocSheet extends ConsumerWidget {
                   return ListTile(
                     dense: true,
                     selected: selected,
-                    title: Text(chapterLabel(c.chapterNumber, c.title), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    title: Text(chapterLabel(c.chapterNumber, c.title, context.l10n), maxLines: 1, overflow: TextOverflow.ellipsis),
                     trailing: c.isDownloaded ? const Icon(Icons.download_done, size: 16, color: Colors.green) : null,
                     onTap: () => Navigator.pop(context, c.id),
                   );

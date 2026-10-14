@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
 import '../../data/auth_repository.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class ResetPasswordPage extends ConsumerStatefulWidget {
   /// Token from the reset link, when opened from it.
@@ -33,14 +34,15 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
     if (_formKey.currentState?.validate() != true) return;
     setState(() => _submitting = true);
     final messenger = ScaffoldMessenger.of(context);
+    final l = context.l10n;
     try {
       await ref.read(authRepositoryProvider).resetPassword(_tokenController.text.trim(), _passwordController.text);
-      messenger.showSnackBar(const SnackBar(content: Text('密碼已重設，請使用新密碼登入')));
+      messenger.showSnackBar(SnackBar(content: Text(l.authResetDone)));
       if (mounted) context.go('/login');
     } catch (e) {
       final status = httpStatus(e);
       messenger.showSnackBar(SnackBar(
-        content: Text(status == 400 ? '重設代碼無效或已過期' : describeError(e)),
+        content: Text(status == 400 ? l.authResetCodeInvalid : describeError(e, l)),
       ));
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -49,8 +51,9 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('重設密碼')),
+      appBar: AppBar(title: Text(l.authResetTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -60,18 +63,19 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
             children: [
               TextFormField(
                 controller: _tokenController,
-                decoration: const InputDecoration(labelText: '重設代碼', border: OutlineInputBorder()),
-                validator: (v) => v == null || v.trim().isEmpty ? '請輸入信件中的重設代碼' : null,
+                decoration: InputDecoration(labelText: l.authResetCode, border: const OutlineInputBorder()),
+                validator: (v) => v == null || v.trim().isEmpty ? l.authResetCodeRequired : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: '新密碼', border: OutlineInputBorder(), hintText: '至少 8 個字元'),
+                decoration: InputDecoration(
+                    labelText: l.authNewPassword, border: const OutlineInputBorder(), hintText: l.authPasswordHint),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return '請輸入新密碼';
-                  if (v.length < 8) return '密碼至少 8 個字元';
-                  if (v.length > 72) return '密碼最多 72 個字元';
+                  if (v == null || v.isEmpty) return l.authNewPasswordRequired;
+                  if (v.length < 8) return l.authPasswordTooShort;
+                  if (v.length > 72) return l.authPasswordTooLong;
                   return null;
                 },
               ),
@@ -79,15 +83,15 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
               TextFormField(
                 controller: _confirmController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: '確認新密碼', border: OutlineInputBorder()),
-                validator: (v) => v != _passwordController.text ? '兩次輸入的密碼不一致' : null,
+                decoration: InputDecoration(labelText: l.authConfirmNewPassword, border: const OutlineInputBorder()),
+                validator: (v) => v != _passwordController.text ? l.authPasswordMismatch : null,
               ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: _submitting ? null : _submit,
                 child: _submitting
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('重設密碼'),
+                    : Text(l.authResetTitle),
               ),
             ],
           ),

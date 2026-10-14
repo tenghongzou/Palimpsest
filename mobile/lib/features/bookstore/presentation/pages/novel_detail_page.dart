@@ -12,6 +12,7 @@ import '../../../downloads/data/download_manager.dart';
 import '../../../reader/presentation/providers/progress_provider.dart';
 import '../../domain/entities/novel.dart';
 import '../providers/bookstore_provider.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class NovelDetailPage extends ConsumerStatefulWidget {
   final String novelId;
@@ -47,16 +48,16 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
 
   Future<void> _addToBookshelf() async {
     if (ref.read(authStateProvider).valueOrNull == null) {
-      showSnack(context, '請先登入');
+      showSnack(context, context.l10n.errorUnauthorized);
       context.push('/login');
       return;
     }
     setState(() => _adding = true);
     try {
       await ref.read(bookshelfProvider.notifier).add(novelId);
-      if (mounted) showSnack(context, '已加入書架');
+      if (mounted) showSnack(context, context.l10n.novelAddedToShelf);
     } catch (e) {
-      if (mounted) showSnack(context, '加入書架失敗：${describeError(e)}');
+      if (mounted) showSnack(context, context.l10n.novelAddToShelfFailed(describeError(e, context.l10n)));
     } finally {
       if (mounted) setState(() => _adding = false);
     }
@@ -68,24 +69,24 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('小說詳情'),
+        title: Text(context.l10n.novelDetailTitle),
         actions: [
           PopupMenuButton<String>(
-            tooltip: '更多',
+            tooltip: context.l10n.commonMore,
             onSelected: (_) {
               if (ref.read(authStateProvider).valueOrNull == null) {
-                showSnack(context, '請先登入');
+                showSnack(context, context.l10n.errorUnauthorized);
                 return;
               }
               showReportDialog(context, ref, targetType: 'novel', targetId: novelId);
             },
-            itemBuilder: (_) => const [PopupMenuItem(value: 'report', child: Text('檢舉作品'))],
+            itemBuilder: (_) => [PopupMenuItem(value: 'report', child: Text(context.l10n.novelReport))],
           ),
         ],
       ),
       body: novelAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('載入失敗：${describeError(e)}')),
+        error: (e, _) => Center(child: Text(context.l10n.commonLoadFailed(describeError(e, context.l10n)))),
         data: (novel) => RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(novelDetailProvider(novelId));
@@ -100,9 +101,9 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
               _buildActions(novel),
               _buildDownload(novel),
               const SizedBox(height: 16),
-              Text('簡介', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text(context.l10n.novelSynopsis, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(novel.description ?? '暫無簡介', style: TextStyle(color: Colors.grey.shade700, height: 1.6)),
+              Text(novel.description ?? context.l10n.novelNoSynopsis, style: TextStyle(color: Colors.grey.shade700, height: 1.6)),
               const SizedBox(height: 24),
               _buildChapters(),
               const SizedBox(height: 24),
@@ -133,7 +134,8 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
                 const SizedBox(width: 4),
                 Text(novel.avgRating.toStringAsFixed(1)),
                 const SizedBox(width: 16),
-                Text('${novel.totalChapters}章 · ${formatWordCount(novel.totalWords)}', style: TextStyle(color: Colors.grey.shade600)),
+                Text(context.l10n.novelChaptersAndWords(novel.totalChapters, formatWordCount(novel.totalWords, context.l10n)),
+                    style: TextStyle(color: Colors.grey.shade600)),
               ]),
               const SizedBox(height: 8),
               Wrap(
@@ -165,14 +167,14 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
             onPressed: resume != null
                 ? () => _read(resume.location)
                 : (chapters == null || chapters.isEmpty ? null : () => _read('/read/${chapters.first.id}')),
-            child: Text(resume != null ? '繼續閱讀' : '開始閱讀'),
+            child: Text(resume != null ? context.l10n.novelContinueReading : context.l10n.novelStartReading),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: OutlinedButton(
             onPressed: onShelf || _adding ? null : _addToBookshelf,
-            child: Text(onShelf ? '已在書架' : (_adding ? '加入中…' : '加入書架')),
+            child: Text(onShelf ? context.l10n.novelOnShelf : (_adding ? context.l10n.novelAdding : context.l10n.novelAddToShelf)),
           ),
         ),
       ],
@@ -193,19 +195,19 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
                 children: [
                   LinearProgressIndicator(value: task.total == 0 ? null : task.fraction),
                   const SizedBox(height: 4),
-                  Text('下載中 ${task.done}/${task.total} 章', style: const TextStyle(fontSize: 12)),
+                  Text(context.l10n.downloadProgress(task.done, task.total), style: const TextStyle(fontSize: 12)),
                 ],
               ),
             ),
-            TextButton(onPressed: () => manager.cancel(novelId), child: const Text('取消')),
+            TextButton(onPressed: () => manager.cancel(novelId), child: Text(context.l10n.commonCancel)),
           ],
         ),
       );
     }
     final label = switch (task?.status) {
-      DownloadStatus.completed => '已下載全部章節',
-      DownloadStatus.failed => '下載失敗，點此重試',
-      _ => '下載全部章節（離線閱讀）',
+      DownloadStatus.completed => context.l10n.downloadDone,
+      DownloadStatus.failed => context.l10n.downloadFailedRetry,
+      _ => context.l10n.downloadAll,
     };
     return Align(
       alignment: Alignment.centerLeft,
@@ -222,26 +224,26 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('章節列表', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text(context.l10n.novelChapterList, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         chaptersAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('載入章節失敗：${describeError(e)}'),
+          error: (e, _) => Text(context.l10n.novelChaptersLoadFailed(describeError(e, context.l10n))),
           data: (chapters) {
             const preview = 20;
             final shown = _showAllChapters ? chapters : chapters.take(preview).toList();
             return Column(
               children: [
                 ...shown.map((ch) => ListTile(
-                      title: Text(chapterLabel(ch.chapterNumber, ch.title), style: const TextStyle(fontSize: 14)),
-                      trailing: Text('${ch.wordCount}字', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                      title: Text(chapterLabel(ch.chapterNumber, ch.title, context.l10n), style: const TextStyle(fontSize: 14)),
+                      trailing: Text(context.l10n.wordCount(formatNumber(ch.wordCount, context.l10n)), style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                       dense: true,
                       onTap: () => _read('/read/${ch.id}'),
                     )),
                 if (chapters.length > preview && !_showAllChapters)
                   TextButton(
                     onPressed: () => setState(() => _showAllChapters = true),
-                    child: Text('顯示全部 ${chapters.length} 章'),
+                    child: Text(context.l10n.novelShowAllChapters(chapters.length)),
                   ),
               ],
             );

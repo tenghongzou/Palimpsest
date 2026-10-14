@@ -15,7 +15,7 @@
     <div class="flex items-center gap-4">
       <n-input
         v-model:value="searchQuery"
-        placeholder="搜尋小說..."
+        :placeholder="$t('header.searchPlaceholder')"
         clearable
         size="small"
         class="w-48"
@@ -25,6 +25,8 @@
           <n-icon :component="SearchIcon" />
         </template>
       </n-input>
+
+      <LanguageSwitcher />
 
       <ClientOnly>
         <NotificationBell v-if="isLoggedIn" />
@@ -49,8 +51,8 @@
       </n-dropdown>
 
       <template v-else>
-        <n-button size="small" @click="navigateTo('/login')">登入</n-button>
-        <n-button size="small" type="primary" @click="navigateTo('/register')">註冊</n-button>
+        <n-button size="small" @click="navigateTo('/login')">{{ $t('common.login') }}</n-button>
+        <n-button size="small" type="primary" @click="navigateTo('/register')">{{ $t('common.register') }}</n-button>
       </template>
     </div>
   </div>
@@ -64,6 +66,7 @@ import type { MenuOption, DropdownOption } from 'naive-ui'
 import { Search as SearchIcon, Person as PersonIcon } from '@vicons/ionicons5'
 import { h } from 'vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -81,23 +84,27 @@ const activeNav = computed(() => {
   return '/'
 })
 
-const navOptions: MenuOption[] = [
-  { label: () => h(resolveComponent('NuxtLink'), { to: '/' }, () => '首頁'), key: '/' },
-  { label: () => h(resolveComponent('NuxtLink'), { to: '/category' }, () => '分類'), key: '/category' },
-  { label: () => h(resolveComponent('NuxtLink'), { to: '/ranking' }, () => '排行'), key: '/ranking' },
-  { label: () => h(resolveComponent('NuxtLink'), { to: '/bookshelf' }, () => '書架'), key: '/bookshelf' },
+const NAV = [
+  { to: '/', labelKey: 'header.nav.home' },
+  { to: '/category', labelKey: 'header.nav.categories' },
+  { to: '/ranking', labelKey: 'header.nav.rankings' },
+  { to: '/bookshelf', labelKey: 'header.nav.bookshelf' },
 ]
+const navOptions = computed<MenuOption[]>(() => NAV.map(n => ({
+  label: () => h(resolveComponent('NuxtLink'), { to: n.to }, () => t(n.labelKey)),
+  key: n.to,
+})))
 
 const userMenuOptions = computed<DropdownOption[]>(() => [
-  { label: '個人中心', key: 'profile' },
-  { label: '我的書架', key: 'bookshelf' },
-  { label: '閱讀紀錄', key: 'history' },
-  { label: '我的書籤', key: 'bookmarks' },
-  { label: '通知', key: 'notifications' },
-  { label: '帳號設定', key: 'settings' },
-  ...(authStore.isAdmin ? [{ label: '管理後台', key: 'admin' }] : []),
+  { label: t('header.user.profile'), key: 'profile' },
+  { label: t('header.user.bookshelf'), key: 'bookshelf' },
+  { label: t('header.user.history'), key: 'history' },
+  { label: t('header.user.bookmarks'), key: 'bookmarks' },
+  { label: t('header.user.notifications'), key: 'notifications' },
+  { label: t('header.user.settings'), key: 'settings' },
+  ...(authStore.isAdmin ? [{ label: t('header.user.admin'), key: 'admin' }] : []),
   { type: 'divider', key: 'd1' },
-  { label: '登出', key: 'logout' },
+  { label: t('common.logout'), key: 'logout' },
 ])
 
 function handleNavSelect(key: string) {

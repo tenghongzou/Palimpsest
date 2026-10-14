@@ -9,6 +9,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/notification_repository.dart';
 import '../../domain/entities/app_notification.dart';
 import '../providers/notification_providers.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -37,9 +38,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       final now = DateTime.now().toUtc();
       ref.read(notificationsProvider.notifier).updateItems((items) => items.map((n) => n.markedRead(now)).toList());
       ref.read(unreadCountProvider.notifier).set(0);
-      if (mounted) showSnack(context, '已全部標為已讀');
+      if (mounted) showSnack(context, context.l10n.notificationsMarkedAllRead);
     } catch (e) {
-      if (mounted) showSnack(context, describeError(e));
+      if (mounted) showSnack(context, describeError(e, context.l10n));
     }
   }
 
@@ -63,7 +64,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       builder: (context) => AlertDialog(
         title: Text(n.title),
         content: SingleChildScrollView(child: Text(n.body ?? '', style: const TextStyle(height: 1.6))),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('關閉'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonClose))],
       ),
     );
   }
@@ -77,7 +78,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       await ref.read(notificationRepositoryProvider).delete(n.id);
     } catch (e) {
       if (httpStatus(e) == 404) return; // already gone
-      if (mounted) showSnack(context, '刪除失敗：${describeError(e)}');
+      if (mounted) showSnack(context, context.l10n.deleteFailed(describeError(e, context.l10n)));
       await notifier.refresh();
       await unread.refresh();
     }
@@ -86,13 +87,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).valueOrNull;
+    final l = context.l10n;
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('通知')),
+        appBar: AppBar(title: Text(l.notifications)),
         body: EmptyState(
           icon: Icons.notifications_none,
-          message: '登入後即可查看通知',
-          actionLabel: '登入',
+          message: l.notificationsSignInPrompt,
+          actionLabel: l.authLogin,
           onAction: () => context.push('/login'),
         ),
       );
@@ -107,8 +109,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     if (state.items.isEmpty && state.error != null && isNetworkError(state.error!)) {
       body = EmptyState(
         icon: Icons.wifi_off,
-        message: '目前離線，連線後即可查看通知',
-        actionLabel: '重試',
+        message: l.notificationsOffline,
+        actionLabel: l.commonRetry,
         onAction: _refresh,
       );
     } else {
@@ -116,7 +118,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         state: state,
         onLoadMore: notifier.loadMore,
         onRefresh: _refresh,
-        empty: const Text('目前沒有通知'),
+        empty: Text(l.notificationsEmpty),
         itemBuilder: (context, n, _) => Dismissible(
           key: ValueKey('notification-${n.id}'),
           direction: DismissDirection.endToStart,
@@ -134,9 +136,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('通知'),
+        title: Text(l.notifications),
         actions: [
-          TextButton(onPressed: hasUnread ? _markAllRead : null, child: const Text('全部已讀')),
+          TextButton(onPressed: hasUnread ? _markAllRead : null, child: Text(l.notificationsMarkAllRead)),
         ],
       ),
       body: body,
@@ -196,13 +198,13 @@ class _NotificationTile extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 4),
-                    Text(formatRelative(n.createdAt), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    Text(formatRelative(n.createdAt, context.l10n), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ),
               ),
               if (unread)
                 Semantics(
-                  label: '未讀',
+                  label: context.l10n.notificationUnread,
                   child: Container(
                     key: ValueKey('unread-dot-${n.id}'),
                     margin: const EdgeInsets.only(left: 8, top: 6),

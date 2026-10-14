@@ -1,17 +1,17 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-xl font-bold">書評審核</h1>
+    <h1 class="text-xl font-bold">{{ $t('admin.menu.reviews') }}</h1>
 
     <div class="flex items-center gap-3">
       <n-select
         v-model:value="filters.status"
-        :options="statusOptions"
-        placeholder="全部狀態"
+        :options="moderationOptions"
+        :placeholder="$t('category.allStatuses')"
         clearable
         class="w-36"
         @update:value="load(1)"
       />
-      <n-button @click="load()">重新整理</n-button>
+      <n-button @click="load()">{{ $t('admin.refresh') }}</n-button>
     </div>
 
     <n-data-table
@@ -33,15 +33,16 @@ import { h } from 'vue'
 import type { ApiReview, ModerationStatus } from '~/types/models'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
-useHead({ title: '書評審核 — Palimpsest' })
+
+const { t } = useI18n()
+const { moderationOptions, moderationLabel, dateTime } = useAdminLabels()
+useHead({ title: () => t('admin.menu.reviews') })
 
 const message = useMessage()
 
 const { items, loading, filters, tablePagination, load } = useAdminList<ApiReview, {
   status: ModerationStatus | null
 }>('/admin/reviews', { status: null })
-
-const statusOptions = Object.entries(MODERATION_LABELS).map(([value, label]) => ({ label, value }))
 
 const statusTagType: Record<string, 'success' | 'error' | 'warning'> = {
   approved: 'success',
@@ -52,17 +53,17 @@ const statusTagType: Record<string, 'success' | 'error' | 'warning'> = {
 async function moderate(review: ApiReview, status: ModerationStatus) {
   try {
     await apiFetch(`/admin/reviews/${review.id}`, { method: 'PUT', body: { status } })
-    message.success(`已設為「${MODERATION_LABELS[status]}」`)
+    message.success(t('admin.reviews.setTo', { status: moderationLabel(status) }))
     await load()
   }
   catch (error) {
-    message.error(describeError(error, {}, '操作失敗'))
+    message.error(describeError(t, error, {}, t('common.operationFailed')))
   }
 }
 
-const columns: DataTableColumns<ApiReview> = [
+const columns = computed<DataTableColumns<ApiReview>>(() => [
   {
-    title: '小說',
+    title: t('admin.reports.targets.novel'),
     key: 'novel',
     width: 150,
     render: row => row.novel
@@ -70,19 +71,19 @@ const columns: DataTableColumns<ApiReview> = [
       : '—',
   },
   {
-    title: '用戶',
+    title: t('admin.reports.targets.user'),
     key: 'user',
     width: 120,
     render: row => row.user?.nickname || row.user?.username || row.user_id,
   },
   {
-    title: '評分',
+    title: t('reviews.rating'),
     key: 'rating',
     width: 130,
     render: row => h(NRate, { value: row.rating, readonly: true, allowHalf: true, size: 'small' }),
   },
   {
-    title: '內容',
+    title: t('admin.columns.content'),
     key: 'content',
     minWidth: 260,
     render: row => h('div', [
@@ -90,16 +91,16 @@ const columns: DataTableColumns<ApiReview> = [
       h('div', { class: 'text-sm text-gray-600 whitespace-pre-wrap line-clamp-3' }, row.content),
     ]),
   },
-  { title: '讚', key: 'like_count', width: 60 },
+  { title: t('community.like'), key: 'like_count', width: 60 },
   {
-    title: '狀態',
+    title: t('admin.columns.status'),
     key: 'status',
     width: 90,
-    render: row => h(NTag, { size: 'small', type: statusTagType[row.status] }, () => MODERATION_LABELS[row.status] ?? row.status),
+    render: row => h(NTag, { size: 'small', type: statusTagType[row.status] }, () => moderationLabel(row.status)),
   },
-  { title: '時間', key: 'created_at', width: 170, render: row => adminDateTime(row.created_at) },
+  { title: t('admin.columns.time'), key: 'created_at', width: 170, render: row => dateTime(row.created_at) },
   {
-    title: '操作',
+    title: t('admin.columns.actions'),
     key: 'actions',
     width: 210,
     render: row => h(NSpace, { size: 'small' }, () => (['approved', 'rejected', 'hidden'] as const)
@@ -108,9 +109,9 @@ const columns: DataTableColumns<ApiReview> = [
         size: 'small',
         type: s === 'approved' ? 'primary' : s === 'rejected' ? 'error' : 'warning',
         onClick: () => moderate(row, s),
-      }, () => ({ approved: '通過', rejected: '拒絕', hidden: '隱藏' })[s]))),
+      }, () => t(`admin.reviews.actions.${s}`)))),
   },
-]
+])
 
 onMounted(() => load(1))
 </script>

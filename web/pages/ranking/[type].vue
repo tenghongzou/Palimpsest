@@ -13,20 +13,20 @@
           :bordered="rt.key !== rankingType"
           class="cursor-pointer"
         >
-          {{ rt.label }}
+          {{ $t(rt.labelKey) }}
         </n-tag>
       </NuxtLink>
     </div>
 
     <!-- Only the popularity board is computed per period; the others are all-time. -->
     <n-tabs v-if="rankingType === 'views'" :value="period" type="segment" @update:value="changePeriod">
-      <n-tab-pane name="daily" tab="日榜" />
-      <n-tab-pane name="weekly" tab="週榜" />
-      <n-tab-pane name="monthly" tab="月榜" />
-      <n-tab-pane name="all" tab="總榜" />
+      <n-tab-pane name="daily" :tab="$t('ranking.periods.daily')" />
+      <n-tab-pane name="weekly" :tab="$t('ranking.periods.weekly')" />
+      <n-tab-pane name="monthly" :tab="$t('ranking.periods.monthly')" />
+      <n-tab-pane name="all" :tab="$t('ranking.periods.all')" />
     </n-tabs>
 
-    <n-alert v-if="!validType" type="warning">找不到這個排行榜。</n-alert>
+    <n-alert v-if="!validType" type="warning">{{ $t('ranking.notFound') }}</n-alert>
 
     <n-spin :show="loading">
       <div class="space-y-3">
@@ -53,7 +53,7 @@
           </div>
         </div>
       </div>
-      <n-empty v-if="!loading && validType && novels.length === 0" description="暫無排行數據" />
+      <n-empty v-if="!loading && validType && novels.length === 0" :description="$t('ranking.empty')" />
     </n-spin>
 
     <div v-if="pagination.total_pages > 1" class="flex justify-center">
@@ -65,13 +65,13 @@
 <script setup lang="ts">
 import { NSpin, NTag, NTabs, NTabPane, NEmpty, NPagination, NAlert } from 'naive-ui'
 import type { Novel } from '~/types/novel'
-import { formatViewCount, formatRelativeTime } from '~/utils/format'
 
 const PAGE_SIZE = 20
+const { t, formatViewCount, formatRelativeTime, formatNumber } = useFormat()
 const route = useRoute()
 const router = useRouter()
 const rankingType = computed(() => route.params.type as RankingType)
-const validType = computed(() => RANKING_TYPES.some(t => t.key === rankingType.value))
+const validType = computed(() => RANKING_TYPES.some(r => r.key === rankingType.value))
 const period = computed<RankingPeriod>(() => {
   const p = route.query.period as string
   return (['daily', 'weekly', 'monthly', 'all'] as const).includes(p as RankingPeriod) ? p as RankingPeriod : 'weekly'
@@ -79,8 +79,11 @@ const period = computed<RankingPeriod>(() => {
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const { novels, pagination, loading, fetchRanking } = useRanking()
 
-const title = computed(() => RANKING_TYPES.find(t => t.key === rankingType.value)?.label ?? '排行榜')
-useHead({ title: computed(() => `${title.value} — Palimpsest`) })
+const title = computed(() => {
+  const type = RANKING_TYPES.find(r => r.key === rankingType.value)
+  return type ? t(type.labelKey) : t('ranking.title')
+})
+useHead({ title: () => title.value })
 
 function rankOf(idx: number) {
   return (pagination.value.page - 1) * pagination.value.page_size + idx + 1
@@ -88,11 +91,11 @@ function rankOf(idx: number) {
 
 function formatMetric(novel: Novel): string {
   switch (rankingType.value) {
-    case 'views': return `${formatViewCount(novel.view_count ?? 0)} 次閱讀`
-    case 'favorites': return `${novel.favorite_count ?? 0} 收藏`
-    case 'rating': return `${(novel.avg_rating ?? 0).toFixed(1)} 分`
+    case 'views': return t('ranking.metrics.views', { n: formatViewCount(novel.view_count ?? 0) }, novel.view_count ?? 0)
+    case 'favorites': return t('ranking.metrics.favorites', { n: formatNumber(novel.favorite_count ?? 0) }, novel.favorite_count ?? 0)
+    case 'rating': return t('ranking.metrics.rating', { n: (novel.avg_rating ?? 0).toFixed(1) })
     case 'latest': return novel.latest_chapter_at ? formatRelativeTime(novel.latest_chapter_at) : ''
-    case 'completed': return `${novel.total_chapters ?? 0} 章`
+    case 'completed': return t('ranking.metrics.chapters', { n: novel.total_chapters ?? 0 }, novel.total_chapters ?? 0)
     default: return ''
   }
 }

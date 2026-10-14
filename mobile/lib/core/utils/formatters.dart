@@ -1,7 +1,13 @@
-/// Display helpers shared across features (Traditional Chinese wording).
-String formatWordCount(int count) {
-  if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}萬字';
-  return '$count字';
+import 'package:intl/intl.dart';
+
+import '../l10n/l10n.dart';
+
+/// Display helpers shared across features, in the UI language [l].
+
+/// A word count, abbreviated the local way: "1.2萬字", "1.2万字", "12.3K words".
+String formatWordCount(int count, AppLocalizations l) {
+  final format = NumberFormat.compact(locale: intlLocaleOf(l))..maximumFractionDigits = 1;
+  return l.wordCount(format.format(count));
 }
 
 String formatBytes(int bytes) {
@@ -10,41 +16,50 @@ String formatBytes(int bytes) {
   return '$bytes B';
 }
 
-String formatDuration(int seconds) {
+/// A count with the locale's digit grouping ("12,345").
+String formatNumber(num value, AppLocalizations l) => NumberFormat.decimalPattern(intlLocaleOf(l)).format(value);
+
+String formatDuration(int seconds, AppLocalizations l) {
   if (seconds >= 3600) {
     final hours = seconds ~/ 3600;
     final minutes = (seconds % 3600) ~/ 60;
-    return minutes == 0 ? '$hours 小時' : '$hours 小時 $minutes 分';
+    return minutes == 0 ? l.durationHours(hours) : l.durationHoursMinutes(hours, minutes);
   }
-  if (seconds >= 60) return '${seconds ~/ 60} 分鐘';
-  return '$seconds 秒';
+  if (seconds >= 60) return l.durationMinutes(seconds ~/ 60);
+  return l.durationSeconds(seconds);
 }
 
-String formatDateTime(DateTime? time) {
+/// A date in the locale's short form ("2026/10/3", "10/3/2026").
+String formatDate(DateTime? time, AppLocalizations l) {
   if (time == null) return '';
-  final t = time.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${t.year}/${two(t.month)}/${two(t.day)} ${two(t.hour)}:${two(t.minute)}';
+  return DateFormat.yMd(intlLocaleOf(l)).format(time.toLocal());
 }
 
-/// Relative time such as "3 分鐘前", falling back to a date after a week.
-String formatRelative(DateTime? time, {DateTime? now}) {
+/// A date and time in the locale's short form.
+String formatDateTime(DateTime? time, AppLocalizations l) {
+  if (time == null) return '';
+  return DateFormat.yMd(intlLocaleOf(l)).add_Hm().format(time.toLocal());
+}
+
+/// Relative time such as "3 分鐘前" / "3 minutes ago", falling back to a
+/// date after a week.
+String formatRelative(DateTime? time, AppLocalizations l, {DateTime? now}) {
   if (time == null) return '';
   final diff = (now ?? DateTime.now()).difference(time);
-  if (diff.inMinutes < 1) return '剛剛';
-  if (diff.inHours < 1) return '${diff.inMinutes} 分鐘前';
-  if (diff.inDays < 1) return '${diff.inHours} 小時前';
-  if (diff.inDays < 7) return '${diff.inDays} 天前';
-  return formatDateTime(time).split(' ').first;
+  if (diff.inMinutes < 1) return l.relativeJustNow;
+  if (diff.inHours < 1) return l.relativeMinutesAgo(diff.inMinutes);
+  if (diff.inDays < 1) return l.relativeHoursAgo(diff.inHours);
+  if (diff.inDays < 7) return l.relativeDaysAgo(diff.inDays);
+  return formatDate(time, l);
 }
 
 DateTime? parseDateTime(Object? value) => value is String ? DateTime.tryParse(value) : null;
 
-final _numberedTitle = RegExp(r'^\s*第\s*[0-9０-９零〇一二兩三四五六七八九十百千萬]+\s*[章回節卷]');
+final _numberedTitle = RegExp(r'^\s*第\s*[0-9０-９零〇一二兩两三四五六七八九十百千萬万]+\s*[章回節节卷]');
 
-/// A chapter's label in lists: "第3章 標題", unless the title already
-/// carries its own number (e.g. "第三章 沒有旗的船").
-String chapterLabel(int number, String title) {
+/// A chapter's label in lists: "第3章 標題" / "Chapter 3: Title", unless the
+/// title already carries its own number (e.g. "第三章 沒有旗的船").
+String chapterLabel(int number, String title, AppLocalizations l) {
   if (_numberedTitle.hasMatch(title)) return title;
-  return title.isEmpty ? '第$number章' : '第$number章 $title';
+  return title.isEmpty ? l.chapterNumber(number) : l.chapterNumberTitle(number, title);
 }

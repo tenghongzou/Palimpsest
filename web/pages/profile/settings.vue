@@ -1,11 +1,11 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold">帳號設定</h1>
-      <n-button text @click="navigateTo('/profile')">返回個人中心</n-button>
+      <h1 class="text-xl font-bold">{{ $t('header.user.settings') }}</h1>
+      <n-button text @click="navigateTo('/profile')">{{ $t('profile.backToProfile') }}</n-button>
     </div>
 
-    <n-card title="頭像">
+    <n-card :title="$t('settings.avatar.title')">
       <div class="flex items-center gap-6">
         <n-avatar :src="user?.avatar_url || undefined" :size="80" round data-testid="settings-avatar">
           <template v-if="!user?.avatar_url">{{ initial }}</template>
@@ -19,59 +19,59 @@
             data-testid="avatar-input"
             @change="handleAvatarChange"
           >
-          <n-button :loading="uploading" @click="fileInput?.click()">更換頭像</n-button>
-          <div class="text-xs text-gray-400">支援 JPEG、PNG、WebP、GIF，檔案不超過 2 MB</div>
+          <n-button :loading="uploading" @click="fileInput?.click()">{{ $t('settings.avatar.change') }}</n-button>
+          <div class="text-xs text-gray-400">{{ $t('settings.avatar.hint') }}</div>
         </div>
       </div>
     </n-card>
 
-    <n-card title="個人資料">
-      <n-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-placement="left" label-width="80">
-        <n-form-item label="帳號">
+    <n-card :title="$t('settings.profile.title')">
+      <n-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-placement="left" :label-width="labelWidth">
+        <n-form-item :label="$t('auth.username')">
           <span class="text-gray-500">{{ user?.username }}</span>
         </n-form-item>
-        <n-form-item label="電子郵件">
+        <n-form-item :label="$t('auth.email')">
           <span class="text-gray-500">{{ user?.email || '—' }}</span>
         </n-form-item>
-        <n-form-item label="暱稱" path="nickname">
-          <n-input v-model:value="profileForm.nickname" maxlength="50" placeholder="顯示名稱" />
+        <n-form-item :label="$t('auth.nickname')" path="nickname">
+          <n-input v-model:value="profileForm.nickname" maxlength="50" :placeholder="$t('auth.nicknamePlaceholder')" />
         </n-form-item>
-        <n-form-item label="個人簡介" path="bio">
-          <n-input v-model:value="profileForm.bio" type="textarea" :rows="3" maxlength="500" show-count placeholder="介紹一下自己" />
+        <n-form-item :label="$t('settings.profile.bio')" path="bio">
+          <n-input v-model:value="profileForm.bio" type="textarea" :rows="3" maxlength="500" show-count :placeholder="$t('settings.profile.bioPlaceholder')" />
         </n-form-item>
-        <n-form-item label="語言偏好" path="language_pref">
-          <n-select v-model:value="profileForm.language_pref" :options="langOptions" />
+        <n-form-item :label="$t('settings.profile.language')">
+          <n-select :value="locale" :options="langOptions" data-testid="settings-language" @update:value="onLanguageChange" />
         </n-form-item>
-        <n-button type="primary" :loading="savingProfile" @click="saveProfile">儲存個人資料</n-button>
+        <n-button type="primary" :loading="savingProfile" @click="saveProfile">{{ $t('settings.profile.save') }}</n-button>
       </n-form>
     </n-card>
 
-    <n-card title="閱讀設定">
+    <n-card :title="$t('reader.toolbar.settings')">
       <template #header-extra>
-        <span class="text-xs text-gray-400">變更會自動同步到你的帳號</span>
+        <span class="text-xs text-gray-400">{{ $t('settings.reading.hint') }}</span>
       </template>
       <ReaderSettingsForm />
     </n-card>
 
-    <n-card title="登入裝置">
+    <n-card :title="$t('settings.devices.title')">
       <template #header-extra>
-        <span class="text-xs text-gray-400">登入過你帳號的瀏覽器與 App</span>
+        <span class="text-xs text-gray-400">{{ $t('settings.devices.hint') }}</span>
       </template>
       <DeviceList />
     </n-card>
 
-    <n-card title="變更密碼">
-      <n-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-placement="left" label-width="96">
-        <n-form-item label="目前密碼" path="current">
-          <n-input v-model:value="passwordForm.current" type="password" show-password-on="click" placeholder="目前的密碼" />
+    <n-card :title="$t('settings.password.title')">
+      <n-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-placement="left" :label-width="labelWidth + 16">
+        <n-form-item :label="$t('settings.password.current')" path="current">
+          <n-input v-model:value="passwordForm.current" type="password" show-password-on="click" :placeholder="$t('settings.password.currentPlaceholder')" />
         </n-form-item>
-        <n-form-item label="新密碼" path="next">
-          <n-input v-model:value="passwordForm.next" type="password" show-password-on="click" placeholder="至少 8 個字元" />
+        <n-form-item :label="$t('auth.newPassword')" path="next">
+          <n-input v-model:value="passwordForm.next" type="password" show-password-on="click" :placeholder="$t('auth.passwordPlaceholder')" />
         </n-form-item>
-        <n-form-item label="確認新密碼" path="confirm">
-          <n-input v-model:value="passwordForm.confirm" type="password" show-password-on="click" placeholder="再次輸入新密碼" />
+        <n-form-item :label="$t('auth.confirmNewPassword')" path="confirm">
+          <n-input v-model:value="passwordForm.confirm" type="password" show-password-on="click" :placeholder="$t('auth.confirmNewPasswordPlaceholder')" />
         </n-form-item>
-        <n-button type="warning" :loading="savingPassword" @click="changePassword">變更密碼</n-button>
+        <n-button type="warning" :loading="savingPassword" @click="changePassword">{{ $t('settings.password.title') }}</n-button>
       </n-form>
     </n-card>
   </div>
@@ -84,10 +84,15 @@ import type { ApiResponse } from '~/utils/api'
 import type { User } from '~/types/user'
 
 definePageMeta({ middleware: 'auth' })
-useHead({ title: '設定 — Palimpsest' })
+
+const { t } = useI18n()
+useHead({ title: () => t('settings.title') })
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 
+const { locale, options: langOptions, changeLanguage } = useLanguage()
+// English labels are longer.
+const labelWidth = computed(() => (locale.value === 'en' ? 110 : 80))
 const authStore = useAuthStore()
 const message = useMessage()
 const router = useRouter()
@@ -105,41 +110,40 @@ const uploading = ref(false)
 const profileForm = reactive({
   nickname: '',
   bio: '',
-  language_pref: 'zh-TW' as User['language_pref'],
 })
 
 function fillProfile(u: User | null) {
   profileForm.nickname = u?.nickname || ''
   profileForm.bio = u?.bio || ''
-  profileForm.language_pref = u?.language_pref || 'zh-TW'
 }
 
-const profileRules: FormRules = {
+const profileRules = computed<FormRules>(() => ({
   nickname: [
-    { required: true, message: '請輸入暱稱', trigger: 'blur' },
-    { max: 50, message: '暱稱最多 50 個字元', trigger: 'blur' },
+    { required: true, message: t('auth.nicknameRequired'), trigger: 'blur' },
+    { max: 50, message: t('settings.profile.nicknameMax', { max: 50 }), trigger: 'blur' },
   ],
-  bio: { max: 500, message: '簡介最多 500 個字元', trigger: 'blur' },
-}
+  bio: { max: 500, message: t('settings.profile.bioMax', { max: 500 }), trigger: 'blur' },
+}))
 
 const passwordForm = reactive({ current: '', next: '', confirm: '' })
-const passwordRules: FormRules = {
-  current: { required: true, message: '請輸入目前密碼', trigger: 'blur' },
+const passwordRules = computed<FormRules>(() => ({
+  current: { required: true, message: t('settings.password.currentRequired'), trigger: 'blur' },
   next: [
-    { required: true, message: '請輸入新密碼', trigger: 'blur' },
-    { min: 8, max: 72, message: '密碼需 8-72 個字元', trigger: 'blur' },
+    { required: true, message: t('auth.newPasswordRequired'), trigger: 'blur' },
+    { min: 8, max: 72, message: t('auth.passwordLength'), trigger: 'blur' },
   ],
   confirm: [
-    { required: true, message: '請再次輸入新密碼', trigger: 'blur' },
-    { validator: (_rule: unknown, value: string) => value === passwordForm.next, message: '兩次輸入的密碼不一致', trigger: 'blur' },
+    { required: true, message: t('auth.confirmNewPasswordRequired'), trigger: 'blur' },
+    { validator: (_rule: unknown, value: string) => value === passwordForm.next, message: t('auth.passwordMismatch'), trigger: 'blur' },
   ],
-}
+}))
 
-const langOptions = [
-  { label: '繁體中文', value: 'zh-TW' },
-  { label: '简体中文', value: 'zh-CN' },
-  { label: 'English', value: 'en' },
-]
+/** Applies the language right away and stores it as the account's language_pref. */
+async function onLanguageChange(code: string) {
+  const result = await changeLanguage(code)
+  if (result === 'failed') message.warning(t('language.notSavedToAccount'))
+  else message.success(t('language.savedToAccount'))
+}
 
 async function saveProfile() {
   await profileFormRef.value?.validate()
@@ -150,15 +154,14 @@ async function saveProfile() {
       body: {
         nickname: profileForm.nickname.trim(),
         bio: profileForm.bio,
-        language_pref: profileForm.language_pref,
       },
     })
     authStore.setUser(res.data)
     fillProfile(res.data)
-    message.success('個人資料已儲存')
+    message.success(t('settings.profile.saved'))
   }
   catch (e) {
-    message.error(describeError(e, { 400: '資料格式不正確' }, '儲存失敗，請稍後再試'))
+    message.error(describeError(t, e, { 400: t('settings.profile.invalid') }, t('settings.profile.saveFailed')))
   }
   finally {
     savingProfile.value = false
@@ -171,22 +174,22 @@ async function handleAvatarChange(event: Event) {
   input.value = ''
   if (!file) return
   if (file.size > MAX_AVATAR_BYTES) {
-    message.error('圖片超過 2 MB，請選擇較小的檔案')
+    message.error(t('settings.avatar.tooLarge', { mb: 2 }))
     return
   }
   uploading.value = true
   try {
     const res = await apiUpload<ApiResponse<User>>('/users/me/avatar', 'avatar', file)
     authStore.setUser(res.data)
-    message.success('頭像已更新')
+    message.success(t('settings.avatar.updated'))
   }
   catch (e) {
-    message.error(describeError(e, {
-      400: '無法讀取這個圖片檔',
-      413: '圖片超過 2 MB，請選擇較小的檔案',
-      415: '只支援 JPEG、PNG、WebP 或 GIF 圖片',
-      503: '圖片儲存服務暫時無法使用，請稍後再試',
-    }, '上傳失敗，請稍後再試'))
+    message.error(describeError(t, e, {
+      400: t('settings.avatar.unreadable'),
+      413: t('settings.avatar.tooLarge', { mb: 2 }),
+      415: t('settings.avatar.unsupported'),
+      503: t('settings.avatar.storageUnavailable'),
+    }, t('settings.avatar.uploadFailed')))
   }
   finally {
     uploading.value = false
@@ -202,12 +205,12 @@ async function changePassword() {
       body: { current_password: passwordForm.current, new_password: passwordForm.next },
     })
     // The change revokes refresh tokens, so start a fresh session.
-    message.success('密碼已變更，請使用新密碼重新登入')
+    message.success(t('settings.password.changed'))
     await authStore.logout()
     router.push('/login')
   }
   catch (e) {
-    message.error(describeError(e, { 400: '目前密碼不正確' }, '變更失敗，請稍後再試'))
+    message.error(describeError(t, e, { 400: t('settings.password.wrongCurrent') }, t('settings.password.failed')))
   }
   finally {
     savingPassword.value = false

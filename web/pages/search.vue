@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <n-input
       v-model:value="query"
-      placeholder="搜尋小說名稱、作者..."
+      :placeholder="$t('search.placeholder')"
       size="large"
       clearable
       @keyup.enter="handleSearch"
@@ -25,7 +25,7 @@
     </div>
 
     <div v-if="!hasSearched && hotKeywords.length > 0">
-      <h3 class="text-base font-semibold mb-3">熱門搜尋</h3>
+      <h3 class="text-base font-semibold mb-3">{{ $t('search.hot') }}</h3>
       <div class="flex flex-wrap gap-2">
         <n-tag
           v-for="keyword in hotKeywords"
@@ -41,12 +41,12 @@
 
     <n-spin v-if="hasSearched" :show="loading">
       <div class="text-sm text-gray-500 mb-4">
-        找到 {{ total }} 個結果
+        {{ $t('search.resultCount', { n: total }, total) }}
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <NovelCard v-for="novel in results" :key="novel.id" :novel="novel" />
       </div>
-      <n-empty v-if="!loading && results.length === 0" description="沒有找到相關小說" />
+      <n-empty v-if="!loading && results.length === 0" :description="$t('search.empty')" />
     </n-spin>
   </div>
 </template>
@@ -56,7 +56,8 @@ import { NSpin, NInput, NIcon, NTag, NEmpty } from 'naive-ui'
 import { Search as SearchIcon } from '@vicons/ionicons5'
 import { useDebounceFn } from '@vueuse/core'
 
-useHead({ title: '搜尋 — Palimpsest' })
+const { t } = useI18n()
+useHead({ title: () => t('common.search') })
 
 const route = useRoute()
 const router = useRouter()

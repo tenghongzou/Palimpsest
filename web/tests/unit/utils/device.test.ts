@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { makeT } from '../i18n'
 import {
   DEVICE_ID_KEY,
   deviceNameFromUserAgent,
@@ -34,6 +35,9 @@ const UA = {
 }
 
 describe('deviceNameFromUserAgent', () => {
+  const t = makeT('zh-TW')
+  const zh = { browserOn: (os: string) => t('devices.browserOn', { os }), generic: t('devices.webBrowser') }
+
   it.each([
     [UA.chromeWindows, 'Chrome on Windows'],
     [UA.edgeWindows, 'Edge on Windows'],
@@ -51,10 +55,12 @@ describe('deviceNameFromUserAgent', () => {
   })
 
   it('falls back for unknown agents', () => {
-    expect(deviceNameFromUserAgent('')).toBe('網頁瀏覽器')
-    expect(deviceNameFromUserAgent(undefined)).toBe('網頁瀏覽器')
-    expect(deviceNameFromUserAgent('curl/8.0')).toBe('網頁瀏覽器')
-    expect(deviceNameFromUserAgent('SomeBot (Windows NT 10.0)')).toBe('瀏覽器 on Windows')
+    expect(deviceNameFromUserAgent('', zh)).toBe('網頁瀏覽器')
+    expect(deviceNameFromUserAgent(undefined, zh)).toBe('網頁瀏覽器')
+    expect(deviceNameFromUserAgent('curl/8.0', zh)).toBe('網頁瀏覽器')
+    expect(deviceNameFromUserAgent('SomeBot (Windows NT 10.0)', zh)).toBe('瀏覽器 on Windows')
+    expect(deviceNameFromUserAgent('SomeBot (Windows NT 10.0)')).toBe('Browser on Windows')
+    expect(deviceNameFromUserAgent('')).toBe('Web browser')
   })
 
   it('stays within the 100 character limit', () => {

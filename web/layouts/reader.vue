@@ -1,6 +1,7 @@
 <template>
-  <n-config-provider :theme="naiveTheme" :locale="zhTW" :date-locale="dateZhTW">
+  <n-config-provider :theme="naiveTheme" :locale="naiveLocale" :date-locale="naiveDateLocale">
     <n-message-provider>
+      <PwaPrompt />
       <n-dialog-provider>
         <div
           class="min-h-screen reader-layout"
@@ -23,9 +24,10 @@
 </template>
 
 <script setup lang="ts">
-import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme, zhTW, dateZhTW } from 'naive-ui'
+import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme } from 'naive-ui'
 import { READER_THEMES } from '~/utils/readingSettings'
 
+const { naiveLocale, naiveDateLocale } = useNaiveLocale()
 const readerStore = useReaderStore()
 const settings = computed(() => readerStore.settings)
 const theme = computed(() => READER_THEMES[settings.value.theme] ?? READER_THEMES.white)

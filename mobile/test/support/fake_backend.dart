@@ -137,6 +137,12 @@ class FakeBackend {
   /// Set to make PATCH /bookshelf/{id} fail with this status.
   int? bookshelfPatchFailure;
 
+  /// The signed in user (GET/PATCH /users/me).
+  final Map<String, dynamic> me = userJson();
+
+  /// Set to make PATCH /users/me fail with this status.
+  int? profilePatchFailure;
+
   int _deviceSeq = 0;
 
   FakeBackend() {
@@ -323,7 +329,7 @@ class FakeBackend {
             'access_token': 'login-access',
             'refresh_token': 'login-refresh',
             'expires_in': 86400,
-            'user': userJson(),
+            'user': me,
           }))
       ..on('POST', '/auth/logout', (_) => FakeResponse.ok(null))
       ..on('POST', '/translation/chapter', (r) => r.json['target_lang'] == 'en'
@@ -336,12 +342,21 @@ class FakeBackend {
               'translated_content': '简体的第一段。\n\n简体的第二段。',
               'is_cached': false,
             }))
-      ..on('GET', '/users/me', (_) => FakeResponse.ok(userJson()))
+      ..on('GET', '/users/me', (_) => FakeResponse.ok(me))
+      ..on('PATCH', '/users/me', (r) {
+        final failure = profilePatchFailure;
+        if (failure != null) return FakeResponse.error(failure, 50001, 'boom');
+        for (final key in ['nickname', 'bio', 'avatar_url', 'language_pref']) {
+          if (r.json.containsKey(key)) me[key] = r.json[key];
+        }
+        return FakeResponse.ok(me);
+      })
       ..on('GET', '/users/me/reading-settings', (_) => FakeResponse.ok({
             'font_size': 18,
             'line_height': 1.8,
             'theme': 'white',
             'reading_mode': 'scroll',
+            'page_animation': 'slide',
             'brightness': 100,
             'updated_at': '0001-01-01T00:00:00Z',
           }))

@@ -1,17 +1,17 @@
 <template>
   <div class="space-y-4" :data-testid="isParagraphMode ? 'paragraph-comments' : 'chapter-comments'">
     <div class="flex items-center justify-between">
-      <span class="text-sm text-gray-500">共 {{ pagination.total }} 則{{ isParagraphMode ? '段落評論' : '留言' }}</span>
+      <span class="text-sm text-gray-500">{{ $t(isParagraphMode ? 'comments.totalParagraph' : 'comments.total', { n: pagination.total }, pagination.total) }}</span>
       <n-radio-group v-model:value="sort" size="small">
-        <n-radio-button value="latest">最新</n-radio-button>
-        <n-radio-button value="popular">最熱</n-radio-button>
+        <n-radio-button value="latest">{{ $t('comments.sortLatest') }}</n-radio-button>
+        <n-radio-button value="popular">{{ $t('comments.sortPopular') }}</n-radio-button>
       </n-radio-group>
     </div>
 
     <div v-if="isLoggedIn" class="space-y-2">
       <div v-if="replyTo" class="text-xs text-gray-500 flex items-center gap-2">
-        回覆 {{ replyTo.user?.nickname || replyTo.user?.username || '讀者' }}
-        <n-button text size="tiny" @click="replyTo = null">取消</n-button>
+        {{ $t('comments.replyingTo', { name: replyTo.user?.nickname || replyTo.user?.username || $t('comments.anonymous') }) }}
+        <n-button text size="tiny" @click="replyTo = null">{{ $t('common.cancel') }}</n-button>
       </div>
       <n-input
         ref="inputRef"
@@ -25,16 +25,20 @@
       />
       <div class="flex items-center justify-between">
         <n-checkbox v-if="!replyTo && !isParagraphMode && paragraphAttachable" v-model:checked="attachParagraph">
-          針對目前段落（第 {{ currentParagraph + 1 }} 段）
+          {{ $t('comments.attachParagraph', { n: currentParagraph + 1 }) }}
         </n-checkbox>
         <span v-else />
         <n-button type="primary" size="small" :loading="posting" :disabled="!draft.trim()" data-testid="comment-submit" @click="post">
-          {{ replyTo ? '回覆' : isParagraphMode ? '發表段落評論' : '發表留言' }}
+          {{ replyTo ? $t('comments.reply') : isParagraphMode ? $t('comments.postParagraph') : $t('comments.post') }}
         </n-button>
       </div>
     </div>
     <n-alert v-else type="info" :show-icon="false">
-      <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="text-primary">登入</NuxtLink>後即可留言
+      <i18n-t keypath="comments.loginToComment" tag="span" scope="global">
+        <template #login>
+          <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="text-primary">{{ $t('common.login') }}</NuxtLink>
+        </template>
+      </i18n-t>
     </n-alert>
 
     <n-spin :show="loading">
@@ -72,11 +76,11 @@
           </div>
         </div>
         <div v-if="!loading && loadFailed && items.length === 0" class="text-center text-sm text-gray-400 py-6" data-testid="comments-error">
-          無法載入留言
-          <n-button text size="small" type="primary" @click="reload">重試</n-button>
+          {{ $t('comments.loadFailed') }}
+          <n-button text size="small" type="primary" @click="reload">{{ $t('common.retry') }}</n-button>
         </div>
         <div v-else-if="!loading && items.length === 0" class="text-center text-sm text-gray-400 py-6" data-testid="comments-empty">
-          {{ isParagraphMode ? '這一段還沒有評論，說說你的想法吧' : '還沒有留言，來搶頭香吧' }}
+          {{ isParagraphMode ? $t('comments.emptyParagraph') : $t('comments.empty') }}
         </div>
       </div>
     </n-spin>
@@ -113,6 +117,7 @@ const emit = defineEmits<{
   changed: []
 }>()
 
+const { t } = useI18n()
 const route = useRoute()
 const message = useMessage()
 const authStore = useAuthStore()
@@ -135,8 +140,8 @@ const loadFailed = ref(false)
 const highlightedId = ref<string | null>(null)
 
 const placeholder = computed(() => {
-  if (replyTo.value) return '寫下你的回覆…'
-  return isParagraphMode.value ? '對這一段說點什麼…' : '分享你對這一章的想法…'
+  if (replyTo.value) return t('comments.placeholderReply')
+  return isParagraphMode.value ? t('comments.placeholderParagraph') : t('comments.placeholderChapter')
 })
 
 function canDelete(c: ApiComment) {
@@ -175,7 +180,7 @@ async function showThread(thread: ApiComment) {
 
 function startReply(c: ApiComment) {
   if (!isLoggedIn.value) {
-    message.info('請先登入')
+    message.info(t('auth.loginFirst'))
     return
   }
   replyTo.value = c
@@ -195,11 +200,11 @@ async function post() {
     draft.value = ''
     replyTo.value = null
     attachParagraph.value = false
-    message.success(isReply ? '回覆已發表' : '留言已發表')
+    message.success(isReply ? t('comments.replyPosted') : t('comments.posted'))
     if (!isReply) emit('changed')
   }
   catch (e) {
-    message.error(describeError(e, { 400: '留言內容不正確（最多 2000 字）', 404: '找不到這個章節' }, '發表失敗，請稍後再試'))
+    message.error(describeError(t, e, { 400: t('comments.invalid'), 404: t('reader.chapterNotFound') }, t('comments.postFailed')))
   }
   finally {
     posting.value = false
@@ -208,31 +213,31 @@ async function post() {
 
 async function like(c: ApiComment) {
   if (!isLoggedIn.value) {
-    message.info('請先登入')
+    message.info(t('auth.loginFirst'))
     return
   }
   try {
     await toggleLike(c)
   }
   catch (e) {
-    message.error(describeError(e, {}, '操作失敗'))
+    message.error(describeError(t, e, {}, t('common.operationFailed')))
   }
 }
 
 async function remove(c: ApiComment) {
   try {
     await removeComment(c)
-    message.success('已刪除留言')
+    message.success(t('comments.deleted'))
     if (!c.parent_id) emit('changed')
   }
   catch (e) {
-    message.error(describeError(e, {}, '刪除失敗'))
+    message.error(describeError(t, e, {}, t('common.deleteFailed')))
   }
 }
 
 function openReport(c: ApiComment) {
   if (!isLoggedIn.value) {
-    message.info('請先登入')
+    message.info(t('auth.loginFirst'))
     return
   }
   reportTarget.value = c.id

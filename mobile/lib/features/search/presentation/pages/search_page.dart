@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/database/database_helper.dart';
+import '../../../../core/network/api_error.dart';
 import '../providers/search_provider.dart';
 import '../../../bookstore/presentation/widgets/novel_card.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -32,8 +34,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         title: TextField(
           controller: _controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '搜尋小說名稱、作者...',
+          decoration: InputDecoration(
+            hintText: context.l10n.searchHint,
             border: InputBorder.none,
           ),
           onSubmitted: _search,
@@ -49,10 +51,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ? _buildHotKeywords(hotKeywords)
           : results.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('搜尋失敗：$e')),
+              error: (e, _) => Center(child: Text(context.l10n.searchFailed(describeError(e, context.l10n)))),
               data: (novels) {
                 if (novels.isEmpty) {
-                  return const Center(child: Text('沒有找到相關小說'));
+                  return Center(child: Text(context.l10n.searchNoResults));
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -97,7 +99,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('最近搜尋', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(context.l10n.searchRecent, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     TextButton(
                       onPressed: () async {
                         try {
@@ -106,7 +108,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         } catch (_) {}
                         ref.invalidate(searchHistoryProvider);
                       },
-                      child: const Text('清除'),
+                      child: Text(context.l10n.searchClear),
                     ),
                   ],
                 ),
@@ -139,7 +141,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('熱門搜尋', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(context.l10n.searchHot, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,

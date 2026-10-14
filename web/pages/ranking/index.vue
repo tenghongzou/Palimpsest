@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1 class="text-xl font-bold mb-4">排行榜</h1>
+    <h1 class="text-xl font-bold mb-4">{{ $t('ranking.title') }}</h1>
     <div class="flex flex-wrap gap-3">
       <NuxtLink
         v-for="rt in RANKING_TYPES"
@@ -9,7 +9,7 @@
         class="no-underline"
       >
         <n-card hoverable size="small" class="cursor-pointer">
-          {{ rt.label }}
+          {{ $t(rt.labelKey) }}
         </n-card>
       </NuxtLink>
     </div>
@@ -19,5 +19,6 @@
 <script setup lang="ts">
 import { NCard } from 'naive-ui'
 
-useHead({ title: '排行榜 — Palimpsest' })
+const { t } = useI18n()
+useHead({ title: () => t('ranking.title') })
 </script>

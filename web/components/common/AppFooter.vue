@@ -2,18 +2,19 @@
   <div class="flex items-center justify-between text-sm text-gray-500">
     <div class="flex items-center gap-4">
       <span>&copy; {{ year }} Palimpsest</span>
-      <NuxtLink to="/about" class="text-gray-500 hover:text-primary">關於</NuxtLink>
-      <NuxtLink to="/terms" class="text-gray-500 hover:text-primary">服務條款</NuxtLink>
-      <NuxtLink to="/privacy" class="text-gray-500 hover:text-primary">隱私政策</NuxtLink>
+      <NuxtLink to="/about" class="text-gray-500 hover:text-primary">{{ $t('footer.about') }}</NuxtLink>
+      <NuxtLink to="/terms" class="text-gray-500 hover:text-primary">{{ $t('footer.terms') }}</NuxtLink>
+      <NuxtLink to="/privacy" class="text-gray-500 hover:text-primary">{{ $t('footer.privacy') }}</NuxtLink>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2" data-testid="footer-languages">
       <n-button
-        v-for="lang in languages"
+        v-for="lang in options"
         :key="lang.value"
         text
         :type="locale === lang.value ? 'primary' : 'default'"
         size="tiny"
-        @click="setLocale(lang.value)"
+        :lang="lang.value"
+        @click="select(lang.value)"
       >
         {{ lang.label }}
       </n-button>
@@ -22,19 +23,15 @@
 </template>
 
 <script setup lang="ts">
-import { NButton } from 'naive-ui'
+import { NButton, useMessage } from 'naive-ui'
 
-const appStore = useAppStore()
-const locale = computed(() => appStore.locale)
+const { t } = useI18n()
+const message = useMessage()
+const { locale, options, changeLanguage } = useLanguage()
 const year = new Date().getFullYear()
 
-const languages = [
-  { label: '繁體中文', value: 'zh-TW' as const },
-  { label: '简体中文', value: 'zh-CN' as const },
-  { label: 'English', value: 'en' as const },
-]
-
-function setLocale(lang: 'zh-TW' | 'zh-CN' | 'en') {
-  appStore.setLocale(lang)
+async function select(code: string) {
+  if (code === locale.value) return
+  if (await changeLanguage(code) === 'failed') message.warning(t('language.notSavedToAccount'))
 }
 </script>

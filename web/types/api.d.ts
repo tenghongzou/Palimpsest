@@ -1682,6 +1682,12 @@ export interface components {
             theme: "white" | "sepia" | "green" | "dark" | "black";
             /** @enum {string} */
             reading_mode: "scroll" | "page";
+            /**
+             * @description How page mode turns pages. Omitting it on save keeps the stored value.
+             * @default slide
+             * @enum {string}
+             */
+            page_animation: "none" | "slide" | "cover" | "curl";
             brightness: number;
             keep_screen_on?: boolean;
             auto_chapter?: boolean;

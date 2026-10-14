@@ -7,12 +7,8 @@ final bookshelfRepositoryProvider = Provider<BookshelfRepository>((ref) {
   return BookshelfRepository(ref.read(apiClientProvider));
 });
 
-/// `sort_by` values of GET /bookshelf with their labels.
-const bookshelfSortOptions = <String, String>{
-  'recent': '最近閱讀',
-  'added': '加入時間',
-  'title': '書名',
-};
+/// `sort_by` values of GET /bookshelf.
+const bookshelfSortOptions = ['recent', 'added', 'title'];
 
 class BookshelfRepository {
   final ApiClient _apiClient;

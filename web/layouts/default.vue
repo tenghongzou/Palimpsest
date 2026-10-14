@@ -1,6 +1,7 @@
 <template>
-  <n-config-provider :theme-overrides="themeOverrides" :locale="zhTW" :date-locale="dateZhTW">
+  <n-config-provider :theme-overrides="themeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
     <n-message-provider>
+      <PwaPrompt />
       <n-dialog-provider>
         <n-layout class="min-h-screen">
           <n-layout-header bordered class="px-6 py-3">
@@ -21,9 +22,11 @@
 <script setup lang="ts">
 import {
   NConfigProvider, NMessageProvider, NDialogProvider,
-  NLayout, NLayoutHeader, NLayoutContent, NLayoutFooter, zhTW, dateZhTW,
+  NLayout, NLayoutHeader, NLayoutContent, NLayoutFooter,
 } from 'naive-ui'
 import type { GlobalThemeOverrides } from 'naive-ui'
+
+const { naiveLocale, naiveDateLocale } = useNaiveLocale()
 
 const themeOverrides: GlobalThemeOverrides = {
   common: {

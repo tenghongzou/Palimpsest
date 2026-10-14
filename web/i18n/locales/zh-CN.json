@@ -1,0 +1,931 @@
+{
+  "meta": {
+    "siteName": "Palimpsest",
+    "tagline": "小说阅读",
+    "description": "Palimpsest 中文小说阅读平台：海量连载小说，支持繁体、简体与英文阅读。"
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确定",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭",
+    "loading": "加载中…",
+    "loadMore": "加载更多",
+    "retry": "重试",
+    "search": "搜索",
+    "submit": "提交",
+    "back": "返回",
+    "all": "全部",
+    "none": "无",
+    "yes": "是",
+    "no": "否",
+    "unknown": "未知",
+    "login": "登录",
+    "logout": "退出登录",
+    "register": "注册",
+    "loadFailed": "加载失败",
+    "saveFailed": "保存失败",
+    "deleteFailed": "删除失败",
+    "saved": "已保存",
+    "deleted": "已删除",
+    "operationFailed": "操作失败"
+  },
+  "errors": {
+    "rateLimited": "操作太频繁，请稍后再试",
+    "sessionExpired": "登录已过期，请重新登录",
+    "forbidden": "没有权限执行此操作",
+    "network": "无法连接到服务器，请检查网络"
+  },
+  "format": {
+    "justNow": "刚刚",
+    "tenThousand": "{n} 万",
+    "hundredMillion": "{n} 亿",
+    "tenThousandWords": "{n} 万字",
+    "words": "{n} 字",
+    "minutes": "{m} 分钟",
+    "hours": "{h} 小时",
+    "hoursMinutes": "{h} 小时 {m} 分钟",
+    "chapter": "第{n}章",
+    "chapterWithTitle": "第{n}章 {title}",
+    "parenthesized": "（{text}）"
+  },
+  "novel": {
+    "status": {
+      "ongoing": "连载中",
+      "completed": "已完结",
+      "hiatus": "暂停"
+    },
+    "notFound": "找不到这本小说",
+    "sort": {
+      "latest": "最近更新",
+      "popular": "人气",
+      "rating": "评分",
+      "words": "字数",
+      "favorites": "收藏",
+      "new": "最新上架"
+    },
+    "notFoundHint": "它可能已被下架或网址有误。",
+    "backHome": "回到首页",
+    "reviewCount": "（{n} 条书评）",
+    "latestChapter": "最新章节：{title}",
+    "continueReading": "继续阅读",
+    "startReading": "开始阅读",
+    "readFromStart": "从头阅读",
+    "inBookshelf": "已在书架",
+    "addToBookshelf": "加入书架",
+    "lastRead": "上次读到：{title}",
+    "synopsis": "简介",
+    "noSynopsis": "暂无简介",
+    "chapterList": "章节列表",
+    "sortAsc": "正序",
+    "sortDesc": "倒序",
+    "noChapters": "尚无章节",
+    "addedToBookshelf": "已加入书架",
+    "alreadyInBookshelf": "这本书已经在书架上了",
+    "addToBookshelfFailed": "加入书架失败"
+  },
+  "language": {
+    "label": "语言",
+    "switchTo": "切换语言",
+    "savedToAccount": "已切换语言",
+    "notSavedToAccount": "已切换语言，但无法保存到账号，下次登录可能会还原"
+  },
+  "pwa": {
+    "updateAvailable": "有新版本",
+    "reload": "刷新",
+    "offlineReady": "已可离线使用"
+  },
+  "layout": {
+    "auth": {
+      "subtitle": "中文小说阅读平台"
+    }
+  },
+  "footer": {
+    "about": "关于",
+    "terms": "服务条款",
+    "privacy": "隐私政策"
+  },
+  "header": {
+    "searchPlaceholder": "搜索小说...",
+    "nav": {
+      "home": "首页",
+      "categories": "分类",
+      "rankings": "排行",
+      "bookshelf": "书架"
+    },
+    "user": {
+      "profile": "个人中心",
+      "bookshelf": "我的书架",
+      "history": "阅读记录",
+      "bookmarks": "我的书签",
+      "notifications": "通知",
+      "settings": "账号设置",
+      "admin": "管理后台"
+    }
+  },
+  "admin": {
+    "layout": {
+      "brand": "Admin",
+      "title": "Palimpsest 管理后台",
+      "backToSite": "回到前台"
+    },
+    "menu": {
+      "dashboard": "总览",
+      "novels": "小说管理",
+      "users": "用户管理",
+      "reviews": "书评审核",
+      "reports": "举报处理",
+      "categories": "分类管理",
+      "banners": "横幅管理",
+      "announcements": "系统公告"
+    },
+    "image": {
+      "urlPlaceholder": "图片网址",
+      "upload": "上传图片",
+      "preview": "预览",
+      "tooLarge": "图片不可超过 {mb} MB",
+      "uploaded": "图片已上传",
+      "storageUnavailable": "文件保存服务尚未设置，暂时无法上传",
+      "fileTooLarge": "文件太大",
+      "unsupportedType": "不支持的文件格式，请上传 JPEG、PNG、WebP 或 GIF",
+      "uploadFailed": "上传失败"
+    },
+    "moderation": {
+      "approved": "已通过",
+      "rejected": "已拒绝",
+      "hidden": "已隐藏"
+    },
+    "reports": {
+      "status": {
+        "pending": "待处理",
+        "resolved": "已处理",
+        "dismissed": "已驳回"
+      },
+      "targets": {
+        "review": "书评",
+        "comment": "留言",
+        "novel": "小说",
+        "chapter": "章节",
+        "user": "用户"
+      },
+      "resolveTitle": "处理举报",
+      "colon": "：",
+      "noPreview": "（无预览）",
+      "alsoHide": "同时隐藏被举报的{target}",
+      "dismiss": "驳回",
+      "markResolved": "标记为已处理",
+      "deletedOrNoPreview": "（内容已删除或无预览）",
+      "handle": "处理",
+      "columns": {
+        "type": "类型",
+        "target": "被举报内容",
+        "description": "说明",
+        "reporter": "举报人"
+      }
+    },
+    "import": {
+      "errors": {
+        "noContent": "「{title}」没有内容",
+        "noHeadings": "找不到章节标题（例如「第一章 标题」或「Chapter 1」）",
+        "invalidJson": "JSON 格式错误",
+        "notArray": "JSON 必须是章节数组",
+        "missingTitle": "第 {n} 条缺少 title",
+        "missingContent": "第 {n} 条缺少 content",
+        "noChapters": "没有任何章节",
+        "empty": "请粘贴章节内容",
+        "invalidNumber": "章节编号必须大于 0：{title}",
+        "duplicateNumber": "章节编号重复：{n}",
+        "tooMany": "一次最多导入 {max} 章（当前 {count} 章）"
+      },
+      "title": "批量导入章节",
+      "help": "粘贴全文，以「第一章 标题」、「第12章」或「Chapter 3」等标题分章；或粘贴 JSON 数组 {example}。一次最多 {max} 章。",
+      "placeholder": "在此粘贴章节内容",
+      "startNumber": "JSON 未指定编号时从 {n} 开始",
+      "moreProblems": "……还有 {n} 个问题",
+      "preview": "预览：共 {n} 章",
+      "submit": "导入 {n} 章",
+      "existingNumbers": "以下章节编号已存在：{list}",
+      "listSeparator": "、",
+      "done": "已导入 {n} 章",
+      "failed": "导入失败"
+    },
+    "refresh": "刷新",
+    "optional": "选填",
+    "enabled": "启用",
+    "disabled": "停用",
+    "confirmDeleteNamed": "确定要删除「{name}」吗？",
+    "columns": {
+      "status": "状态",
+      "actions": "操作",
+      "time": "时间",
+      "content": "内容",
+      "name": "名称",
+      "slug": "别名",
+      "sortOrder": "排序",
+      "title": "标题",
+      "image": "图片",
+      "updatedAt": "更新时间"
+    },
+    "dashboard": {
+      "handle": "前往处理",
+      "loadFailed": "无法加载统计数据",
+      "stats": {
+        "users": "用户总数",
+        "new_users_today": "今日新用户",
+        "active_readers_7d": "7 日活跃读者",
+        "reads_today": "今日阅读章节",
+        "novels": "小说总数",
+        "published_novels": "已上架小说",
+        "chapters": "章节总数",
+        "reviews": "书评数",
+        "comments": "留言数",
+        "pending_reports": "待处理举报"
+      }
+    },
+    "users": {
+      "searchPlaceholder": "搜索账号、邮箱或昵称",
+      "status": {
+        "active": "正常",
+        "banned": "已封禁"
+      },
+      "roles": {
+        "reader": "读者",
+        "author": "作者",
+        "admin": "管理员",
+        "super_admin": "超级管理员"
+      },
+      "ban": "封禁用户",
+      "banShort": "封禁",
+      "unban": "解封",
+      "confirmBan": "确定要封禁「{name}」吗？封禁后该用户无法登录。",
+      "confirmUnban": "确定要恢复「{name}」的账号吗？",
+      "banned": "已封禁",
+      "unbanned": "已解封",
+      "currentAccount": "当前账号",
+      "columns": {
+        "user": "用户",
+        "role": "角色",
+        "registered": "注册时间",
+        "lastLogin": "最后登录"
+      }
+    },
+    "reviews": {
+      "setTo": "已设为「{status}」",
+      "actions": {
+        "approved": "通过",
+        "rejected": "拒绝",
+        "hidden": "隐藏"
+      }
+    },
+    "categories": {
+      "create": "添加分类",
+      "edit": "编辑分类",
+      "parent": "上层分类",
+      "noParent": "无（顶层分类）",
+      "namePlaceholder": "分类名称",
+      "slugPlaceholder": "英文别名，例如 xuanhuan",
+      "iconUrl": "图标网址",
+      "save": "保存分类",
+      "loadFailed": "加载分类失败",
+      "required": "请填写名称与别名",
+      "saved": "分类已保存",
+      "slugTaken": "别名已被其他分类使用",
+      "hasChildren": "请先删除或移动此分类下的子分类",
+      "delete": "删除分类",
+      "deleteHasChildren": "此分类仍有子分类，无法删除",
+      "createChild": "添加子分类"
+    },
+    "banners": {
+      "create": "添加横幅",
+      "edit": "编辑横幅",
+      "titlePlaceholder": "横幅标题",
+      "linkType": "链接类型",
+      "noLink": "不链接",
+      "linkTarget": "链接目标",
+      "startAt": "开始时间",
+      "endAt": "结束时间",
+      "immediately": "立即",
+      "noLimit": "不限",
+      "save": "保存横幅",
+      "linkTypes": {
+        "novel": "小说",
+        "category": "分类",
+        "url": "网址"
+      },
+      "linkPlaceholders": {
+        "novel": "小说 ID",
+        "category": "分类别名（slug）",
+        "url": "https://…"
+      },
+      "loadFailed": "加载横幅失败",
+      "required": "请填写标题并上传图片",
+      "endBeforeStart": "结束时间必须晚于开始时间",
+      "saved": "横幅已保存",
+      "delete": "删除横幅",
+      "schedule": "{start} ～ {end}",
+      "link": "链接",
+      "linkValue": "{type}：{value}",
+      "scheduleColumn": "排期"
+    },
+    "broadcast": {
+      "cardTitle": "发送系统公告",
+      "hint": "将以「系统公告」通知所有正常状态的用户",
+      "titlePlaceholder": "例如：系统维护公告",
+      "body": "内容（选填）",
+      "bodyPlaceholder": "公告的详细内容",
+      "submit": "发送公告",
+      "sentTitle": "公告已发送",
+      "sentText": "「{title}」已发送给 {n} 位用户（{time}）。",
+      "titleRequired": "请输入标题",
+      "titleMax": "标题最多 {max} 字",
+      "bodyMax": "内容最多 {max} 字",
+      "confirmTitle": "确认发送公告",
+      "confirmText": "确定要将「{title}」发送给所有用户吗？发送后无法收回。",
+      "send": "发送",
+      "sentToast": "公告已发送给 {n} 位用户",
+      "invalid": "标题或内容不正确（标题最多 200 字、内容最多 2000 字）",
+      "failed": "发送失败，请稍后再试"
+    },
+    "novels": {
+      "create": "添加小说",
+      "edit": "编辑小说",
+      "searchPlaceholder": "搜索书名或作者",
+      "publishState": "上架状态",
+      "published": "已上架",
+      "unpublished": "未上架",
+      "unpublishedToast": "已下架",
+      "delete": "删除小说",
+      "confirmDelete": "确定要删除「{name}」吗？此操作会一并隐藏其章节。",
+      "title": "书名",
+      "author": "作者",
+      "authorPlaceholder": "作者名称",
+      "publishColumn": "上架",
+      "featured": "推荐",
+      "publish": "上架",
+      "unpublish": "下架",
+      "backToList": "← 返回列表",
+      "manageChapters": "管理章节",
+      "synopsisPlaceholder": "小说简介",
+      "serialStatus": "连载状态",
+      "language": "语言",
+      "featuredOnHome": "首页推荐",
+      "cover": "封面",
+      "categoriesPlaceholder": "选择分类",
+      "tags": "标签",
+      "titleRequired": "请输入书名",
+      "authorRequired": "请输入作者",
+      "disabledCategory": "{name}（已停用）",
+      "created": "已创建小说"
+    },
+    "chapters": {
+      "title": "章节管理",
+      "backToNovel": "← 返回小说",
+      "batchImport": "批量导入",
+      "create": "添加章节",
+      "edit": "编辑章节",
+      "number": "章节编号",
+      "titlePlaceholder": "章节标题",
+      "contentPlaceholder": "章节内容，段落之间以换行分隔",
+      "publish": "发布",
+      "free": "免费",
+      "draft": "草稿",
+      "save": "保存章节",
+      "numberTaken": "章节编号已存在，请改用其他编号",
+      "loadFailed": "加载章节失败",
+      "loadContentFailed": "加载章节内容失败",
+      "required": "请填写章节编号、标题与内容",
+      "saved": "章节已保存",
+      "created": "章节已添加",
+      "saveFailed": "保存章节失败",
+      "updateFailed": "更新失败",
+      "delete": "删除章节",
+      "confirmDelete": "确定要删除第 {n} 章「{title}」吗？"
+    }
+  },
+  "auth": {
+    "loginFirst": "请先登录",
+    "username": "账号",
+    "nickname": "昵称",
+    "nicknamePlaceholder": "显示名称",
+    "nicknameRequired": "请输入昵称",
+    "email": "邮箱",
+    "emailRequired": "请输入邮箱",
+    "emailInvalid": "邮箱格式不正确",
+    "password": "密码",
+    "passwordPlaceholder": "至少 8 个字符",
+    "passwordRequired": "请输入密码",
+    "passwordLength": "密码需 8-72 个字符",
+    "passwordMismatch": "两次输入的密码不一致",
+    "newPassword": "新密码",
+    "newPasswordRequired": "请输入新密码",
+    "confirmNewPassword": "确认新密码",
+    "confirmNewPasswordPlaceholder": "再次输入新密码",
+    "confirmNewPasswordRequired": "请再次输入新密码",
+    "backToLogin": "返回登录",
+    "login": {
+      "loginLabel": "账号 / 邮箱",
+      "loginPlaceholder": "输入账号或邮箱",
+      "loginRequired": "请输入账号或邮箱",
+      "passwordPlaceholder": "输入密码",
+      "forgot": "忘记密码？",
+      "noAccount": "还没有账号？",
+      "registerNow": "立即注册",
+      "success": "登录成功",
+      "missing": "请输入账号与密码",
+      "invalid": "账号或密码错误",
+      "banned": "此账号已被封禁",
+      "failed": "登录失败，请稍后再试"
+    },
+    "register": {
+      "usernamePlaceholder": "4-20 个字符",
+      "usernameRequired": "请输入账号",
+      "usernameLength": "账号需 4-20 个字符",
+      "passwordMin": "密码至少 8 个字符",
+      "confirmPassword": "确认密码",
+      "confirmPlaceholder": "再次输入密码",
+      "confirmRequired": "请再次输入密码",
+      "haveAccount": "已有账号？",
+      "loginNow": "立即登录",
+      "success": "注册成功",
+      "invalid": "注册信息格式不正确",
+      "taken": "账号或邮箱已被使用",
+      "failed": "注册失败，请稍后再试"
+    },
+    "forgot": {
+      "title": "忘记密码",
+      "intro": "输入注册时使用的邮箱，我们会发送重置密码的链接给你。",
+      "submit": "发送重置链接",
+      "sentTitle": "请查收邮件",
+      "sentText": "如果这个邮箱已注册，重置密码的链接会在几分钟内送达。链接一段时间后会失效。",
+      "failed": "发送失败，请稍后再试"
+    },
+    "reset": {
+      "title": "重置密码",
+      "incomplete": "重置链接不完整，请重新申请。",
+      "doneTitle": "密码已重置",
+      "doneText": "请使用新密码登录。",
+      "goLogin": "前往登录",
+      "requestAgain": "重新申请",
+      "invalidLink": "重置链接无效或已过期。",
+      "failed": "重置失败，请稍后再试。"
+    }
+  },
+  "reader": {
+    "prevChapter": "上一章",
+    "nextChapter": "下一章",
+    "chapterNotFound": "找不到这个章节",
+    "toolbar": {
+      "toc": "目录",
+      "settings": "阅读设置",
+      "bookmarks": "书签",
+      "comments": "留言",
+      "translate": "翻译"
+    },
+    "settings": {
+      "fontSize": "字体大小",
+      "lineHeight": "行高",
+      "letterSpacing": "字距",
+      "margin": "页边距",
+      "brightness": "亮度",
+      "theme": "主题",
+      "font": "字体",
+      "readingMode": "阅读模式",
+      "modeScroll": "滚动",
+      "modePage": "翻页",
+      "autoChapter": "自动进入下一章",
+      "keepScreenOn": "保持屏幕常亮",
+      "reset": "恢复默认",
+      "themes": {
+        "white": "白色",
+        "sepia": "米黄",
+        "green": "护眼绿",
+        "dark": "暗色",
+        "black": "黑色"
+      },
+      "fonts": {
+        "system": "系统字体",
+        "song": "宋体",
+        "kai": "楷体",
+        "serif": "衬线"
+      }
+    },
+    "paragraph": {
+      "label": "第 {n} 段",
+      "countAria": "第 {n} 段有 {count} 条评论，打开段落评论",
+      "countTitle": "{count} 条段落评论",
+      "addAria": "评论第 {n} 段",
+      "addTitle": "评论这一段",
+      "commentsOf": "第 {n} 段的评论",
+      "comments": "段落评论"
+    },
+    "bookmarks": {
+      "chapterFallback": "章节",
+      "notSynced": "尚未同步",
+      "confirmDelete": "确定删除这个书签？",
+      "deleted": "已删除书签",
+      "notePlaceholder": "备注（选填）",
+      "addHere": "在当前段落（第 {n} 段）加入书签",
+      "loginToUse": "{login}后即可使用书签",
+      "emptyNovel": "这本小说还没有书签",
+      "added": "已加入书签",
+      "addFailed": "加入书签失败"
+    },
+    "backToNovel": "返回小说",
+    "offlineNotice": "离线模式：显示的是本机缓存的章节",
+    "lastChapter": "已是最后一章",
+    "chapterList": "章节目录",
+    "chapterComments": "本章留言",
+    "commentsOffline": "离线时无法加载留言。",
+    "loadingTitle": "阅读中...",
+    "commentGone": "找不到这条留言，可能已被删除",
+    "commentLoadFailed": "无法加载这条留言",
+    "notFound": "找不到这个章节，可能已被下架。",
+    "loadFailedNoCache": "无法加载章节，且此章节没有离线缓存。",
+    "translate": {
+      "showing": "当前显示的是译文",
+      "showOriginal": "显示原文",
+      "submit": "翻译本章",
+      "langs": {
+        "zh-CN": "简体中文",
+        "zh-TW": "繁体中文",
+        "en": "English"
+      },
+      "loginRequired": "请先登录才能使用翻译功能。",
+      "unsupported": "无法翻译成这个语言。",
+      "notFound": "找不到这个章节。",
+      "englishUnavailable": "暂时没有可用的英文翻译服务，请稍后再试，或改选繁体／简体中文。",
+      "unavailable": "翻译服务暂时无法使用，请稍后再试。",
+      "failed": "翻译失败，请稍后再试。"
+    }
+  },
+  "comments": {
+    "total": "共 {n} 条留言",
+    "totalParagraph": "共 {n} 条段落评论",
+    "sortLatest": "最新",
+    "sortPopular": "最热",
+    "anonymous": "读者",
+    "replyingTo": "回复 {name}",
+    "attachParagraph": "针对当前段落（第 {n} 段）",
+    "reply": "回复",
+    "post": "发表留言",
+    "postParagraph": "发表段落评论",
+    "loginToComment": "{login}后即可留言",
+    "loadFailed": "无法加载留言",
+    "empty": "还没有留言，快来抢沙发吧",
+    "emptyParagraph": "这一段还没有评论，说说你的想法吧",
+    "placeholderReply": "写下你的回复…",
+    "placeholderParagraph": "对这一段说点什么…",
+    "placeholderChapter": "分享你对这一章的想法…",
+    "replyPosted": "回复已发表",
+    "posted": "留言已发表",
+    "invalid": "留言内容不正确（最多 2000 字）",
+    "postFailed": "发表失败，请稍后再试",
+    "deleted": "已删除留言",
+    "confirmDeleteReply": "确定删除这条留言？",
+    "confirmDeleteThread": "确定删除这条留言及其回复？"
+  },
+  "community": {
+    "like": "赞",
+    "liked": "已赞",
+    "report": {
+      "action": "举报",
+      "title": "举报内容",
+      "reason": "原因",
+      "description": "补充说明（选填）",
+      "descriptionPlaceholder": "描述问题，协助管理员判断",
+      "submit": "送出举报",
+      "submitted": "已送出举报，感谢你的反馈",
+      "notFound": "找不到这条内容",
+      "failed": "举报失败，请稍后再试",
+      "reasons": {
+        "spam": "垃圾信息",
+        "abuse": "辱骂攻击",
+        "spoiler": "剧透",
+        "copyright": "侵权",
+        "inappropriate": "不当内容",
+        "other": "其他"
+      }
+    }
+  },
+  "reviews": {
+    "title": "书评",
+    "total": "共 {n} 条",
+    "loginToWrite": "{login}后即可撰写书评",
+    "write": "撰写书评",
+    "rating": "评分",
+    "titlePlaceholder": "标题",
+    "contentPlaceholder": "分享你对这本书的看法",
+    "update": "更新书评",
+    "publish": "发表书评",
+    "mine": "我的书评",
+    "confirmDelete": "确定删除你的书评？",
+    "empty": "还没有书评",
+    "updated": "书评已更新",
+    "published": "书评已发表",
+    "alreadyReviewed": "你已经评论过这本书，可以编辑原本的书评",
+    "invalid": "请填写评分、标题与内容",
+    "publishFailed": "发表失败，请稍后再试",
+    "deleted": "书评已删除"
+  },
+  "notifications": {
+    "title": "通知",
+    "bellAria": "通知（{n} 条未读）",
+    "bellTitle": "{n} 条未读通知",
+    "types": {
+      "chapter_update": "章节更新",
+      "comment_reply": "留言回复",
+      "system": "系统公告"
+    },
+    "unread": "未读",
+    "unreadWithCount": "未读（{n}）",
+    "markAllRead": "全部标为已读",
+    "unreadAria": "未读：{title}",
+    "readAria": "已读：{title}",
+    "markRead": "标为已读",
+    "confirmDelete": "确定删除这条通知？",
+    "emptyUnread": "没有未读通知",
+    "empty": "暂无通知",
+    "noMore": "没有更多通知了",
+    "loadFailed": "无法加载通知，请稍后再试",
+    "loadMoreFailed": "无法加载更多通知",
+    "gone": "这条通知已不存在",
+    "markReadFailed": "标记已读失败",
+    "markedAllRead": "已将 {n} 条通知标为已读",
+    "allRead": "所有通知都已读",
+    "actionFailed": "操作失败，请稍后再试",
+    "deleted": "已删除通知"
+  },
+  "devices": {
+    "loadFailed": "无法加载登录设备",
+    "unknown": "未知设备",
+    "current": "此设备",
+    "lastActive": "最近使用 {time}",
+    "remove": "移除",
+    "confirmRemoveCurrent": "移除此设备？下次打开网站时会重新登记。",
+    "confirmRemove": "确定移除这个设备？",
+    "empty": "没有登录设备",
+    "removed": "已移除设备",
+    "alreadyRemoved": "这个设备已被移除",
+    "removeFailed": "移除失败",
+    "browserOn": "浏览器 on {os}",
+    "webBrowser": "网页浏览器",
+    "types": {
+      "web": "网页",
+      "android": "Android",
+      "ios": "iOS",
+      "windows": "Windows",
+      "macos": "macOS",
+      "linux": "Linux"
+    }
+  },
+  "bookshelf": {
+    "defaultGroup": "默认",
+    "heading": "我的书架",
+    "done": "完成",
+    "manage": "管理",
+    "groupTab": "{name}（{n}）",
+    "selectAll": "全选",
+    "selectedCount": "已选 {n} 本",
+    "moveToGroup": "移动到分组",
+    "removeSelected": "移除所选",
+    "confirmRemoveMany": "确定从书架移除 {n} 本书？",
+    "hasUpdate": "有更新",
+    "progress": "读到：{label}",
+    "notStarted": "尚未开始阅读",
+    "group": "分组",
+    "notifyOnTitle": "有新章节时会通知你，点击关闭",
+    "notifyOffTitle": "当前不会通知新章节，点击打开",
+    "notifyOn": "更新通知：开",
+    "notifyOff": "更新通知：关",
+    "confirmRemove": "确定从书架移除？",
+    "empty": "书架还是空的，去逛逛书城吧",
+    "browse": "去看看",
+    "groupPlaceholder": "选择或输入新的分组名称",
+    "groupHint": "输入新名称即可创建分组（最多 {max} 字）。",
+    "move": "移动",
+    "sort": {
+      "recent": "最近阅读",
+      "added": "加入时间",
+      "title": "书名排序"
+    },
+    "notifyEnabled": "已打开更新通知",
+    "notifyDisabled": "已关闭更新通知",
+    "notOnShelf": "这本书已不在书架上",
+    "notifyFailed": "更新通知设置失败",
+    "removed": "已从书架移除",
+    "removeFailed": "移除失败",
+    "removedMany": "已移除 {n} 本书",
+    "groupTooLong": "分组名称最多 {max} 字",
+    "moved": "已移动到「{name}」",
+    "groupInvalid": "分组名称不正确",
+    "moveFailed": "移动失败",
+    "loadFailed": "无法加载书架"
+  },
+  "ranking": {
+    "types": {
+      "views": "人气榜",
+      "favorites": "收藏榜",
+      "rating": "评分榜",
+      "latest": "更新榜",
+      "completed": "完结榜"
+    },
+    "title": "排行榜",
+    "periods": {
+      "daily": "日榜",
+      "weekly": "周榜",
+      "monthly": "月榜",
+      "all": "总榜"
+    },
+    "notFound": "找不到这个排行榜。",
+    "empty": "暂无排行数据",
+    "metrics": {
+      "views": "{n} 次阅读",
+      "favorites": "{n} 收藏",
+      "rating": "{n} 分",
+      "chapters": "{n} 章"
+    }
+  },
+  "home": {
+    "loadFailed": "无法加载首页",
+    "tryLater": "请稍后再试。",
+    "more": "查看更多",
+    "empty": "暂时还没有小说",
+    "sections": {
+      "featured": "编辑推荐",
+      "popular": "热门推荐",
+      "latest": "最新更新",
+      "new": "新书上架",
+      "completed": "完结精选"
+    }
+  },
+  "about": {
+    "title": "关于",
+    "heading": "关于 Palimpsest",
+    "intro": "Palimpsest 是一个中文小说阅读平台。你可以在书城浏览与搜索作品、按分类与排行榜找书，在可自定义字体、行距与主题的阅读器中阅读，并在网页与 App 之间同步书架、阅读进度与书签。",
+    "featuresTitle": "特色",
+    "features": {
+      "conversion": "繁体与简体中文实时转换，英文翻译（需平台启用翻译服务）",
+      "offline": "离线阅读：读过的章节会保存在设备上，没有网络也能继续读，恢复连接后自动同步进度与书签",
+      "community": "书评、章节留言与点赞，和其他读者交流"
+    },
+    "seeLegal": "使用前请参阅{terms}与{privacy}。"
+  },
+  "privacy": {
+    "title": "隐私政策",
+    "draftNotice": "本页为草稿，根据当前系统实际搜集与处理的数据撰写；正式上线前须经法务审阅，并补上运营主体与联系方式。",
+    "collected": {
+      "title": "我们保存的数据",
+      "account": {
+        "label": "账号信息：",
+        "text": "账号名称、邮箱、昵称、个人简介、头像，以及经过哈希处理的密码（我们无法得知你的密码原文）。"
+      },
+      "reading": {
+        "label": "阅读数据：",
+        "text": "书架、阅读进度、阅读记录与阅读时间、书签、阅读设置，用于跨设备同步与阅读统计。"
+      },
+      "community": {
+        "label": "社区内容：",
+        "text": "你发表的书评、留言、点赞与举报。书评与留言会公开显示你的账号名称、昵称与头像，不会显示邮箱。"
+      },
+      "technical": {
+        "label": "技术数据：",
+        "text": "为了限制请求频率，系统会短暂记录 IP 地址与账号的请求次数（约一分钟后失效）。服务器日志可能包含 IP 地址与请求路径。"
+      }
+    },
+    "device": {
+      "title": "保存在你设备上的数据",
+      "text": "网页版以 Cookie 保存登录状态与界面语言，并把读过的章节、进度与书签存在浏览器（IndexedDB）中以便离线阅读；网站也会通过 Service Worker 缓存程序文件与公开页面，让你离线时仍能打开。App 则存在设备的本机数据库。退出登录时会清除属于该账号的本机数据。"
+    },
+    "thirdParty": {
+      "title": "第三方服务",
+      "text": "当你使用英文翻译时，章节或选取的文字会发送给 Google Cloud Translation 进行翻译。重置密码时，我们会通过邮箱服务发送重置链接。"
+    },
+    "rights": {
+      "title": "你的权利",
+      "text": "你可以随时在「设置」中修改个人资料与阅读设置，删除书签、书评与留言。如需注销账号或获取数据副本，请联系我们。"
+    }
+  },
+  "terms": {
+    "title": "服务条款",
+    "draftNotice": "本页为草稿，正式上线前须经法务审阅并补上运营主体、联系方式与适用法律。",
+    "account": {
+      "title": "账号",
+      "text": "注册时请提供正确的邮箱，并妥善保管密码。通过你的账号进行的操作视为你本人的行为。"
+    },
+    "userContent": {
+      "title": "用户内容",
+      "text": "你在书评与留言中发表的内容由你负责。请勿发布违法、骚扰、仇恨、垃圾信息或侵害他人权利（包括著作权）的内容，也请避免未加提示的剧透。",
+      "moderation": "其他读者可以举报内容；管理员可依据举报或本条款隐藏、删除内容，或封禁违规账号。"
+    },
+    "copyright": {
+      "title": "作品著作权",
+      "text": "平台上的作品著作权属于原作者或权利人。作品仅供个人阅读，请勿未经授权复制或传播。离线下载的章节仅能在本服务中阅读。"
+    },
+    "translation": {
+      "title": "翻译",
+      "text": "繁简转换与机器翻译的结果仅供参考，可能与原文有出入。"
+    },
+    "limits": {
+      "title": "使用限制",
+      "text": "为维持服务稳定，系统会限制每分钟的请求次数。请勿以自动化程序大量抓取内容。"
+    }
+  },
+  "search": {
+    "placeholder": "搜索小说名称、作者...",
+    "hot": "热门搜索",
+    "resultCount": "找到 {n} 个结果",
+    "empty": "没有找到相关小说"
+  },
+  "category": {
+    "title": "分类",
+    "heading": "小说分类",
+    "empty": "暂无分类",
+    "subcategories": "子分类：",
+    "noNovels": "暂无小说",
+    "allStatuses": "全部状态"
+  },
+  "profile": {
+    "noBio": "这个人很懒，什么都没写",
+    "editProfile": "编辑资料",
+    "accountAndReading": "账号与阅读设置",
+    "stats": {
+      "title": "阅读统计",
+      "last7Days": "近 7 天",
+      "last8Weeks": "近 8 周",
+      "last12Months": "近 12 个月",
+      "barTitle": "{period}：{chapters}、{words}、{time}",
+      "legend": "柱高为阅读字数，上方数字为阅读章数。",
+      "period": "期间",
+      "chapters": "章数",
+      "words": "字数",
+      "time": "时间",
+      "empty": "还没有阅读记录",
+      "weekOf": "{date} 起",
+      "loadFailed": "无法加载阅读统计"
+    },
+    "totals": {
+      "words": "累计阅读",
+      "time": "阅读时间",
+      "chapters": "读过章节",
+      "novels": "读过小说",
+      "bookshelf": "书架藏书",
+      "bookmarks": "书签",
+      "reviews": "书评"
+    },
+    "backToProfile": "返回个人中心",
+    "history": {
+      "removedNovel": "（已下架的小说）",
+      "readFor": "阅读 {time}",
+      "loadFailed": "无法加载阅读记录"
+    },
+    "bookmarks": {
+      "empty": "还没有书签，阅读时点击书签按钮即可加入",
+      "novelFallback": "小说",
+      "loadFailed": "无法加载书签"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "avatar": {
+      "title": "头像",
+      "change": "更换头像",
+      "hint": "支持 JPEG、PNG、WebP、GIF，文件不超过 2 MB",
+      "tooLarge": "图片超过 {mb} MB，请选择较小的文件",
+      "updated": "头像已更新",
+      "unreadable": "无法读取这个图片文件",
+      "unsupported": "只支持 JPEG、PNG、WebP 或 GIF 图片",
+      "storageUnavailable": "图片保存服务暂时无法使用，请稍后再试",
+      "uploadFailed": "上传失败，请稍后再试"
+    },
+    "profile": {
+      "title": "个人资料",
+      "bio": "个人简介",
+      "bioPlaceholder": "介绍一下自己",
+      "language": "界面语言",
+      "save": "保存个人资料",
+      "nicknameMax": "昵称最多 {max} 个字符",
+      "bioMax": "简介最多 {max} 个字符",
+      "saved": "个人资料已保存",
+      "invalid": "资料格式不正确",
+      "saveFailed": "保存失败，请稍后再试"
+    },
+    "reading": {
+      "hint": "变更会自动同步到你的账号"
+    },
+    "devices": {
+      "title": "登录设备",
+      "hint": "登录过你账号的浏览器与 App"
+    },
+    "password": {
+      "title": "变更密码",
+      "current": "当前密码",
+      "currentPlaceholder": "当前密码",
+      "currentRequired": "请输入当前密码",
+      "changed": "密码已变更，请使用新密码重新登录",
+      "wrongCurrent": "当前密码不正确",
+      "failed": "变更失败，请稍后再试"
+    }
+  }
+}

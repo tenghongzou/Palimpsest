@@ -507,7 +507,10 @@ Pod 帶有 `prometheus.io/scrape` 註解，以註解自動探索的 Prometheus �
 | 推播通知（FCM / APNs） | 📋 | 裝置已可帶 `push_token`，待建立 Firebase 專案後串接 |
 | 閱讀統計視覺化 | ✅ | Web 與 Flutter 皆有日／週／月圖表 |
 | iOS App 上架、Apple Sign-In | 📋 | 需 macOS 與 Apple Developer 帳號 |
-| PWA、翻頁動畫、第三方登入、多語言介面 | 📋 | |
+| PWA | ✅ | Web 可安裝；離線時閱讀、書架等頁面從本機資料庫載入；有新版本時提示重新整理 |
+| 翻頁動畫 | ✅ | 無／滑動／覆蓋三種，設定跨裝置同步；仿真翻頁（`curl`）尚未實作，Flutter 以覆蓋顯示 |
+| 多語言介面 | ✅ | 繁中、簡中、英文；跟隨帳號 `language_pref`，Web 與 Flutter 切換即時生效 |
+| 第三方登入 | 📋 | 待取得 Google／Facebook／LINE 等平台憑證 |
 
 ✅ 完成　🚧 進行中 / 部分完成　📋 規劃中
 

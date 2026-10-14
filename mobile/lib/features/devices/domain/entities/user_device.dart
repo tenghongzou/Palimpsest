@@ -1,4 +1,5 @@
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/l10n/l10n.dart';
 
 /// `DeviceType` values of the API.
 const deviceTypes = ['android', 'ios', 'windows', 'macos', 'linux', 'web'];
@@ -37,9 +38,23 @@ class UserDevice {
   }
 
   /// The name to show: the device's own name, else its platform.
-  String get label => deviceName ?? deviceTypeLabel(deviceType);
+  String label(AppLocalizations l) => deviceName ?? deviceTypeName(deviceType, l);
 }
 
+/// A device type's name in the UI language.
+String deviceTypeName(String type, AppLocalizations l) => switch (type) {
+      'android' => l.deviceAndroid,
+      'ios' => l.deviceIos,
+      'windows' => l.deviceWindows,
+      'macos' => l.deviceMac,
+      'linux' => l.deviceLinux,
+      'web' => l.deviceWeb,
+      _ => l.deviceUnknown,
+    };
+
+/// The default device name registered with the server (stored data, in
+/// Traditional Chinese like the account's default language; the UI shows
+/// [deviceTypeName] when a device has no name).
 String deviceTypeLabel(String type) {
   switch (type) {
     case 'android':

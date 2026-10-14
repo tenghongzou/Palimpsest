@@ -9,7 +9,7 @@
         <n-card size="small" class="shadow">
           <div class="flex items-center justify-between gap-3">
             <NuxtLink v-if="chapter" :to="`/novel/${chapter.novel_id}`" class="text-sm truncate no-underline" style="color: inherit" data-testid="reader-back">
-              ‹ {{ novelTitle || '返回小說' }}
+              ‹ {{ novelTitle || $t('reader.backToNovel') }}
             </NuxtLink>
             <span class="text-xs text-gray-500 truncate">{{ chapter?.title }}</span>
           </div>
@@ -20,11 +20,11 @@
     <n-spin :show="loading" class="min-h-screen">
       <template v-if="chapter">
         <div v-if="offline" class="text-center text-xs text-gray-500 pt-2" data-testid="offline-notice">
-          離線模式：顯示的是本機快取的章節
+          {{ $t('reader.offlineNotice') }}
         </div>
         <div v-if="translatedContent" class="text-center text-xs text-gray-500 pt-2">
-          目前顯示翻譯內容
-          <n-button text size="tiny" type="primary" @click.stop="translatedContent = null">顯示原文</n-button>
+          {{ $t('reader.translate.showing') }}
+          <n-button text size="tiny" type="primary" @click.stop="translatedContent = null">{{ $t('reader.translate.showOriginal') }}</n-button>
         </div>
         <ReaderContent
           :content="displayContent"
@@ -37,10 +37,10 @@
         />
 
         <div class="text-center py-8 space-x-4">
-          <n-button :disabled="!prevChapter" data-testid="reader-prev" @click.stop="goPrevChapter">上一章</n-button>
-          <n-button data-testid="reader-comments" @click.stop="openComments">留言</n-button>
+          <n-button :disabled="!prevChapter" data-testid="reader-prev" @click.stop="goPrevChapter">{{ $t('reader.prevChapter') }}</n-button>
+          <n-button data-testid="reader-comments" @click.stop="openComments">{{ $t('reader.toolbar.comments') }}</n-button>
           <n-button type="primary" :disabled="!nextChapter" data-testid="reader-next" @click.stop="goNextChapter">
-            {{ nextChapter ? '下一章' : '已是最後一章' }}
+            {{ nextChapter ? $t('reader.nextChapter') : $t('reader.lastChapter') }}
           </n-button>
         </div>
       </template>
@@ -64,13 +64,13 @@
     />
 
     <n-drawer v-model:show="showSettings" placement="right" :width="380">
-      <n-drawer-content title="閱讀設定" closable>
+      <n-drawer-content :title="$t('reader.toolbar.settings')" closable>
         <ReaderSettingsForm />
       </n-drawer-content>
     </n-drawer>
 
     <n-drawer v-model:show="showChapterList" placement="left" :width="300">
-      <n-drawer-content title="章節目錄">
+      <n-drawer-content :title="$t('reader.chapterList')">
         <div class="space-y-1">
           <div
             v-for="ch in chapterList"
@@ -86,26 +86,30 @@
     </n-drawer>
 
     <n-drawer v-model:show="showBookmarks" placement="right" :width="360">
-      <n-drawer-content title="書籤" closable>
+      <n-drawer-content :title="$t('reader.toolbar.bookmarks')" closable>
         <div v-if="isLoggedIn" class="space-y-3 mb-4">
           <n-input
             v-model:value="bookmarkNote"
             type="textarea"
             :rows="2"
             maxlength="500"
-            placeholder="備註（選填）"
+            :placeholder="$t('reader.bookmarks.notePlaceholder')"
             data-testid="bookmark-note"
           />
           <n-button type="primary" block :loading="addingBookmark" data-testid="bookmark-add" @click="addBookmark">
-            在目前段落（第 {{ currentParagraph + 1 }} 段）加入書籤
+            {{ $t('reader.bookmarks.addHere', { n: currentParagraph + 1 }) }}
           </n-button>
         </div>
         <n-alert v-else type="info" :show-icon="false" class="mb-4">
-          <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="text-primary">登入</NuxtLink>後即可使用書籤
+          <i18n-t keypath="reader.bookmarks.loginToUse" tag="span" scope="global">
+            <template #login>
+              <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="text-primary">{{ $t('common.login') }}</NuxtLink>
+            </template>
+          </i18n-t>
         </n-alert>
         <BookmarkList
           :bookmarks="novelBookmarks"
-          empty-text="這本小說還沒有書籤"
+          :empty-text="$t('reader.bookmarks.emptyNovel')"
           @open="jumpToBookmark"
           @remove="removeBookmark"
         />
@@ -113,7 +117,7 @@
     </n-drawer>
 
     <n-drawer v-model:show="showComments" placement="right" :width="440">
-      <n-drawer-content title="本章留言" closable>
+      <n-drawer-content :title="$t('reader.chapterComments')" closable>
         <ChapterComments
           v-if="chapter && commentsMounted"
           :chapter-id="chapter.id"
@@ -122,12 +126,12 @@
           :paragraph-attachable="paragraphsMatch"
           @changed="refreshParagraphCounts"
         />
-        <div v-if="offline" class="text-sm text-gray-400">離線時無法載入留言。</div>
+        <div v-if="offline" class="text-sm text-gray-400">{{ $t('reader.commentsOffline') }}</div>
       </n-drawer-content>
     </n-drawer>
 
     <n-drawer v-model:show="showParagraphComments" placement="right" :width="440">
-      <n-drawer-content :title="paragraphTarget !== null ? `第 ${paragraphTarget + 1} 段的評論` : '段落評論'" closable>
+      <n-drawer-content :title="paragraphTarget !== null ? $t('reader.paragraph.commentsOf', { n: paragraphTarget + 1 }) : $t('reader.paragraph.comments')" closable>
         <div data-testid="paragraph-comments-drawer">
           <blockquote
             v-if="paragraphTarget !== null"
@@ -149,7 +153,7 @@
     </n-drawer>
 
     <n-drawer v-model:show="showTranslate" placement="right" :width="320">
-      <n-drawer-content title="翻譯" closable>
+      <n-drawer-content :title="$t('reader.toolbar.translate')" closable>
         <div class="space-y-3">
           <n-radio-group v-model:value="targetLang" name="translate-lang">
             <div class="flex flex-col gap-2">
@@ -160,7 +164,7 @@
             {{ translateError }}
           </n-alert>
           <n-button type="primary" block :loading="translating" data-testid="translate-submit" @click="handleTranslate">
-            翻譯本章
+            {{ $t('reader.translate.submit') }}
           </n-button>
         </div>
       </n-drawer-content>
@@ -182,6 +186,7 @@ definePageMeta({ layout: 'reader' })
 
 const PROGRESS_SAVE_DELAY_MS = 8000
 
+const { t, chapterLabel } = useFormat()
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
@@ -218,7 +223,7 @@ const bookmarkNote = ref('')
 const addingBookmark = ref(false)
 const chapterBookmarked = computed(() => novelBookmarks.value.some(b => b.chapter_id === chapter.value?.id))
 
-useHead({ title: computed(() => chapter.value ? `${chapter.value.title} — 閱讀` : '閱讀中...') })
+useHead({ title: () => chapter.value?.title ?? t('reader.loadingTitle') })
 
 const displayContent = computed(() => translatedContent.value || chapter.value?.content || '')
 const displayParagraphs = computed(() => splitParagraphs(displayContent.value))
@@ -268,7 +273,7 @@ async function openThread(commentId: string) {
     thread = await fetchCommentThread(commentId)
   }
   catch (e) {
-    message.info(describeError(e, { 404: '找不到這則留言，可能已被刪除' }, '無法載入這則留言'))
+    message.info(describeError(t, e, { 404: t('reader.commentGone') }, t('reader.commentLoadFailed')))
     openComments()
     return
   }
@@ -293,15 +298,12 @@ watch(online, (isOnline) => {
 
 const loadErrorText = computed(() => {
   const status = statusOf(error.value)
-  if (status === 404) return '找不到這個章節，可能已被下架。'
-  return '無法載入章節，且此章節沒有離線快取。'
+  if (status === 404) return t('reader.notFound')
+  return t('reader.loadFailedNoCache')
 })
 
-const langOptions: { label: string, value: 'zh-TW' | 'zh-CN' | 'en' }[] = [
-  { label: '簡體中文', value: 'zh-CN' },
-  { label: '繁體中文', value: 'zh-TW' },
-  { label: 'English', value: 'en' },
-]
+// Target languages of the content translation (independent of the UI language).
+const langOptions = computed(() => (['zh-CN', 'zh-TW', 'en'] as const).map(value => ({ label: t(`reader.translate.langs.${value}`), value })))
 
 // ------------------------------------------------------------- position
 
@@ -496,11 +498,11 @@ async function addBookmark() {
       note: bookmarkNote.value,
     })
     bookmarkNote.value = ''
-    message.success('已加入書籤')
+    message.success(t('reader.bookmarks.added'))
     await loadNovelBookmarks()
   }
   catch (e) {
-    message.error(describeError(e, { 404: '找不到這個章節' }, '加入書籤失敗'))
+    message.error(describeError(t, e, { 404: t('reader.chapterNotFound') }, t('reader.bookmarks.addFailed')))
   }
   finally {
     addingBookmark.value = false
@@ -511,10 +513,10 @@ async function removeBookmark(b: LocalBookmark) {
   try {
     await bookmarks.remove(b.id)
     novelBookmarks.value = novelBookmarks.value.filter(x => x.id !== b.id)
-    message.success('已刪除書籤')
+    message.success(t('reader.bookmarks.deleted'))
   }
   catch (e) {
-    message.error(describeError(e, {}, '刪除失敗'))
+    message.error(describeError(t, e, {}, t('common.deleteFailed')))
   }
 }
 
@@ -539,7 +541,7 @@ async function handleTranslate() {
   if (!chapter.value) return
   translateError.value = ''
   if (!isLoggedIn.value) {
-    translateError.value = '請先登入才能使用翻譯功能。'
+    translateError.value = t('reader.translate.loginRequired')
     return
   }
   try {
@@ -549,13 +551,13 @@ async function handleTranslate() {
     showTranslate.value = false
   }
   catch (e) {
-    translateError.value = describeError(e, {
-      400: '無法翻譯成這個語言。',
-      404: '找不到這個章節。',
+    translateError.value = describeError(t, e, {
+      400: t('reader.translate.unsupported'),
+      404: t('reader.translate.notFound'),
       503: targetLang.value === 'en'
-        ? '目前沒有可用的英文翻譯服務，請稍後再試，或改選繁體／簡體中文。'
-        : '翻譯服務暫時無法使用，請稍後再試。',
-    }, '翻譯失敗，請稍後再試。')
+        ? t('reader.translate.englishUnavailable')
+        : t('reader.translate.unavailable'),
+    }, t('reader.translate.failed'))
   }
 }
 </script>

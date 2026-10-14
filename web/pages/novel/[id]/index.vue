@@ -1,8 +1,8 @@
 <template>
   <n-spin :show="loading">
-    <n-result v-if="notFound" status="404" title="找不到這本小說" description="它可能已被下架或網址有誤。">
+    <n-result v-if="notFound" status="404" :title="$t('novel.notFound')" :description="$t('novel.notFoundHint')">
       <template #footer>
-        <n-button @click="navigateTo('/')">回到首頁</n-button>
+        <n-button @click="navigateTo('/')">{{ $t('novel.backHome') }}</n-button>
       </template>
     </n-result>
     <div v-else-if="novel" class="space-y-6">
@@ -12,16 +12,16 @@
           <h1 class="text-2xl font-bold" data-testid="novel-title">{{ novel.title }}</h1>
           <div class="text-gray-500">{{ novel.author_name }}</div>
           <div class="flex items-center gap-3 flex-wrap">
-            <n-tag :type="NOVEL_STATUS[novel.status]?.type || 'info'" size="small">{{ NOVEL_STATUS[novel.status]?.label || novel.status }}</n-tag>
+            <n-tag :type="novelStatus(novel.status)?.type || 'info'" size="small">{{ novelStatus(novel.status)?.label || novel.status }}</n-tag>
             <span class="text-sm text-gray-400">{{ formatWordCount(novel.total_words ?? 0) }}</span>
-            <span class="text-sm text-gray-400">{{ novel.total_chapters ?? chapters.length }} 章</span>
-            <span class="text-sm text-gray-400">{{ formatViewCount(novel.view_count ?? 0) }} 次閱讀</span>
-            <span class="text-sm text-gray-400">{{ novel.favorite_count ?? 0 }} 收藏</span>
+            <span class="text-sm text-gray-400">{{ $t('ranking.metrics.chapters', { n: chapterCount }, chapterCount) }}</span>
+            <span class="text-sm text-gray-400">{{ $t('ranking.metrics.views', { n: formatViewCount(novel.view_count ?? 0) }, novel.view_count ?? 0) }}</span>
+            <span class="text-sm text-gray-400">{{ $t('ranking.metrics.favorites', { n: formatNumber(novel.favorite_count ?? 0) }, novel.favorite_count ?? 0) }}</span>
           </div>
           <div class="flex items-center gap-2">
             <n-rate :value="novel.avg_rating ?? 0" readonly allow-half />
             <span class="text-sm text-gray-500">{{ (novel.avg_rating ?? 0).toFixed(1) }}</span>
-            <span class="text-sm text-gray-400">（{{ novel.review_count ?? 0 }} 則書評）</span>
+            <span class="text-sm text-gray-400">{{ $t('novel.reviewCount', { n: novel.review_count ?? 0 }, novel.review_count ?? 0) }}</span>
           </div>
           <div class="flex flex-wrap gap-2">
             <NuxtLink v-for="cat in novel.categories" :key="cat.id" :to="`/category/${cat.slug}`" class="no-underline">
@@ -32,34 +32,34 @@
             </n-tag>
           </div>
           <div v-if="novel.latest_chapter_title" class="text-sm text-gray-500">
-            最新章節：{{ novel.latest_chapter_title }}
-            <span v-if="novel.latest_chapter_at" class="text-gray-400">（{{ formatRelativeTime(novel.latest_chapter_at) }}）</span>
+            {{ $t('novel.latestChapter', { title: novel.latest_chapter_title }) }}
+            <span v-if="novel.latest_chapter_at" class="text-gray-400">{{ $t('format.parenthesized', { text: formatRelativeTime(novel.latest_chapter_at) }) }}</span>
           </div>
           <div class="flex gap-3 mt-4 flex-wrap">
             <n-button type="primary" :disabled="!chapters.length" data-testid="start-reading" @click="startReading">
-              {{ resume ? '繼續閱讀' : '開始閱讀' }}
+              {{ resume ? $t('novel.continueReading') : $t('novel.startReading') }}
             </n-button>
-            <n-button v-if="resume" data-testid="read-from-start" @click="readFromStart">從頭閱讀</n-button>
+            <n-button v-if="resume" data-testid="read-from-start" @click="readFromStart">{{ $t('novel.readFromStart') }}</n-button>
             <n-button :loading="addingBookshelf" :disabled="inBookshelf" data-testid="add-bookshelf" @click="handleAddBookshelf">
-              {{ inBookshelf ? '已在書架' : '加入書架' }}
+              {{ inBookshelf ? $t('novel.inBookshelf') : $t('novel.addToBookshelf') }}
             </n-button>
           </div>
           <div v-if="resume" class="text-xs text-gray-400" data-testid="resume-hint">
-            上次讀到：{{ resume.title }}
+            {{ $t('novel.lastRead', { title: resume.title }) }}
           </div>
         </div>
       </div>
 
-      <n-card title="簡介">
-        <p class="whitespace-pre-wrap text-gray-600">{{ novel.description || '暫無簡介' }}</p>
+      <n-card :title="$t('novel.synopsis')">
+        <p class="whitespace-pre-wrap text-gray-600">{{ novel.description || $t('novel.noSynopsis') }}</p>
       </n-card>
 
       <n-card>
         <template #header>
           <div class="flex items-center justify-between">
-            <span>章節列表</span>
+            <span>{{ $t('novel.chapterList') }}</span>
             <n-button text size="small" @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'">
-              {{ sortOrder === 'asc' ? '正序' : '倒序' }}
+              {{ sortOrder === 'asc' ? $t('novel.sortAsc') : $t('novel.sortDesc') }}
             </n-button>
           </div>
         </template>
@@ -75,7 +75,7 @@
             {{ chapterLabel(ch.chapter_number, ch.title) }}
           </NuxtLink>
         </div>
-        <n-empty v-if="!chapters.length" description="尚無章節" />
+        <n-empty v-if="!chapters.length" :description="$t('novel.noChapters')" />
       </n-card>
 
       <NovelReviews :novel-id="novelId" @changed="fetchNovel()" />
@@ -88,8 +88,8 @@ import { NSpin, NTag, NRate, NButton, NCard, NEmpty, NResult, useMessage } from 
 import type { ApiResponse } from '~/utils/api'
 import type { ApiReadingProgress } from '~/types/models'
 import { getProgress } from '~/utils/localDb'
-import { NOVEL_STATUS, chapterLabel, formatRelativeTime, formatViewCount, formatWordCount } from '~/utils/format'
 
+const { t, novelStatus, chapterLabel, formatRelativeTime, formatViewCount, formatWordCount, formatNumber } = useFormat()
 const route = useRoute()
 const router = useRouter()
 const novelId = route.params.id as string
@@ -102,8 +102,9 @@ const visibleTags = computed(() => {
   const n = novel.value
   if (!n) return []
   const categoryNames = new Set((n.categories ?? []).map(c => c.name))
-  return (n.tags ?? []).filter(t => !categoryNames.has(t.name))
+  return (n.tags ?? []).filter(tag => !categoryNames.has(tag.name))
 })
+const chapterCount = computed(() => novel.value?.total_chapters ?? chapters.value.length)
 const { addToBookshelf } = useBookshelf()
 const { readDb } = useLocalDb()
 const addingBookshelf = ref(false)
@@ -118,7 +119,7 @@ const sortedChapters = computed(() => {
   return sortOrder.value === 'desc' ? list.reverse() : list
 })
 
-/** Where "繼續閱讀" goes: the saved progress, if its chapter is still listed. */
+/** Where "continue reading" goes: the saved progress, if its chapter is still listed. */
 const resume = computed(() => {
   const p = progress.value
   if (!p) return null
@@ -127,7 +128,7 @@ const resume = computed(() => {
   return { chapterId: ch.id, paragraph: p.paragraph_index ?? 0, title: chapterLabel(ch.chapter_number, ch.title) }
 })
 
-useHead({ title: computed(() => novel.value ? `${novel.value.title} — Palimpsest` : 'Palimpsest') })
+useHead({ title: () => novel.value?.title ?? '' })
 
 async function loadProgress() {
   const local = await readDb(db => getProgress(db, novelId)).catch(() => null)
@@ -180,15 +181,15 @@ async function handleAddBookshelf() {
   try {
     await addToBookshelf(novelId)
     inBookshelf.value = true
-    message.success('已加入書架')
+    message.success(t('novel.addedToBookshelf'))
   }
   catch (e) {
     if (statusOf(e) === 409) {
       inBookshelf.value = true
-      message.info('這本書已經在書架上了')
+      message.info(t('novel.alreadyInBookshelf'))
     }
     else {
-      message.error(describeError(e, { 404: '找不到這本小說' }, '加入書架失敗'))
+      message.error(describeError(t, e, { 404: t('novel.notFound') }, t('novel.addToBookshelfFailed')))
     }
   }
   finally {

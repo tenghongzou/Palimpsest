@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/novel.dart';
+import '../bookstore_labels.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class NovelCard extends StatelessWidget {
   final Novel novel;
@@ -54,7 +57,7 @@ class NovelCard extends StatelessWidget {
                       children: [
                         _StatusChip(status: novel.status),
                         const SizedBox(width: 8),
-                        Text(_formatWords(novel.totalWords), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                        Text(formatWordCount(novel.totalWords, context.l10n), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
                       ],
                     ),
                   ],
@@ -67,10 +70,6 @@ class NovelCard extends StatelessWidget {
     );
   }
 
-  String _formatWords(int count) {
-    if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}萬字';
-    return '$count字';
-  }
 }
 
 class _StatusChip extends StatelessWidget {
@@ -80,12 +79,13 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = switch (status) {
-      'ongoing' => ('連載中', Colors.green),
-      'completed' => ('已完結', Colors.blue),
-      'hiatus' => ('暫停', Colors.orange),
-      _ => (status, Colors.grey),
+    final color = switch (status) {
+      'ongoing' => Colors.green,
+      'completed' => Colors.blue,
+      'hiatus' => Colors.orange,
+      _ => Colors.grey,
     };
+    final label = novelStatusLabel(status, context.l10n);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

@@ -5,7 +5,9 @@ import '../../../../core/pagination/paged_notifier.dart';
 import '../../data/novel_repository.dart';
 import '../../domain/entities/novel.dart';
 import '../providers/bookstore_provider.dart';
+import '../bookstore_labels.dart';
 import '../widgets/novel_card.dart';
+import '../../../../core/l10n/l10n.dart';
 
 /// Rankings by type (tabs) and period.
 class RankingPage extends StatefulWidget {
@@ -19,13 +21,13 @@ class RankingPage extends StatefulWidget {
 }
 
 class _RankingPageState extends State<RankingPage> with SingleTickerProviderStateMixin {
-  late final List<String> _types = rankingTypes.keys.toList();
+  late final List<String> _types = rankingTypes;
   late final TabController _tabs = TabController(
     length: _types.length,
     vsync: this,
     initialIndex: _types.contains(widget.type) ? _types.indexOf(widget.type) : 0,
   );
-  late String _period = rankingPeriods.containsKey(widget.period) ? widget.period : 'weekly';
+  late String _period = rankingPeriods.contains(widget.period) ? widget.period : 'weekly';
 
   @override
   void dispose() {
@@ -35,13 +37,14 @@ class _RankingPageState extends State<RankingPage> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('排行榜'),
+        title: Text(l.rankings),
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,
-          tabs: _types.map((t) => Tab(text: rankingTypes[t])).toList(),
+          tabs: _types.map((t) => Tab(text: rankingTypeLabel(t, l))).toList(),
         ),
       ),
       body: Column(
@@ -50,13 +53,13 @@ class _RankingPageState extends State<RankingPage> with SingleTickerProviderStat
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
-              children: rankingPeriods.entries
+              children: rankingPeriods
                   .map((e) => Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: Text(e.value),
-                          selected: _period == e.key,
-                          onSelected: (_) => setState(() => _period = e.key),
+                          label: Text(rankingPeriodLabel(e, l)),
+                          selected: _period == e,
+                          onSelected: (_) => setState(() => _period = e),
                         ),
                       ))
                   .toList(),
@@ -88,7 +91,7 @@ class _RankingList extends ConsumerWidget {
       onLoadMore: notifier.loadMore,
       onRefresh: notifier.refresh,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      empty: const Text('這個榜單目前沒有作品'),
+      empty: Text(context.l10n.rankingEmpty),
       itemBuilder: (context, novel, i) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(

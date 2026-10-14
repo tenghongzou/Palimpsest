@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../data/user_repository.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
   const ChangePasswordPage({super.key});
@@ -33,11 +34,13 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     try {
       await ref.read(userRepositoryProvider).changePassword(_current.text, _next.text);
       if (!mounted) return;
-      showSnack(context, '密碼已更新');
+      showSnack(context, context.l10n.passwordChanged);
       context.pop();
     } catch (e) {
       final status = httpStatus(e);
-      if (mounted) showSnack(context, status == 400 || status == 401 ? '目前密碼不正確' : describeError(e));
+      if (mounted) {
+        showSnack(context, status == 400 || status == 401 ? context.l10n.passwordCurrentWrong : describeError(e, context.l10n));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -45,8 +48,9 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('修改密碼')),
+      appBar: AppBar(title: Text(l.passwordChangeTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -57,17 +61,18 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
               TextFormField(
                 controller: _current,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: '目前密碼', border: OutlineInputBorder()),
-                validator: (v) => v == null || v.isEmpty ? '請輸入目前密碼' : null,
+                decoration: InputDecoration(labelText: l.passwordCurrent, border: const OutlineInputBorder()),
+                validator: (v) => v == null || v.isEmpty ? l.passwordCurrentRequired : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _next,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: '新密碼', border: OutlineInputBorder(), hintText: '至少 8 個字元'),
+                decoration: InputDecoration(
+                    labelText: l.authNewPassword, border: const OutlineInputBorder(), hintText: l.authPasswordHint),
                 validator: (v) {
-                  if (v == null || v.length < 8) return '密碼至少 8 個字元';
-                  if (v.length > 72) return '密碼最多 72 個字元';
+                  if (v == null || v.length < 8) return l.authPasswordTooShort;
+                  if (v.length > 72) return l.authPasswordTooLong;
                   return null;
                 },
               ),
@@ -75,15 +80,15 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
               TextFormField(
                 controller: _confirm,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: '確認新密碼', border: OutlineInputBorder()),
-                validator: (v) => v != _next.text ? '兩次輸入的密碼不一致' : null,
+                decoration: InputDecoration(labelText: l.authConfirmNewPassword, border: const OutlineInputBorder()),
+                validator: (v) => v != _next.text ? l.authPasswordMismatch : null,
               ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: _saving ? null : _submit,
                 child: _saving
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('更新密碼'),
+                    : Text(l.passwordUpdate),
               ),
             ],
           ),

@@ -9,11 +9,14 @@ class FakeResponse {
   final Object? body;
   final Map<String, List<String>> headers;
 
-  const FakeResponse(this.status, this.body, {this.headers = const {}});
+  /// How long the fake server takes to answer.
+  final Duration delay;
+
+  const FakeResponse(this.status, this.body, {this.headers = const {}, this.delay = Duration.zero});
 
   /// A success envelope `{code: 0, message: success, data}`.
-  factory FakeResponse.ok(Object? data, {int status = 200}) =>
-      FakeResponse(status, {'code': 0, 'message': 'success', if (data != null) 'data': data});
+  factory FakeResponse.ok(Object? data, {int status = 200, Duration delay = Duration.zero}) =>
+      FakeResponse(status, {'code': 0, 'message': 'success', if (data != null) 'data': data}, delay: delay);
 
   factory FakeResponse.error(int status, int code, String message, {Map<String, List<String>> headers = const {}}) =>
       FakeResponse(status, {'code': code, 'message': message}, headers: headers);
@@ -93,6 +96,7 @@ class FakeApi implements HttpClientAdapter {
       final request = FakeRequest(method, path, params, options.queryParameters, options.data, options.headers);
       requests.add(request);
       final response = route.handler(request);
+      if (response.delay > Duration.zero) await Future<void>.delayed(response.delay);
       return ResponseBody.fromString(
         jsonEncode(response.body),
         response.status,

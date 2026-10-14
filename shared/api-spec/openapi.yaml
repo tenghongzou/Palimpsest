@@ -2882,6 +2882,11 @@ components:
         font_family: { type: string, maxLength: 50 }
         theme: { type: string, enum: [white, sepia, green, dark, black] }
         reading_mode: { type: string, enum: [scroll, page] }
+        page_animation:
+          type: string
+          enum: [none, slide, cover, curl]
+          default: slide
+          description: How page mode turns pages. Omitting it on save keeps the stored value.
         brightness: { type: integer, minimum: 10, maximum: 100 }
         keep_screen_on: { type: boolean }
         auto_chapter: { type: boolean }

@@ -3,11 +3,11 @@
     <div class="flex gap-2">
       <n-input
         :value="modelValue"
-        placeholder="圖片網址"
+        :placeholder="$t('admin.image.urlPlaceholder')"
         clearable
         @update:value="emit('update:modelValue', $event ?? '')"
       />
-      <n-button :loading="uploading" @click="fileInput?.click()">上傳圖片</n-button>
+      <n-button :loading="uploading" @click="fileInput?.click()">{{ $t('admin.image.upload') }}</n-button>
       <input
         ref="fileInput"
         type="file"
@@ -17,7 +17,7 @@
         @change="handleFile"
       >
     </div>
-    <img v-if="modelValue" :src="modelValue" alt="預覽" class="max-h-40 rounded border">
+    <img v-if="modelValue" :src="modelValue" :alt="$t('admin.image.preview')" class="max-h-40 rounded border">
   </div>
 </template>
 
@@ -34,6 +34,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
+const { t } = useI18n()
 const message = useMessage()
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
@@ -46,7 +47,7 @@ async function handleFile(event: Event) {
   input.value = ''
   if (!file) return
   if (file.size > MAX_BYTES) {
-    message.error('圖片不可超過 5 MB')
+    message.error(t('admin.image.tooLarge', { mb: 5 }))
     return
   }
   uploading.value = true
@@ -55,10 +56,10 @@ async function handleFile(event: Event) {
       params: { kind: props.kind },
     })
     emit('update:modelValue', res.data.url)
-    message.success('圖片已上傳')
+    message.success(t('admin.image.uploaded'))
   }
   catch (error) {
-    message.error(uploadErrorMessage(error))
+    message.error(uploadErrorMessage(t, error))
   }
   finally {
     uploading.value = false

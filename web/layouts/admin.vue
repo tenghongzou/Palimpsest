@@ -1,6 +1,7 @@
 <template>
-  <n-config-provider :locale="zhTW" :date-locale="dateZhTW">
+  <n-config-provider :locale="naiveLocale" :date-locale="naiveDateLocale">
     <n-message-provider>
+      <PwaPrompt />
       <n-dialog-provider>
         <n-layout has-sider class="min-h-screen">
           <n-layout-sider
@@ -12,7 +13,7 @@
             class="min-h-screen"
             content-style="padding: 12px 0;"
           >
-            <div class="text-center py-4 font-bold text-lg">Admin</div>
+            <div class="text-center py-4 font-bold text-lg">{{ $t('admin.layout.brand') }}</div>
             <n-menu
               :options="menuOptions"
               :value="activeMenu"
@@ -21,11 +22,12 @@
           </n-layout-sider>
           <n-layout>
             <n-layout-header bordered class="px-6 py-3 flex items-center justify-between">
-              <span class="text-lg font-semibold">Palimpsest 管理後台</span>
+              <span class="text-lg font-semibold">{{ $t('admin.layout.title') }}</span>
               <div class="flex items-center gap-4 text-sm">
-                <NuxtLink to="/" class="text-gray-600">回到前台</NuxtLink>
+                <NuxtLink to="/" class="text-gray-600">{{ $t('admin.layout.backToSite') }}</NuxtLink>
+                <LanguageSwitcher />
                 <span class="text-gray-500">{{ authStore.user?.nickname || authStore.user?.username }}</span>
-                <n-button size="small" @click="handleLogout">登出</n-button>
+                <n-button size="small" @click="handleLogout">{{ $t('common.logout') }}</n-button>
               </div>
             </n-layout-header>
             <n-layout-content content-style="padding: 24px;">
@@ -41,7 +43,7 @@
 <script setup lang="ts">
 import {
   NConfigProvider, NMessageProvider, NDialogProvider, NLayout, NLayoutSider,
-  NLayoutHeader, NLayoutContent, NMenu, NButton, zhTW, dateZhTW,
+  NLayoutHeader, NLayoutContent, NMenu, NButton,
 } from 'naive-ui'
 import type { MenuOption } from 'naive-ui'
 
@@ -49,21 +51,25 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
-const menuOptions: MenuOption[] = [
-  { label: '總覽', key: '/admin' },
-  { label: '小說管理', key: '/admin/novels' },
-  { label: '用戶管理', key: '/admin/users' },
-  { label: '書評審核', key: '/admin/reviews' },
-  { label: '檢舉處理', key: '/admin/reports' },
-  { label: '分類管理', key: '/admin/categories' },
-  { label: '橫幅管理', key: '/admin/banners' },
-  { label: '系統公告', key: '/admin/notifications' },
+const { t } = useI18n()
+const { naiveLocale, naiveDateLocale } = useNaiveLocale()
+
+const MENU = [
+  { labelKey: 'admin.menu.dashboard', key: '/admin' },
+  { labelKey: 'admin.menu.novels', key: '/admin/novels' },
+  { labelKey: 'admin.menu.users', key: '/admin/users' },
+  { labelKey: 'admin.menu.reviews', key: '/admin/reviews' },
+  { labelKey: 'admin.menu.reports', key: '/admin/reports' },
+  { labelKey: 'admin.menu.categories', key: '/admin/categories' },
+  { labelKey: 'admin.menu.banners', key: '/admin/banners' },
+  { labelKey: 'admin.menu.announcements', key: '/admin/notifications' },
 ]
+const menuOptions = computed<MenuOption[]>(() => MENU.map(m => ({ label: t(m.labelKey), key: m.key })))
 
 // The longest menu key that prefixes the current path, so sub-pages such as
 // /admin/novels/:id/chapters keep their section highlighted.
 const activeMenu = computed(() => {
-  const keys = menuOptions.map(o => o.key as string)
+  const keys = MENU.map(o => o.key)
   return keys
     .filter(k => route.path === k || route.path.startsWith(`${k}/`))
     .sort((a, b) => b.length - a.length)[0] ?? '/admin'

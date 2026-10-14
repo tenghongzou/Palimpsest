@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-xl font-bold">小說分類</h1>
+    <h1 class="text-xl font-bold">{{ $t('category.heading') }}</h1>
     <n-spin :show="loading">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <n-card v-for="cat in categories" :key="cat.id" size="small">
@@ -14,7 +14,7 @@
           </div>
         </n-card>
       </div>
-      <n-empty v-if="!loading && categories.length === 0" description="暫無分類" />
+      <n-empty v-if="!loading && categories.length === 0" :description="$t('category.empty')" />
     </n-spin>
   </div>
 </template>
@@ -22,6 +22,7 @@
 <script setup lang="ts">
 import { NSpin, NCard, NEmpty, NTag } from 'naive-ui'
 
-useHead({ title: '分類 — Palimpsest' })
+const { t } = useI18n()
+useHead({ title: () => t('category.title') })
 const { categories, loading } = useCategories()
 </script>
