@@ -155,6 +155,13 @@ func TestBookshelfFavoritesAndProgress(t *testing.T) {
 	if want := int64(100 + maxSyncedDuration + 60); u.TotalReadSeconds != want {
 		t.Errorf("total_read_seconds = %d, want %d", u.TotalReadSeconds, want)
 	}
+	// Time reported after a chapter opened lands in that chapter's history
+	// entry, so per-day statistics add up to the total.
+	var historySeconds int64
+	db.Model(&model.ReadingHistory{}).Where("user_id = ?", user.ID).Select("SUM(duration)").Scan(&historySeconds)
+	if historySeconds != u.TotalReadSeconds {
+		t.Errorf("history durations sum to %d, want %d", historySeconds, u.TotalReadSeconds)
+	}
 
 	entries, err := svc.List(user.ID, "recent")
 	if err != nil || len(entries) != 1 {
