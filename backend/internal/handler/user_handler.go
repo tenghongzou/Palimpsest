@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -95,7 +96,13 @@ func (h *UserHandler) PutReadingSettings(c *gin.Context) {
 }
 
 func (h *UserHandler) ReadingStats(c *gin.Context) {
-	stats, err := h.userSvc.ReadingStats(currentUser(c), c.DefaultQuery("period", "daily"))
+	// utc_offset: the client's offset in minutes east of UTC; buckets follow
+	// its local days. Out-of-range or missing values fall back to UTC.
+	offset, err := strconv.Atoi(c.DefaultQuery("utc_offset", "0"))
+	if err != nil || offset < -14*60 || offset > 14*60 {
+		offset = 0
+	}
+	stats, err := h.userSvc.ReadingStats(currentUser(c), c.DefaultQuery("period", "daily"), offset)
 	if err != nil {
 		serviceError(c, err, 40401, "user not found")
 		return

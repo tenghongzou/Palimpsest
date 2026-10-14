@@ -1241,6 +1241,13 @@ paths:
           in: query
           description: daily = last 7 days, weekly = last 8 weeks, monthly = last 12 months
           schema: { type: string, enum: [daily, weekly, monthly], default: daily }
+        - name: utc_offset
+          in: query
+          description: |
+            The client's UTC offset in minutes east of UTC (480 for UTC+8).
+            Buckets follow the client's local days, and each `start` is the
+            instant that local day, week or month began. Defaults to UTC.
+          schema: { type: integer, minimum: -840, maximum: 840, default: 0 }
       responses:
         '200':
           description: Stats

@@ -50,7 +50,11 @@ class UserRepository {
 
   /// [period] is daily (7 days), weekly (8 weeks) or monthly (12 months).
   Future<ReadingStats> getReadingStats({String period = 'daily'}) async {
-    final response = await _api.dio.get('/users/me/reading-stats', queryParameters: {'period': period});
+    final response = await _api.dio.get('/users/me/reading-stats', queryParameters: {
+      'period': period,
+      // Buckets follow the device's local days.
+      'utc_offset': DateTime.now().timeZoneOffset.inMinutes,
+    });
     return ReadingStats.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 

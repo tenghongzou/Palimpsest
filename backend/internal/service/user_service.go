@@ -138,7 +138,9 @@ var statsPeriods = map[string]struct {
 	"monthly": {"month", 12},
 }
 
-func (s *UserService) ReadingStats(userID uuid.UUID, period string) (*ReadingStats, error) {
+// ReadingStats buckets the user's reading by day, week or month in the
+// client's time zone, given as minutes east of UTC (e.g. 480 for UTC+8).
+func (s *UserService) ReadingStats(userID uuid.UUID, period string, utcOffsetMinutes int) (*ReadingStats, error) {
 	p, ok := statsPeriods[period]
 	if !ok {
 		period, p = "daily", statsPeriods["daily"]
@@ -165,15 +167,19 @@ func (s *UserService) ReadingStats(userID uuid.UUID, period string) (*ReadingSta
 		}
 	}
 
+	// Buckets are computed on local wall-clock time and each start is returned
+	// as the instant local midnight (or week/month start) began.
 	// unit is one of three fixed strings, so building the SQL with it is safe.
 	err = s.db.Raw(`
-		SELECT b.start, COUNT(h.id) AS chapters, COALESCE(SUM(c.word_count), 0) AS words,
-		       COALESCE(SUM(h.duration), 0) AS seconds
-		FROM generate_series(date_trunc('`+p.unit+`', now()) - (? - 1) * interval '1 `+p.unit+`',
-		                     date_trunc('`+p.unit+`', now()), interval '1 `+p.unit+`') AS b(start)
-		LEFT JOIN reading_history h ON h.user_id = ? AND date_trunc('`+p.unit+`', h.read_at) = b.start
+		WITH z AS (SELECT make_interval(mins => ?) AS tz)
+		SELECT b.start AT TIME ZONE z.tz AS start, COUNT(h.id) AS chapters,
+		       COALESCE(SUM(c.word_count), 0) AS words, COALESCE(SUM(h.duration), 0) AS seconds
+		FROM z
+		CROSS JOIN generate_series(date_trunc('`+p.unit+`', now() AT TIME ZONE z.tz) - (? - 1) * interval '1 `+p.unit+`',
+		                           date_trunc('`+p.unit+`', now() AT TIME ZONE z.tz), interval '1 `+p.unit+`') AS b(start)
+		LEFT JOIN reading_history h ON h.user_id = ? AND date_trunc('`+p.unit+`', h.read_at AT TIME ZONE z.tz) = b.start
 		LEFT JOIN chapters c ON c.id = h.chapter_id
-		GROUP BY b.start ORDER BY b.start`, p.buckets, userID).Scan(&stats.Buckets).Error
+		GROUP BY b.start, z.tz ORDER BY b.start`, utcOffsetMinutes, p.buckets, userID).Scan(&stats.Buckets).Error
 	if err != nil {
 		return nil, err
 	}
