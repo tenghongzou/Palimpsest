@@ -14,6 +14,10 @@ class RegisterPage extends ConsumerStatefulWidget {
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
+
+  /// Set by the first submit: from then on, field errors update as the
+  /// user types instead of lingering until the next submit.
+  bool _submitted = false;
   final _usernameController = TextEditingController();
   final _nicknameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -54,6 +58,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
+            autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
             child: Column(
               children: [
                 TextFormField(
@@ -136,6 +141,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 
   void _handleRegister() {
+    if (!_submitted) setState(() => _submitted = true);
     if (_formKey.currentState?.validate() != true) return;
     ref.read(authStateProvider.notifier).register(
       _usernameController.text,

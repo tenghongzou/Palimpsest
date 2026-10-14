@@ -102,6 +102,62 @@ void main() {
       await env.finish(tester);
     });
 
+    void seedWithParams() {
+      env.backend.notifications.addAll([
+        notificationJson(n1,
+            type: 'chapter_update',
+            title: '《霧港燈塔》有新章節',
+            body: '更新至：十點鐘',
+            chapterId: chapterIds[1],
+            params: {'novel': '霧港燈塔', 'chapter': '十點鐘', 'chapter_number': '2'}),
+        notificationJson(n2,
+            type: 'comment_reply',
+            title: '路人 回覆了你的留言',
+            body: '我也這麼覺得',
+            chapterId: chapterIds[0],
+            commentId: threadId,
+            params: {'actor': '路人'}),
+        notificationJson(n3, title: '系統維護公告', body: '本週六凌晨兩點進行系統維護。', read: true),
+      ]);
+    }
+
+    testWidgets('titles and bodies follow the UI language (English)', (tester) async {
+      env = await TestEnv.create(uiLanguage: 'en', accountLanguage: 'en');
+      seedWithParams();
+      await env.pumpApp(tester);
+      await env.push(tester, '/notifications');
+      expect(find.text('New chapters in 霧港燈塔'), findsOneWidget);
+      expect(find.text('Updated to Chapter 2: 十點鐘'), findsOneWidget);
+      expect(find.text('路人 replied to your comment'), findsOneWidget);
+      expect(find.text('我也這麼覺得'), findsOneWidget);
+      // System notifications have no params: shown as sent.
+      expect(find.text('系統維護公告'), findsOneWidget);
+      expect(find.text('《霧港燈塔》有新章節'), findsNothing);
+      await env.finish(tester);
+    });
+
+    testWidgets('titles and bodies follow the UI language (zh-CN and zh-TW)', (tester) async {
+      env = await TestEnv.create(uiLanguage: 'zh-CN', accountLanguage: 'zh-CN');
+      seedWithParams();
+      await env.pumpApp(tester);
+      await env.push(tester, '/notifications');
+      expect(find.text('《霧港燈塔》有新章节'), findsOneWidget);
+      expect(find.text('更新至：第2章 十點鐘'), findsOneWidget);
+      expect(find.text('路人 回复了你的留言'), findsOneWidget);
+      await env.finish(tester);
+    });
+
+    testWidgets('zh-TW renders from params too', (tester) async {
+      env = await TestEnv.create();
+      seedWithParams();
+      await env.pumpApp(tester);
+      await env.push(tester, '/notifications');
+      expect(find.text('《霧港燈塔》有新章節'), findsOneWidget);
+      expect(find.text('更新至：第2章 十點鐘'), findsOneWidget);
+      expect(find.text('路人 回覆了你的留言'), findsOneWidget);
+      await env.finish(tester);
+    });
+
     testWidgets('chapter update opens the reader at that chapter', (tester) async {
       env = await TestEnv.create();
       seedNotifications();

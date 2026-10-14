@@ -15,6 +15,10 @@ class ChangePasswordPage extends ConsumerStatefulWidget {
 
 class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   final _formKey = GlobalKey<FormState>();
+
+  /// Set by the first submit: from then on, field errors update as the
+  /// user types instead of lingering until the next submit.
+  bool _submitted = false;
   final _current = TextEditingController();
   final _next = TextEditingController();
   final _confirm = TextEditingController();
@@ -29,6 +33,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   }
 
   Future<void> _submit() async {
+    if (!_submitted) setState(() => _submitted = true);
     if (_formKey.currentState?.validate() != true) return;
     setState(() => _saving = true);
     try {
@@ -55,6 +60,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
+          autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

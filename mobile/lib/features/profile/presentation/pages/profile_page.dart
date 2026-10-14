@@ -200,7 +200,8 @@ class _StatsCardState extends ConsumerState<_StatsCard> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(l.statsTimeFor(_periodLabel(_period, l)), style: Theme.of(context).textTheme.labelLarge),
+                  // The period is shown by the dropdown next to it.
+                  Text(l.statsTime, style: Theme.of(context).textTheme.labelLarge),
                   DropdownButton<String>(
                     value: _period,
                     underline: const SizedBox(),

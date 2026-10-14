@@ -100,7 +100,7 @@ class ReadingSettingsPanel extends ConsumerWidget {
                     color: c.background,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+                      color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outlineVariant,
                       width: selected ? 3 : 1,
                     ),
                   ),

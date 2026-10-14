@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static const _primaryColor = Color(0xFF1890FF);
 
-  static ThemeData get light => ThemeData(
+  static final ThemeData light = ThemeData(
     colorScheme: ColorScheme.fromSeed(
       seedColor: _primaryColor,
       brightness: Brightness.light,
@@ -11,13 +11,18 @@ class AppTheme {
     useMaterial3: true,
   );
 
-  static ThemeData get dark => ThemeData(
+  static final ThemeData dark = ThemeData(
     colorScheme: ColorScheme.fromSeed(
       seedColor: _primaryColor,
       brightness: Brightness.dark,
     ),
     useMaterial3: true,
   );
+
+  /// The Material theme for the reader's toolbars and sheets drawn over
+  /// [reader]: dark surfaces with light foreground on the dark and black
+  /// reading themes, light ones otherwise.
+  static ThemeData forReader(ReaderTheme reader) => reader.isDark ? dark : light;
 
   // Reader themes
   static const readerThemes = {

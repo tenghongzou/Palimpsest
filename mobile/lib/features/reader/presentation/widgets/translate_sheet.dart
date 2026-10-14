@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
@@ -10,12 +11,15 @@ import '../../../../core/l10n/l10n.dart';
 
 /// Shows the translation sheet; resolves to a translation the user chose to
 /// display in the reader.
-Future<ChapterTranslation?> showTranslateSheet(BuildContext context, Chapter chapter) {
+/// [dark] follows the reader theme, so the sheet is not white at night.
+Future<ChapterTranslation?> showTranslateSheet(BuildContext context, Chapter chapter, {bool dark = false}) {
+  Widget sheet(BuildContext _) => FractionallySizedBox(heightFactor: 0.85, child: TranslateSheet(chapter: chapter));
   return showModalBottomSheet<ChapterTranslation>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => FractionallySizedBox(heightFactor: 0.85, child: TranslateSheet(chapter: chapter)),
+    backgroundColor: dark ? AppTheme.dark.colorScheme.surfaceContainerLow : null,
+    builder: dark ? (c) => Theme(data: AppTheme.dark, child: Builder(builder: sheet)) : sheet,
   );
 }
 

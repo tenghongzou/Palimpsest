@@ -630,6 +630,11 @@
     "deleted": "Review deleted"
   },
   "notifications": {
+    "text": {
+      "chapterUpdateTitle": "New chapters in {novel}",
+      "chapterUpdateBody": "Updated to {chapter}",
+      "replyTitle": "{name} replied to your comment"
+    },
     "title": "Notifications",
     "bellAria": "Notifications ({n} unread)",
     "bellTitle": "{n} unread notification | {n} unread notifications",

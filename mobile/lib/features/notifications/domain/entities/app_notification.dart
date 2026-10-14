@@ -8,6 +8,21 @@ class NotificationTypes {
   static const system = 'system';
 }
 
+/// Keys of `Notification.params`.
+class NotificationParams {
+  /// chapter_update: the novel's title.
+  static const novel = 'novel';
+
+  /// chapter_update: the latest chapter's title.
+  static const chapter = 'chapter';
+
+  /// chapter_update: the latest chapter's number, as text.
+  static const chapterNumber = 'chapter_number';
+
+  /// comment_reply: the replier's display name.
+  static const actor = 'actor';
+}
+
 /// An in-app notification (`Notification` in the API). Named AppNotification
 /// so it does not clash with Flutter's widgets `Notification`.
 class AppNotification {
@@ -26,6 +41,11 @@ class AppNotification {
   final DateTime? createdAt;
   final UserBrief? actor;
 
+  /// Values for writing the title and body in the UI language (see
+  /// [NotificationParams]); empty for system notifications and ones created
+  /// before the server sent them, which show [title] and [body] as is.
+  final Map<String, String> params;
+
   const AppNotification({
     required this.id,
     required this.type,
@@ -37,6 +57,7 @@ class AppNotification {
     this.readAt,
     this.createdAt,
     this.actor,
+    this.params = const {},
   });
 
   bool get isRead => readAt != null;
@@ -58,7 +79,20 @@ class AppNotification {
       readAt: parseDateTime(json['read_at']),
       createdAt: parseDateTime(json['created_at']),
       actor: UserBrief.fromJson(json['actor']),
+      params: _parseParams(json['params']),
     );
+  }
+
+  /// String values of `params`; numbers are kept as their text, anything
+  /// else (and empty strings) is dropped.
+  static Map<String, String> _parseParams(Object? value) {
+    if (value is! Map) return const {};
+    final params = <String, String>{};
+    value.forEach((key, v) {
+      final text = v is String ? v : (v is num ? '$v' : null);
+      if (key is String && text != null && text.isNotEmpty) params[key] = text;
+    });
+    return params;
   }
 
   AppNotification markedRead([DateTime? at]) => isRead
@@ -74,6 +108,7 @@ class AppNotification {
           readAt: at ?? DateTime.now().toUtc(),
           createdAt: createdAt,
           actor: actor,
+          params: params,
         );
 
   /// Where tapping the notification goes, or null when it has no link (e.g.

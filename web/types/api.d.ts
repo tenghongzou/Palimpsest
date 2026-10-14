@@ -602,7 +602,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get reading progress for a novel */
+        /**
+         * Get reading progress for a novel
+         * @description `data` is null when the user has not read the novel yet.
+         */
         get: operations["getReadingProgress"];
         /**
          * Update reading progress for a novel
@@ -1942,6 +1945,15 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             actor?: components["schemas"]["UserBrief"];
+            /**
+             * @description Values for writing the title and body in the client's UI language;
+             *     `title` and `body` hold zh-TW text as a fallback (system
+             *     notifications have no params). chapter_update: `novel`, `chapter`
+             *     (latest chapter title), `chapter_number`. comment_reply: `actor`.
+             */
+            params?: {
+                [key: string]: string;
+            };
         };
         /** @enum {string} */
         DeviceType: "web" | "android" | "ios" | "windows" | "macos" | "linux";
@@ -3090,17 +3102,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Reading progress */
+            /** @description Reading progress, or null */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReadingProgressResponse"];
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ReadingProgress"] | null;
+                    };
                 };
             };
             401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
         };
     };
     updateReadingProgress: {

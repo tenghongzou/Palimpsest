@@ -35,7 +35,7 @@
           :class="isUnread(n) ? 'notification-item--unread' : 'border-gray-100'"
           role="button"
           tabindex="0"
-          :aria-label="$t(isUnread(n) ? 'notifications.unreadAria' : 'notifications.readAria', { title: n.title })"
+          :aria-label="$t(isUnread(n) ? 'notifications.unreadAria' : 'notifications.readAria', { title: text(n).title })"
           :data-unread="isUnread(n) ? 'true' : 'false'"
           data-testid="notification-item"
           @click="open(n)"
@@ -51,15 +51,15 @@
                 <span>{{ formatRelativeTime(n.created_at) }}</span>
               </div>
               <div class="mt-1 break-words" :class="isUnread(n) ? 'font-semibold' : ''" data-testid="notification-title">
-                {{ n.title }}
+                {{ text(n).title }}
               </div>
               <div
-                v-if="n.body"
+                v-if="text(n).body"
                 class="text-sm text-gray-600 mt-1 whitespace-pre-wrap break-words"
                 :class="{ 'line-clamp-2': n.type !== 'system' }"
                 data-testid="notification-body"
               >
-                {{ n.body }}
+                {{ text(n).body }}
               </div>
             </div>
             <div class="flex items-center gap-1 flex-shrink-0" @click.stop @keydown.stop>
@@ -98,12 +98,17 @@
 import { NAlert, NButton, NEmpty, NPopconfirm, NRadioButton, NRadioGroup, NSpin, NTag, useMessage } from 'naive-ui'
 import { useIntersectionObserver } from '@vueuse/core'
 import type { ApiNotification } from '~/types/models'
-import { isUnread, notificationTarget, NOTIFICATION_TYPES } from '~/utils/notifications'
+import { isUnread, notificationTarget, notificationText, NOTIFICATION_TYPES } from '~/utils/notifications'
 
 definePageMeta({ middleware: 'auth' })
 
-const { t, formatRelativeTime } = useFormat()
+const { t, formatRelativeTime, chapterLabel } = useFormat()
 useHead({ title: () => t('notifications.title') })
+
+/** Title and body in the UI language (falls back to the server's text). */
+function text(n: ApiNotification) {
+  return notificationText(n, { t, chapterLabel })
+}
 
 function typeLabel(type: string) {
   return (NOTIFICATION_TYPES as readonly string[]).includes(type) ? t(`notifications.types.${type}`) : t('notifications.title')

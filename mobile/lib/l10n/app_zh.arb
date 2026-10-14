@@ -573,6 +573,30 @@
       }
     }
   },
+  "notificationChapterUpdateTitle": "《{novel}》有新章節",
+  "@notificationChapterUpdateTitle": {
+    "placeholders": {
+      "novel": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationChapterUpdateBody": "更新至：{chapter}",
+  "@notificationChapterUpdateBody": {
+    "placeholders": {
+      "chapter": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationCommentReplyTitle": "{actor} 回覆了你的留言",
+  "@notificationCommentReplyTitle": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
   "logout": "登出",
   "notSignedIn": "尚未登入",
   "readingHistory": "閱讀記錄",
@@ -586,14 +610,6 @@
   "statsTime": "閱讀時間",
   "statsChapters": "章節",
   "statsNovels": "作品",
-  "statsTimeFor": "閱讀時間 · {period}",
-  "@statsTimeFor": {
-    "placeholders": {
-      "period": {
-        "type": "String"
-      }
-    }
-  },
   "statsBucket": "{date} · {duration}",
   "@statsBucket": {
     "placeholders": {
