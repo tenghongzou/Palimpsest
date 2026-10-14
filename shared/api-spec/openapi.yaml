@@ -9,7 +9,7 @@ info:
 
     Authenticated endpoints answer 403 with code 40303 once the account has been
     banned, even while the caller's access token has not expired yet.
-  version: 0.3.0
+  version: 0.4.0
   contact:
     name: Palimpsest Team
 
@@ -42,6 +42,8 @@ tags:
     description: Bookmarks, synced across devices
   - name: community
     description: Reviews, chapter comments, likes and reports
+  - name: notifications
+    description: In-app notifications and the user's signed-in devices
   - name: home
     description: Bookstore front page
   - name: admin
@@ -396,6 +398,29 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /chapters/{chapterId}/comments/paragraph-counts:
+    get:
+      tags: [community]
+      operationId: paragraphCommentCounts
+      summary: How many top-level comments each paragraph of a chapter has
+      description: Only paragraphs with comments are listed, in paragraph order. Replies are not counted.
+      parameters:
+        - $ref: '#/components/parameters/ChapterId'
+      responses:
+        '200':
+          description: Counts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ParagraphCount' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   /reviews/{reviewId}:
     put:
@@ -800,8 +825,9 @@ paths:
   /bookshelf/{novelId}:
     patch:
       tags: [bookshelf]
-      operationId: setBookshelfGroup
-      summary: Move a shelved novel to another group
+      operationId: updateBookshelfItem
+      summary: Move a shelved novel to another group, or turn its update notifications on or off
+      description: Omitted fields stay unchanged.
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/NovelId'
@@ -809,14 +835,10 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [group_name]
-              properties:
-                group_name: { type: string, maxLength: 50 }
+            schema: { $ref: '#/components/schemas/BookshelfItemUpdate' }
       responses:
         '200':
-          description: New group
+          description: The fields that were sent
           content:
             application/json:
               schema:
@@ -824,10 +846,7 @@ paths:
                   - $ref: '#/components/schemas/Envelope'
                   - type: object
                     properties:
-                      data: 
-                        type: object
-                        properties:
-                          group_name: { type: string }
+                      data: { $ref: '#/components/schemas/BookshelfItemUpdate' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1248,6 +1267,183 @@ paths:
                       data: { $ref: '#/components/schemas/ReadingSettings' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/me/devices:
+    get:
+      tags: [notifications]
+      operationId: listDevices
+      summary: The user's signed-in devices, most recently active first
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Devices
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Device' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [notifications]
+      operationId: registerDevice
+      summary: Register this installation, or refresh it when already registered
+      description: |
+        Clients call this after signing in and when their push token changes.
+        `device_id` is a stable id the client generates once per installation.
+        A push token moves to the account that registered it last. Each user
+        keeps at most 20 devices; the least recently active ones are dropped.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceInput' }
+      responses:
+        '200':
+          description: The registered device
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Device' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/me/devices/{deviceId}:
+    delete:
+      tags: [notifications]
+      operationId: removeDevice
+      summary: Remove a device (e.g. on sign-out)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: The device's `id` (not its `device_id`)
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------- notifications
+  /notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      summary: The user's notifications, newest first
+      description: |
+        Types: `chapter_update` (a novel on the bookshelf with notifications on
+        published chapters; `chapter_id` is the first one the reader has not
+        been told about, and later updates fold into an unread notification),
+        `comment_reply` (someone replied; `comment_id` is the thread's
+        top-level comment) and `system` (announcements).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: unread_only
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Paginated notifications
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [items, pagination]
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/Notification' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /notifications/unread-count:
+    get:
+      tags: [notifications]
+      operationId: unreadNotificationCount
+      summary: Number of unread notifications
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Count
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [count]
+                        properties:
+                          count: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /notifications/read-all:
+    put:
+      tags: [notifications]
+      operationId: markAllNotificationsRead
+      summary: Mark every notification read
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: How many were unread
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [updated]
+                        properties:
+                          updated: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /notifications/{notificationId}/read:
+    put:
+      tags: [notifications]
+      operationId: markNotificationRead
+      summary: Mark a notification read
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NotificationId'
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /notifications/{notificationId}:
+    delete:
+      tags: [notifications]
+      operationId: deleteNotification
+      summary: Delete a notification
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NotificationId'
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # --------------------------------------------------------- translation
   /translation/convert:
@@ -1990,12 +2186,47 @@ paths:
                   - $ref: '#/components/schemas/Envelope'
                   - type: object
                     properties:
-                      data: 
+                      data:
                         type: object
                         properties:
                           url: { type: string }
         '400': { $ref: '#/components/responses/BadRequest' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /admin/notifications/broadcast:
+    post:
+      tags: [admin]
+      operationId: adminBroadcastNotification
+      summary: Send a system notification to every active user
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, maxLength: 200 }
+                body: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [recipients]
+                        properties:
+                          recipients: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/stats:
     get:
@@ -2040,6 +2271,11 @@ components:
       schema: { type: string, format: uuid }
     ChapterId:
       name: chapterId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    NotificationId:
+      name: notificationId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -2449,6 +2685,14 @@ components:
         is_notified: { type: boolean }
         added_at: { type: string, format: date-time }
         novel: { $ref: '#/components/schemas/Novel' }
+
+    BookshelfItemUpdate:
+      type: object
+      properties:
+        group_name: { type: string, minLength: 1, maxLength: 50 }
+        is_notified:
+          type: boolean
+          description: Whether newly published chapters send a notification
 
     BookshelfEntry:
       allOf:
@@ -2893,3 +3137,53 @@ components:
         pending_reports: { type: integer }
         active_readers_7d: { type: integer }
         reads_today: { type: integer }
+
+    ParagraphCount:
+      type: object
+      required: [paragraph_index, count]
+      properties:
+        paragraph_index: { type: integer, minimum: 0 }
+        count: { type: integer, minimum: 1 }
+
+    NotificationType:
+      type: string
+      enum: [chapter_update, comment_reply, system]
+
+    Notification:
+      type: object
+      required: [id, type, title, read_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/NotificationType' }
+        title: { type: string }
+        body: { type: string }
+        novel_id: { type: string, format: uuid }
+        chapter_id: { type: string, format: uuid }
+        comment_id: { type: string, format: uuid }
+        read_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        actor: { $ref: '#/components/schemas/UserBrief' }
+
+    DeviceType:
+      type: string
+      enum: [web, android, ios, windows, macos, linux]
+
+    DeviceInput:
+      type: object
+      required: [device_id, device_type]
+      properties:
+        device_id: { type: string, maxLength: 255 }
+        device_type: { $ref: '#/components/schemas/DeviceType' }
+        device_name: { type: string, maxLength: 100 }
+        push_token: { type: string, maxLength: 500, description: FCM/APNs token, when the client has one }
+
+    Device:
+      type: object
+      required: [id, device_id, device_type, last_active_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        device_id: { type: string }
+        device_type: { $ref: '#/components/schemas/DeviceType' }
+        device_name: { type: string }
+        last_active_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }

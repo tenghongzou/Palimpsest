@@ -32,9 +32,11 @@ type AdminDeps struct {
 	CommunitySvc *service.CommunityService
 	HomeSvc      *service.HomeService
 	SearchSvc    *service.SearchService
-	Store        storage.Store
-	DB           *gorm.DB
-	Redis        *redis.Client
+	// Notifications, when set, tells bookshelf readers about new chapters.
+	Notifications *service.NotificationService
+	Store         storage.Store
+	DB            *gorm.DB
+	Redis         *redis.Client
 }
 
 type AdminHandler struct {
@@ -69,6 +71,22 @@ func (h *AdminHandler) chaptersChanged(novelID uuid.UUID) {
 	}
 	if novel, err := h.NovelRepo.FindByID(novelID); err == nil {
 		h.novelChanged(novel)
+	}
+}
+
+// chaptersPublished notifies readers about chapters that just went public.
+func (h *AdminHandler) chaptersPublished(novelID uuid.UUID, chapters []model.Chapter) {
+	if h.Notifications == nil {
+		return
+	}
+	var published []model.Chapter
+	for _, ch := range chapters {
+		if ch.IsPublished {
+			published = append(published, ch)
+		}
+	}
+	if err := h.Notifications.NotifyChapters(novelID, published); err != nil {
+		log.Printf("admin: failed to notify readers of novel %s: %v", novelID, err)
 	}
 }
 
@@ -341,6 +359,7 @@ func (h *AdminHandler) CreateChapter(c *gin.Context) {
 		return
 	}
 	h.chaptersChanged(novelID)
+	h.chaptersPublished(novelID, []model.Chapter{chapter})
 	c.JSON(http.StatusCreated, model.SuccessResponse(chapter))
 }
 
@@ -354,7 +373,7 @@ func (h *AdminHandler) UpdateChapter(c *gin.Context) {
 		c.JSON(http.StatusNotFound, model.ErrorResponse(40402, "chapter not found"))
 		return
 	}
-	novelID := chapter.NovelID
+	novelID, wasPublished := chapter.NovelID, chapter.IsPublished
 	if !bindJSON(c, chapter) || !validChapter(c, chapter) {
 		return
 	}
@@ -364,6 +383,9 @@ func (h *AdminHandler) UpdateChapter(c *gin.Context) {
 		return
 	}
 	h.chaptersChanged(novelID)
+	if !wasPublished {
+		h.chaptersPublished(novelID, []model.Chapter{*chapter})
+	}
 	c.JSON(http.StatusOK, model.SuccessResponse(chapter))
 }
 
@@ -410,6 +432,7 @@ func (h *AdminHandler) BatchImportChapters(c *gin.Context) {
 		return
 	}
 	h.chaptersChanged(novelID)
+	h.chaptersPublished(novelID, chapters)
 	c.JSON(http.StatusCreated, model.SuccessResponse(gin.H{"imported": len(chapters)}))
 }
 

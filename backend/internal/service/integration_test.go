@@ -172,11 +172,20 @@ func TestBookshelfFavoritesAndProgress(t *testing.T) {
 		t.Errorf("shelf progress = %+v", rp)
 	}
 
-	if err := svc.SetGroup(user.ID, novel.ID, "收藏"); err != nil {
-		t.Errorf("SetGroup: %v", err)
+	group, off := "收藏", false
+	if err := svc.UpdateItem(user.ID, novel.ID, ItemUpdate{GroupName: &group, IsNotified: &off}); err != nil {
+		t.Errorf("UpdateItem: %v", err)
 	}
-	if err := svc.SetGroup(user.ID, uuid.New(), "x"); !errors.Is(err, ErrNotFound) {
-		t.Errorf("SetGroup unknown: err = %v", err)
+	var item model.BookshelfItem
+	db.First(&item, "user_id = ? AND novel_id = ?", user.ID, novel.ID)
+	if item.GroupName != group || item.IsNotified {
+		t.Errorf("updated item = %+v", item)
+	}
+	if err := svc.UpdateItem(user.ID, uuid.New(), ItemUpdate{GroupName: &group}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("UpdateItem unknown: err = %v", err)
+	}
+	if err := svc.UpdateItem(user.ID, uuid.New(), ItemUpdate{}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("UpdateItem unknown, no fields: err = %v", err)
 	}
 	if err := svc.RemoveMany(user.ID, []uuid.UUID{novel.ID, uuid.New()}); err != nil {
 		t.Fatalf("RemoveMany: %v", err)

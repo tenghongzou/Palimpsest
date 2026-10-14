@@ -81,6 +81,20 @@ func (h *CommunityHandler) DeleteReview(c *gin.Context) {
 
 // ----------------------------------------------------------------- comments
 
+// ParagraphCounts returns how many comments each paragraph of a chapter has.
+func (h *CommunityHandler) ParagraphCounts(c *gin.Context) {
+	chapterID, ok := pathUUID(c, "chapterId")
+	if !ok {
+		return
+	}
+	counts, err := h.communitySvc.ParagraphCounts(chapterID)
+	if err != nil {
+		serviceError(c, err, 40402, "chapter not found")
+		return
+	}
+	c.JSON(http.StatusOK, model.SuccessResponse(counts))
+}
+
 func (h *CommunityHandler) ListComments(c *gin.Context) {
 	chapterID, ok := pathUUID(c, "chapterId")
 	if !ok {

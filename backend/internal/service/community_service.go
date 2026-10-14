@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -23,10 +24,18 @@ type CommunityService struct {
 	db *gorm.DB
 	// novelChanged is told when a novel's rating changes, to drop caches.
 	novelChanged func(novelID uuid.UUID)
+	// notifications, when set, tells authors about replies.
+	notifications *NotificationService
 }
 
 func NewCommunityService(db *gorm.DB, novelChanged func(novelID uuid.UUID)) *CommunityService {
 	return &CommunityService{db: db, novelChanged: novelChanged}
+}
+
+// WithNotifications makes replies notify the author they answer.
+func (s *CommunityService) WithNotifications(n *NotificationService) *CommunityService {
+	s.notifications = n
+	return s
 }
 
 func withAuthor(db *gorm.DB) *gorm.DB {
@@ -262,6 +271,22 @@ func (s *CommunityService) ListComments(chapterID uuid.UUID, viewer *uuid.UUID, 
 	return comments, total, nil
 }
 
+// ParagraphCount is how many top-level comments a paragraph has.
+type ParagraphCount struct {
+	ParagraphIndex int `json:"paragraph_index"`
+	Count          int `json:"count"`
+}
+
+// ParagraphCounts returns the comment count of each commented paragraph of
+// a chapter, in paragraph order.
+func (s *CommunityService) ParagraphCounts(chapterID uuid.UUID) ([]ParagraphCount, error) {
+	counts := []ParagraphCount{}
+	err := s.db.Model(&model.Comment{}).Select("paragraph_index, COUNT(*) AS count").
+		Where("chapter_id = ? AND parent_id IS NULL AND paragraph_index IS NOT NULL AND status = ?", chapterID, StatusApproved).
+		Group("paragraph_index").Order("paragraph_index").Scan(&counts).Error
+	return counts, err
+}
+
 // CreateComment comments on a published chapter. Replies attach to the
 // top-level comment so threads stay one level deep.
 func (s *CommunityService) CreateComment(userID, chapterID uuid.UUID, in CommentInput) (*model.Comment, error) {
@@ -276,8 +301,8 @@ func (s *CommunityService) CreateComment(userID, chapterID uuid.UUID, in Comment
 		UserID: userID, ChapterID: chapterID, Content: strings.TrimSpace(in.Content),
 		ParagraphIndex: in.ParagraphIndex, Status: StatusApproved,
 	}
+	var parent model.Comment
 	if in.ParentID != nil {
-		var parent model.Comment
 		err := s.db.First(&parent, "id = ? AND chapter_id = ?", *in.ParentID, chapterID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
@@ -290,9 +315,16 @@ func (s *CommunityService) CreateComment(userID, chapterID uuid.UUID, in Comment
 			root = *parent.ParentID
 		}
 		comment.ParentID = &root
+		// A reply belongs to its thread's paragraph.
+		comment.ParagraphIndex = nil
 	}
 	if err := s.db.Create(comment).Error; err != nil {
 		return nil, err
+	}
+	if comment.ParentID != nil && s.notifications != nil {
+		if err := s.notifications.NotifyReply(comment, &parent); err != nil {
+			log.Printf("community: failed to notify reply %s: %v", comment.ID, err)
+		}
 	}
 	var created model.Comment
 	err := withAuthor(s.db).First(&created, "id = ?", comment.ID).Error

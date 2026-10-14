@@ -18,17 +18,18 @@ import (
 )
 
 type Handlers struct {
-	Auth        *handler.AuthHandler
-	User        *handler.UserHandler
-	Novel       *handler.NovelHandler
-	Home        *handler.HomeHandler
-	Bookshelf   *handler.BookshelfHandler
-	Bookmark    *handler.BookmarkHandler
-	Community   *handler.CommunityHandler
-	Search      *handler.SearchHandler
-	Translation *handler.TranslationHandler
-	Admin       *handler.AdminHandler
-	Ranking     *service.RankingService
+	Auth         *handler.AuthHandler
+	User         *handler.UserHandler
+	Novel        *handler.NovelHandler
+	Home         *handler.HomeHandler
+	Bookshelf    *handler.BookshelfHandler
+	Bookmark     *handler.BookmarkHandler
+	Community    *handler.CommunityHandler
+	Search       *handler.SearchHandler
+	Translation  *handler.TranslationHandler
+	Admin        *handler.AdminHandler
+	Notification *handler.NotificationHandler
+	Ranking      *service.RankingService
 	// Metrics records request metrics; nil disables them.
 	Metrics *middleware.HTTPMetrics
 }
@@ -88,6 +89,7 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 	v1.GET("/novels/:id/reviews", optionalAuth, h.Community.ListReviews)
 	v1.GET("/chapters/:chapterId", h.Novel.GetChapter)
 	v1.GET("/chapters/:chapterId/comments", optionalAuth, h.Community.ListComments)
+	v1.GET("/chapters/:chapterId/comments/paragraph-counts", h.Community.ParagraphCounts)
 	v1.GET("/categories", h.Novel.ListCategories)
 	v1.GET("/search/novels", searchLimit, h.Search.SearchNovels)
 	v1.GET("/search/suggestions", h.Search.Suggestions)
@@ -138,12 +140,22 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 		protected.GET("/users/me/reading-stats", h.User.ReadingStats)
 		protected.GET("/users/me/reading-settings", h.User.GetReadingSettings)
 		protected.PUT("/users/me/reading-settings", h.User.PutReadingSettings)
+		protected.GET("/users/me/devices", h.Notification.ListDevices)
+		protected.POST("/users/me/devices", h.Notification.RegisterDevice)
+		protected.DELETE("/users/me/devices/:deviceId", h.Notification.RemoveDevice)
+
+		// Notifications
+		protected.GET("/notifications", h.Notification.List)
+		protected.GET("/notifications/unread-count", h.Notification.UnreadCount)
+		protected.PUT("/notifications/read-all", h.Notification.MarkAllRead)
+		protected.PUT("/notifications/:notificationId/read", h.Notification.MarkRead)
+		protected.DELETE("/notifications/:notificationId", h.Notification.Delete)
 
 		// Bookshelf
 		protected.GET("/bookshelf", h.Bookshelf.List)
 		protected.POST("/bookshelf", h.Bookshelf.Add)
 		protected.POST("/bookshelf/batch-remove", h.Bookshelf.BatchRemove)
-		protected.PATCH("/bookshelf/:novelId", h.Bookshelf.SetGroup)
+		protected.PATCH("/bookshelf/:novelId", h.Bookshelf.UpdateItem)
 		protected.DELETE("/bookshelf/:novelId", h.Bookshelf.Remove)
 
 		// Reading progress and history
@@ -223,6 +235,9 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 		admin.PUT("/reviews/:reviewId", h.Admin.ModerateReview)
 		admin.GET("/reports", h.Admin.ListReports)
 		admin.PUT("/reports/:reportId", h.Admin.ResolveReport)
+
+		// Notifications
+		admin.POST("/notifications/broadcast", h.Notification.Broadcast)
 
 		// Stats
 		admin.GET("/stats", h.Admin.StatsOverview)
