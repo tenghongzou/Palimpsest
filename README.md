@@ -19,6 +19,7 @@ Palimpsest 的定位類似「起點中文網」。讀者可以逛書城、搜尋
 - [環境變數](#環境變數)
 - [API 概覽](#api-概覽)
 - [測試與 CI](#測試與-ci)
+- [部署](#部署)
 - [開發進度](#開發進度)
 - [設計文件](#設計文件)
 - [開發規範](#開發規範)
@@ -229,6 +230,24 @@ App 預設連到 `http://10.0.2.2:8080/api/v1`（Android 模擬器對應的主�
 flutter run --dart-define=API_BASE_URL=http://localhost:8080/api/v1
 ```
 
+建置 Android 安裝檔：
+
+```bash
+flutter build apk --release --dart-define=API_BASE_URL=https://api.palimpsest.cc/api/v1
+```
+
+正式簽章使用 `mobile/android/key.properties`（已列入 `.gitignore`，不要提交），格式如下；沒有這個檔案時，release 版會改用 debug 金鑰簽章，只適合本機測試：
+
+```properties
+storeFile=/path/to/upload-keystore.jks
+storePassword=...
+keyAlias=upload
+keyPassword=...
+```
+
+> [!NOTE]
+> `android/gradle.properties` 關閉了 Kotlin 增量編譯：專案與 pub 快取位於不同磁碟時（Windows 常見），增量快取會讓建置失敗。
+
 ### 從 OpenAPI 產生型別
 
 ```bash
@@ -272,7 +291,8 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 
 | 變數 | 預設值 | 說明 |
 |------|--------|------|
-| `API_BASE_URL` | `http://localhost:8080` | BFF 在伺服器端轉發的 Go 後端位址 |
+| `API_BASE_URL` | `http://localhost:8080` | BFF 在伺服器端轉發的 Go 後端位址（建置時讀取） |
+| `NUXT_API_BASE_URL` | （同上） | 在執行期覆寫 BFF 的後端位址；以 Docker 映像檔或 Kubernetes 部署時用這個 |
 | `NUXT_PUBLIC_API_BASE_URL` | `/api` | 瀏覽器端呼叫的 API 前綴 |
 
 ### Flutter（`--dart-define`）
@@ -395,6 +415,38 @@ flutter test integration_test           # 需要連接裝置或模擬器
 
 ---
 
+## 部署
+
+`backend/` 與 `web/` 各有 Dockerfile，兩者都以非 root 使用者執行；後端映像檔另含 `./seed` 指令。
+
+```bash
+docker build -t palimpsest-backend backend
+docker build -t palimpsest-web web
+```
+
+Kubernetes 設定以 Kustomize 撰寫，位於 [`deploy/k8s/`](deploy/k8s)：
+
+| 路徑 | 內容 |
+|------|------|
+| `base/` | Namespace、後端與 Web 的 Deployment / Service / HPA / PDB、ConfigMap、Ingress（`palimpsest.cc` 與行動端用的 `api.palimpsest.cc`，憑證由 cert-manager 簽發） |
+| `components/in-cluster-deps/` | 叢集內的 PostgreSQL、Redis、Meilisearch、RustFS（單一副本，供 staging 使用） |
+| `overlays/staging/` | base + 叢集內依賴，各服務一個副本，另開放圖片網域 |
+| `overlays/production/` | base 搭配外部的託管服務；套用前請改成實際的服務位址並固定映像檔版本 |
+
+```bash
+# 1. 依 deploy/k8s/secret.example.yaml 建立 palimpsest-secrets（不要提交真實的值）
+kubectl create namespace palimpsest
+kubectl -n palimpsest apply -f my-secret.yaml
+
+# 2. 部署
+kubectl apply -k deploy/k8s/overlays/staging
+
+# 3. （選用）匯入範例資料
+kubectl -n palimpsest exec deploy/backend -- env SEED_ADMIN_PASSWORD=... ./seed
+```
+
+---
+
 ## 開發進度
 
 目前處於 Roadmap 的 **Phase 1（MVP）**。
@@ -422,7 +474,8 @@ flutter test integration_test           # 需要連接裝置或模擬器
 | Flutter 離線閱讀 | ✅ | 章節快取、整本下載與下載管理、離線進度與書籤同步；本機 Schema 由共用 SQL 產生 |
 | Flutter 頭像上傳、翻頁模式、螢幕常亮 | 🚧 | 設定可儲存與同步，但尚未有對應功能（需額外套件） |
 | Flutter 原生平台專案目錄 | ✅ | Android、iOS（桌面版待 Phase 3） |
-| Kubernetes 部署、監控、CDN | 📋 | Sprint 8 |
+| Docker 映像檔、Kubernetes 部署設定 | ✅ | Kustomize：staging（含叢集內依賴）與 production overlay |
+| 監控告警、CDN、資料庫備份 | 📋 | Sprint 8 |
 
 ✅ 完成　🚧 進行中 / 部分完成　📋 規劃中
 
