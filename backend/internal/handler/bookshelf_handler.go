@@ -152,22 +152,20 @@ func (h *BookshelfHandler) GetProgress(c *gin.Context) {
 	c.JSON(http.StatusOK, model.SuccessResponse(progress))
 }
 
-func (h *BookshelfHandler) SetGroup(c *gin.Context) {
+func (h *BookshelfHandler) UpdateItem(c *gin.Context) {
 	novelID, ok := pathUUID(c, "novelId")
 	if !ok {
 		return
 	}
-	var req struct {
-		GroupName string `json:"group_name" binding:"required,max=50"`
-	}
+	var req service.ItemUpdate
 	if !bindJSON(c, &req) {
 		return
 	}
-	if err := h.bookshelfSvc.SetGroup(currentUser(c), novelID, req.GroupName); err != nil {
+	if err := h.bookshelfSvc.UpdateItem(currentUser(c), novelID, req); err != nil {
 		serviceError(c, err, 40401, "novel not in bookshelf")
 		return
 	}
-	c.JSON(http.StatusOK, model.SuccessResponse(gin.H{"group_name": req.GroupName}))
+	c.JSON(http.StatusOK, model.SuccessResponse(req))
 }
 
 func (h *BookshelfHandler) BatchRemove(c *gin.Context) {

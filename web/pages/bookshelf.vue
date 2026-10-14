@@ -74,9 +74,24 @@
                 </div>
               </template>
               <div v-else class="text-xs text-gray-400">尚未開始閱讀</div>
-              <div class="flex items-center gap-2 pt-1" @click.stop>
+              <div class="flex items-center flex-wrap gap-x-2 gap-y-1 pt-1" @click.stop>
                 <n-tag size="tiny" :bordered="false">{{ groupLabel(item.group_name) }}</n-tag>
                 <n-button text size="tiny" data-testid="bookshelf-move" @click="openMove([item.novel_id])">分組</n-button>
+                <n-button
+                  text
+                  size="tiny"
+                  :type="isNotified(item) ? 'primary' : 'default'"
+                  :aria-pressed="isNotified(item)"
+                  :title="isNotified(item) ? '有新章節時會通知你，點擊關閉' : '目前不會通知新章節，點擊開啟'"
+                  :disabled="togglingNotify.has(item.novel_id)"
+                  data-testid="bookshelf-notify"
+                  @click="toggleNotified(item)"
+                >
+                  <template #icon>
+                    <n-icon :component="isNotified(item) ? NotificationsOutline : NotificationsOffOutline" />
+                  </template>
+                  更新通知：{{ isNotified(item) ? '開' : '關' }}
+                </n-button>
                 <n-popconfirm @positive-click="handleRemove(item.novel_id)">
                   <template #trigger>
                     <n-button text size="tiny" type="error">移除</n-button>
@@ -119,8 +134,9 @@
 
 <script setup lang="ts">
 import {
-  NSpin, NCard, NButton, NSelect, NEmpty, NTabs, NTab, NCheckbox, NPopconfirm, NTag, NProgress, NModal, useMessage,
+  NSpin, NCard, NButton, NSelect, NEmpty, NTabs, NTab, NCheckbox, NPopconfirm, NTag, NProgress, NModal, NIcon, useMessage,
 } from 'naive-ui'
+import { NotificationsOutline, NotificationsOffOutline } from '@vicons/ionicons5'
 import { formatRelativeTime } from '~/utils/format'
 
 definePageMeta({ middleware: 'auth' })
@@ -128,7 +144,8 @@ useHead({ title: '書架 — Palimpsest' })
 
 const message = useMessage()
 const router = useRouter()
-const { items, loading, fetchBookshelf, removeFromBookshelf, removeMany, moveToGroup } = useBookshelf()
+const { items, loading, fetchBookshelf, removeFromBookshelf, removeMany, moveToGroup, setNotified } = useBookshelf()
+const togglingNotify = ref(new Set<string>())
 const sortBy = ref<BookshelfSort>('recent')
 const activeGroup = ref('__all')
 const managing = ref(false)
@@ -182,6 +199,24 @@ function onCardClick(item: BookshelfEntry) {
   }
   const chapterId = item.reading_progress?.chapter_id
   router.push(chapterId ? `/read/${chapterId}` : `/novel/${item.novel_id}`)
+}
+
+async function toggleNotified(item: BookshelfEntry) {
+  const id = item.novel_id
+  const on = !isNotified(item)
+  togglingNotify.value = new Set(togglingNotify.value).add(id)
+  try {
+    await setNotified(id, on)
+    message.success(on ? '已開啟更新通知' : '已關閉更新通知')
+  }
+  catch (e) {
+    message.error(describeError(e, { 404: '這本書已不在書架上' }, '更新通知設定失敗'))
+  }
+  finally {
+    const next = new Set(togglingNotify.value)
+    next.delete(id)
+    togglingNotify.value = next
+  }
 }
 
 async function handleRemove(novelId: string) {

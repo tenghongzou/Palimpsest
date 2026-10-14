@@ -140,6 +140,11 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
               decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
               child: const Text('更新', style: TextStyle(color: Colors.white, fontSize: 10)),
             ),
+          if (!item.isNotified)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Icon(Icons.notifications_off_outlined, size: 14, color: Colors.grey.shade500, semanticLabel: '更新通知已關閉'),
+            ),
         ],
       ),
       subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
@@ -185,6 +190,13 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(title: Text(item.novelTitle, style: const TextStyle(fontWeight: FontWeight.bold))),
+            SwitchListTile(
+              secondary: Icon(item.isNotified ? Icons.notifications_active_outlined : Icons.notifications_off_outlined),
+              title: const Text('更新通知'),
+              subtitle: const Text('有新章節時通知我'),
+              value: item.isNotified,
+              onChanged: (_) => Navigator.pop(context, 'notify'),
+            ),
             ListTile(
               leading: const Icon(Icons.folder_outlined),
               title: const Text('移動到分組'),
@@ -205,6 +217,10 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
       if (action == 'remove') {
         await notifier.remove(item.novelId);
         if (mounted) showSnack(context, '已移出書架');
+      } else if (action == 'notify') {
+        final on = !item.isNotified;
+        await notifier.setNotified(item.novelId, on);
+        if (mounted) showSnack(context, on ? '已開啟更新通知' : '已關閉更新通知');
       } else if (action == 'group') {
         final group = await _askGroup(item.groupName);
         if (group != null && group.isNotEmpty) await notifier.setGroup(item.novelId, group);

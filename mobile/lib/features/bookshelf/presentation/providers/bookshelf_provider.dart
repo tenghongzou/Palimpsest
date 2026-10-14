@@ -55,6 +55,27 @@ class BookshelfNotifier extends StateNotifier<AsyncValue<List<BookshelfItem>>> {
     await load();
   }
 
+  /// Turns update notifications for a novel on or off. The list changes
+  /// right away and is restored when the server rejects the change (the
+  /// error is rethrown).
+  Future<void> setNotified(String novelId, bool notified) async {
+    final before = state.valueOrNull;
+    if (before != null) {
+      state = AsyncValue.data(
+          before.map((i) => i.novelId == novelId ? i.copyWith(isNotified: notified) : i).toList());
+    }
+    try {
+      await _repo.updateItem(novelId, isNotified: notified);
+    } catch (_) {
+      final current = state.valueOrNull;
+      if (mounted && current != null) {
+        state = AsyncValue.data(
+            current.map((i) => i.novelId == novelId ? i.copyWith(isNotified: !notified) : i).toList());
+      }
+      rethrow;
+    }
+  }
+
   void reset() => state = const AsyncValue.data([]);
 
   void _drop(Set<String> novelIds) {

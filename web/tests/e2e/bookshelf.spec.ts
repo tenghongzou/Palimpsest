@@ -57,6 +57,39 @@ test('add novels, group them, filter by group and remove several at once', async
   expect(await api<ShelfEntry[]>(page, 'GET', '/bookshelf')).toHaveLength(0)
 })
 
+test('update notifications can be turned off and on, and roll back on errors', async ({ page }) => {
+  const res = await page.request.get('/api/v1/novels', { params: { page_size: 10 } })
+  const novel = (await res.json() as { data: { items: { id: string, title: string }[] } }).data.items[0]
+  await api(page, 'POST', '/bookshelf', { novel_id: novel.id }).catch(() => {}) // may already be shelved
+  await api(page, 'PATCH', `/bookshelf/${novel.id}`, { is_notified: true })
+  const notified = async () => (await api<{ novel_id: string, is_notified?: boolean }[]>(page, 'GET', '/bookshelf'))
+    .find(s => s.novel_id === novel.id)?.is_notified
+
+  try {
+    await page.goto('/bookshelf')
+    const toggle = page.getByTestId('bookshelf-item').filter({ hasText: novel.title }).getByTestId('bookshelf-notify')
+    await expect(toggle).toContainText('更新通知：開')
+    await toggle.click()
+    await expect(toggle).toContainText('更新通知：關')
+    await expect.poll(notified, POLL).toBe(false)
+
+    // A failed request puts the switch back.
+    await page.route(new RegExp(`/api/v1/bookshelf/${novel.id}$`), route =>
+      route.request().method() === 'PATCH' ? route.fulfill({ status: 500, json: { code: 50001, message: 'boom' } }) : route.fallback())
+    await toggle.click()
+    await expect(page.getByText('更新通知設定失敗')).toBeVisible()
+    await expect(toggle).toContainText('更新通知：關')
+    await page.unroute(new RegExp(`/api/v1/bookshelf/${novel.id}$`))
+
+    await toggle.click()
+    await expect(toggle).toContainText('更新通知：開')
+    await expect.poll(notified, POLL).toBe(true)
+  }
+  finally {
+    await api(page, 'DELETE', `/bookshelf/${novel.id}`).catch(() => {})
+  }
+})
+
 test('shelf entries show reading progress', async ({ page }) => {
   const res = await page.request.get('/api/v1/novels', { params: { page_size: 10 } })
   const novel = (await res.json() as { data: { items: { id: string, title: string }[] } }).data.items[0]

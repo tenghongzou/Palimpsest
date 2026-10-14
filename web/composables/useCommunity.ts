@@ -1,6 +1,7 @@
 // Reviews, chapter comments, likes and reports.
 import type { ApiResponse, Paginated, Pagination } from '~/utils/api'
-import type { ApiComment, ApiLikeResult, ApiReport, ApiReportInput, ApiReview, ApiReviewInput } from '~/types/models'
+import type { ApiComment, ApiLikeResult, ApiParagraphCount, ApiReport, ApiReportInput, ApiReview, ApiReviewInput } from '~/types/models'
+import { paragraphCountMap, type ParagraphCounts } from '~/utils/paragraphComments'
 
 export type CommunitySort = 'latest' | 'popular'
 
@@ -86,17 +87,28 @@ export interface NewComment {
   paragraph_index?: number
 }
 
-export function useComments(chapterId: MaybeRefOrGetter<string>) {
+export interface UseCommentsOptions {
+  /** Only list (and post) comments on this paragraph; null for the whole chapter. */
+  paragraphIndex?: MaybeRefOrGetter<number | null | undefined>
+}
+
+export function useComments(chapterId: MaybeRefOrGetter<string>, options: UseCommentsOptions = {}) {
   const items = ref<ApiComment[]>([])
   const pagination = ref<Pagination>(emptyPagination())
   const sort = ref<CommunitySort>('latest')
   const loading = ref(false)
 
+  const paragraph = () => {
+    const p = toValue(options.paragraphIndex)
+    return typeof p === 'number' && Number.isInteger(p) && p >= 0 ? p : null
+  }
+
   async function load(page = 1) {
     loading.value = true
     try {
+      const p = paragraph()
       const res = await apiFetch<ApiResponse<Paginated<ApiComment>>>(`/chapters/${toValue(chapterId)}/comments`, {
-        params: { page, page_size: 20, sort_by: sort.value },
+        params: { page, page_size: 20, sort_by: sort.value, ...(p !== null ? { paragraph_index: p } : {}) },
       })
       items.value = res.data.items.map(c => ({ ...c, replies: c.replies ?? [] }))
       pagination.value = res.data.pagination
@@ -107,9 +119,14 @@ export function useComments(chapterId: MaybeRefOrGetter<string>) {
   }
 
   async function create(input: NewComment): Promise<ApiComment> {
+    const p = paragraph()
+    // Replies inherit their thread's paragraph on the server.
+    const body: NewComment = { ...input, content: input.content.trim() }
+    if (!body.parent_id && p !== null) body.paragraph_index = p
+    if (body.parent_id) delete body.paragraph_index
     const res = await apiFetch<ApiResponse<ApiComment>>(`/chapters/${toValue(chapterId)}/comments`, {
       method: 'POST',
-      body: { ...input, content: input.content.trim() },
+      body,
     })
     const comment = { ...res.data, replies: res.data.replies ?? [] }
     if (comment.parent_id) {
@@ -143,6 +160,52 @@ export function useComments(chapterId: MaybeRefOrGetter<string>) {
   }
 
   return { items, pagination, sort, loading, load, create, remove, toggleLike }
+}
+
+/**
+ * How many top-level comments each paragraph of a chapter has. `available`
+ * is false until counts load (and after a failure, e.g. offline), so the
+ * reader can hide its markers.
+ */
+export function useParagraphCounts(chapterId: MaybeRefOrGetter<string | null | undefined>) {
+  const counts = ref<ParagraphCounts>({})
+  const available = ref(false)
+  let requestId = 0
+
+  async function load(paragraphTotal?: number) {
+    const id = toValue(chapterId)
+    const current = ++requestId
+    if (!id) {
+      counts.value = {}
+      available.value = false
+      return
+    }
+    try {
+      const res = await apiFetch<ApiResponse<ApiParagraphCount[]>>(`/chapters/${id}/comments/paragraph-counts`)
+      if (current !== requestId) return
+      counts.value = paragraphCountMap(res.data, paragraphTotal)
+      available.value = true
+    }
+    catch {
+      if (current !== requestId) return
+      counts.value = {}
+      available.value = false
+    }
+  }
+
+  function clear() {
+    requestId++
+    counts.value = {}
+    available.value = false
+  }
+
+  return { counts, available, load, clear }
+}
+
+/** The thread (top-level comment with its replies) containing a comment or reply. */
+export async function fetchCommentThread(commentId: string): Promise<ApiComment> {
+  const res = await apiFetch<ApiResponse<ApiComment>>(`/comments/${commentId}`)
+  return { ...res.data, replies: res.data.replies ?? [] }
 }
 
 export async function submitReport(input: ApiReportInput): Promise<ApiReport> {

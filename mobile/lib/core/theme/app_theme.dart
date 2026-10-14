@@ -34,4 +34,8 @@ class ReaderTheme {
   final Color text;
 
   const ReaderTheme({required this.background, required this.text});
+
+  /// Dark backgrounds (dark, black): sheets opened from the reader use the
+  /// dark app theme so they do not flash white at night.
+  bool get isDark => background.computeLuminance() < 0.2;
 }

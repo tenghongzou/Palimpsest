@@ -39,8 +39,14 @@ class BookshelfRepository {
     await _apiClient.dio.post('/bookshelf/batch-remove', data: {'novel_ids': novelIds});
   }
 
-  Future<void> setGroup(String novelId, String groupName) async {
-    await _apiClient.dio.patch('/bookshelf/$novelId', data: {'group_name': groupName});
+  Future<void> setGroup(String novelId, String groupName) => updateItem(novelId, groupName: groupName);
+
+  /// PATCH /bookshelf/{novelId}; omitted fields stay unchanged.
+  Future<void> updateItem(String novelId, {String? groupName, bool? isNotified}) async {
+    await _apiClient.dio.patch('/bookshelf/$novelId', data: {
+      if (groupName != null) 'group_name': groupName,
+      if (isNotified != null) 'is_notified': isNotified,
+    });
   }
 
   /// [scrollOffset] is the position within the chapter, from 0.0 to 1.0.
@@ -74,6 +80,8 @@ class BookshelfRepository {
       latestChapterTitle: novel?['latest_chapter_title'] as String?,
       groupName: json['group_name'] as String? ?? 'default',
       hasUpdate: json['has_update'] as bool? ?? false,
+      // The server defaults to on.
+      isNotified: json['is_notified'] as bool? ?? true,
       progress: progress,
       addedAt: parseDateTime(json['added_at']) ?? DateTime.now(),
     );

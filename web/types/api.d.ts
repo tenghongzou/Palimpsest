@@ -248,6 +248,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chapters/{chapterId}/comments/paragraph-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many top-level comments each paragraph of a chapter has
+         * @description Only paragraphs with comments are listed, in paragraph order. Replies are not counted.
+         */
+        get: operations["paragraphCommentCounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reviews/{reviewId}": {
         parameters: {
             query?: never;
@@ -291,7 +311,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * The thread containing a comment
+         * @description Returns the thread's top-level comment with its replies, whether the id
+         *     is the top-level comment or one of the replies (e.g. `comment_id` of a
+         *     `comment_reply` notification). With a bearer token, `liked_by_me`
+         *     marks comments the caller liked.
+         */
+        get: operations["getCommentThread"];
         put?: never;
         post?: never;
         /** Delete your comment and its replies (admins may delete any) */
@@ -510,8 +537,11 @@ export interface paths {
         delete: operations["removeFromBookshelf"];
         options?: never;
         head?: never;
-        /** Move a shelved novel to another group */
-        patch: operations["setBookshelfGroup"];
+        /**
+         * Move a shelved novel to another group, or turn its update notifications on or off
+         * @description Omitted fields stay unchanged.
+         */
+        patch: operations["updateBookshelfItem"];
         trace?: never;
     };
     "/reading-progress": {
@@ -732,6 +762,139 @@ export interface paths {
         put: operations["putReadingSettings"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The user's signed-in devices, most recently active first */
+        get: operations["listDevices"];
+        put?: never;
+        /**
+         * Register this installation, or refresh it when already registered
+         * @description Clients call this after signing in and when their push token changes.
+         *     `device_id` is a stable id the client generates once per installation.
+         *     A push token moves to the account that registered it last. Each user
+         *     keeps at most 20 devices; the least recently active ones are dropped.
+         */
+        post: operations["registerDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/devices/{deviceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a device (e.g. on sign-out) */
+        delete: operations["removeDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The user's notifications, newest first
+         * @description Types: `chapter_update` (a novel on the bookshelf with notifications on
+         *     published chapters; `chapter_id` is the first one the reader has not
+         *     been told about, and later updates fold into an unread notification),
+         *     `comment_reply` (someone replied; `comment_id` is the thread's
+         *     top-level comment) and `system` (announcements).
+         */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Number of unread notifications */
+        get: operations["unreadNotificationCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Mark every notification read */
+        put: operations["markAllNotificationsRead"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{notificationId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Mark a notification read */
+        put: operations["markNotificationRead"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{notificationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a notification */
+        delete: operations["deleteNotification"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1116,6 +1279,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/notifications/broadcast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a system notification to every active user */
+        post: operations["adminBroadcastNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/stats": {
         parameters: {
             query?: never;
@@ -1365,6 +1545,11 @@ export interface components {
             /** Format: date-time */
             added_at?: string;
             novel?: components["schemas"]["Novel"];
+        };
+        BookshelfItemUpdate: {
+            group_name?: string;
+            /** @description Whether newly published chapters send a notification */
+            is_notified?: boolean;
         };
         BookshelfEntry: components["schemas"]["BookshelfItem"] & {
             reading_progress: {
@@ -1728,6 +1913,50 @@ export interface components {
             active_readers_7d: number;
             reads_today: number;
         };
+        ParagraphCount: {
+            paragraph_index: number;
+            count: number;
+        };
+        /** @enum {string} */
+        NotificationType: "chapter_update" | "comment_reply" | "system";
+        Notification: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["NotificationType"];
+            title: string;
+            body?: string;
+            /** Format: uuid */
+            novel_id?: string;
+            /** Format: uuid */
+            chapter_id?: string;
+            /** Format: uuid */
+            comment_id?: string;
+            /** Format: date-time */
+            read_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            actor?: components["schemas"]["UserBrief"];
+        };
+        /** @enum {string} */
+        DeviceType: "web" | "android" | "ios" | "windows" | "macos" | "linux";
+        DeviceInput: {
+            device_id: string;
+            device_type: components["schemas"]["DeviceType"];
+            device_name?: string;
+            /** @description FCM/APNs token */
+            push_token?: string;
+        };
+        Device: {
+            /** Format: uuid */
+            id: string;
+            device_id: string;
+            device_type: components["schemas"]["DeviceType"];
+            device_name?: string;
+            /** Format: date-time */
+            last_active_at: string;
+            /** Format: date-time */
+            created_at: string;
+        };
     };
     responses: {
         /** @description Success with no data */
@@ -1838,6 +2067,7 @@ export interface components {
         PageSize: number;
         NovelId: string;
         ChapterId: string;
+        NotificationId: string;
         UserId: string;
     };
     requestBodies: never;
@@ -2239,6 +2469,31 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    paragraphCommentCounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chapterId: components["parameters"]["ChapterId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ParagraphCount"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
     updateReview: {
         parameters: {
             query?: never;
@@ -2337,6 +2592,32 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getCommentThread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thread */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Comment"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -2681,7 +2962,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
-    setBookshelfGroup: {
+    updateBookshelfItem: {
         parameters: {
             query?: never;
             header?: never;
@@ -2692,22 +2973,18 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    group_name: string;
-                };
+                "application/json": components["schemas"]["BookshelfItemUpdate"];
             };
         };
         responses: {
-            /** @description New group */
+            /** @description The fields that were sent */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope"] & {
-                        data?: {
-                            group_name?: string;
-                        };
+                        data?: components["schemas"]["BookshelfItemUpdate"];
                     };
                 };
             };
@@ -3159,6 +3436,186 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listDevices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Devices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Device"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    registerDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceInput"];
+            };
+        };
+        responses: {
+            /** @description The registered device */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Device"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    removeDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device's `id` (not its `device_id`) */
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+                unread_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated notifications */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            items: components["schemas"]["Notification"][];
+                            pagination: components["schemas"]["Pagination"];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    unreadNotificationCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            count: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How many were unread */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            updated: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: components["parameters"]["NotificationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: components["parameters"]["NotificationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     convertChinese: {
@@ -3999,6 +4456,40 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    adminBroadcastNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title: string;
+                    body?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Sent */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            recipients: number;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     adminStats: {

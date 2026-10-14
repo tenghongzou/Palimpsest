@@ -52,7 +52,11 @@ class TestEnv {
   List<Override> get overrides => [
         apiClientProvider.overrideWithValue(api),
         offlineStoreProvider.overrideWithValue(() async => OfflineStore(db)),
-        authStateProvider.overrideWith((ref) => AuthNotifier(ref.read(authRepositoryProvider), initialUser: user)),
+        authStateProvider.overrideWith((ref) => AuthNotifier(
+              ref.read(authRepositoryProvider),
+              initialUser: user,
+              beforeLogout: () => cleanUpBeforeLogout(ref),
+            )),
         downloadManagerProvider.overrideWith((ref) => DownloadManager(
               reader: ref.read(readerRepositoryProvider),
               store: () async => OfflineStore(db),
@@ -64,6 +68,9 @@ class TestEnv {
     await tester.pumpWidget(ProviderScope(overrides: overrides, child: const PalimpsestApp()));
     await tester.pumpAndSettle();
   }
+
+  ProviderContainer container(WidgetTester tester) =>
+      ProviderScope.containerOf(tester.element(find.byType(PalimpsestApp)));
 
   /// Navigates the running app to [location].
   Future<void> push(WidgetTester tester, String location) async {

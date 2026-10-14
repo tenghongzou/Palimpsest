@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :locale="zhTW" :date-locale="dateZhTW">
+  <n-config-provider :theme="naiveTheme" :locale="zhTW" :date-locale="dateZhTW">
     <n-message-provider>
       <n-dialog-provider>
         <div
@@ -23,10 +23,12 @@
 </template>
 
 <script setup lang="ts">
-import { NConfigProvider, NMessageProvider, NDialogProvider, zhTW, dateZhTW } from 'naive-ui'
+import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme, zhTW, dateZhTW } from 'naive-ui'
 import { READER_THEMES } from '~/utils/readingSettings'
 
 const readerStore = useReaderStore()
 const settings = computed(() => readerStore.settings)
 const theme = computed(() => READER_THEMES[settings.value.theme] ?? READER_THEMES.white)
+// Drawers, toolbar and messages follow the dark reader themes.
+const naiveTheme = computed(() => settings.value.theme === 'dark' || settings.value.theme === 'black' ? darkTheme : null)
 </script>

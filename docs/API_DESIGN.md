@@ -6,7 +6,8 @@
 > - 後台的審核與上下架使用 `PUT /admin/reviews/:id`、`PUT /admin/reports/:id`、`PUT /admin/users/:id/status`、`POST /admin/novels/:id/publish`（可帶 `{"is_published": false}` 下架），而非 `PATCH`。
 > - 後台統計為單一端點 `GET /admin/stats`；章節編輯與刪除使用 `/admin/chapters/:chapterId`。
 > - 章節內容另有 `GET /chapters/:chapterId`，並回傳 `prev_chapter` / `next_chapter`；`count_view=false` 可避免離線下載計入點閱。
-> - 尚未實作：裝置管理 `/users/me/devices`。
+> - 裝置管理另有 `POST /users/me/devices`（登入後註冊／更新本機裝置與推播 token）；`DELETE /users/me/devices/:deviceId` 的 `deviceId` 是裝置記錄的 `id`。
+> - Phase 2 新增：站內通知 `/notifications`（書架更新、留言回覆、系統公告）、段落留言統計 `GET /chapters/:chapterId/comments/paragraph-counts`、書架項目的 `is_notified` 開關（`PATCH /bookshelf/:novelId`）與 `POST /admin/notifications/broadcast`。
 
 ## 1. API 設計原則
 

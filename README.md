@@ -495,6 +495,19 @@ Pod 帶有 `prometheus.io/scrape` 註解，以註解自動探索的 Prometheus �
 | 資料庫備份 | ✅ | staging 叢集內 PostgreSQL 每晚備份、保留 7 天；正式環境依託管服務的備份機制 |
 | 映像檔發布 | ✅ | GitHub Actions 建置並推送到 GHCR |
 | CDN | 📋 | 依部署平台設定；圖片網址由 `MINIO_PUBLIC_URL` 指定，可直接指向 CDN |
+| App 與網站圖示 | ✅ | Android adaptive／themed、iOS AppIcon、favicon 與 PWA 尺寸圖示 |
+
+**Phase 2 進度**
+
+| 項目 | 狀態 | 備註 |
+|------|------|------|
+| 站內通知 | ✅ | 書架更新（可逐本關閉）、留言回覆、系統公告；Web 與 Flutter 皆有通知中心與未讀數 |
+| 段落評論 | ✅ | 段落尾端顯示留言數，可針對單一段落留言；回覆通知直接開啟對應段落 |
+| 裝置管理 | ✅ | 登入時註冊、登出時移除，可在設定中檢視與移除登入裝置 |
+| 推播通知（FCM / APNs） | 📋 | 裝置已可帶 `push_token`，待建立 Firebase 專案後串接 |
+| 閱讀統計視覺化 | ✅ | Web 與 Flutter 皆有日／週／月圖表 |
+| iOS App 上架、Apple Sign-In | 📋 | 需 macOS 與 Apple Developer 帳號 |
+| PWA、翻頁動畫、第三方登入、多語言介面 | 📋 | |
 
 ✅ 完成　🚧 進行中 / 部分完成　📋 規劃中
 

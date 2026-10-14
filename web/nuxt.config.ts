@@ -8,7 +8,25 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
   ],
 
+  app: {
+    head: {
+      link: [
+        { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
+        { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      ],
+      meta: [
+        { name: 'theme-color', content: '#1890FF' },
+      ],
+    },
+  },
+
   css: ['~/assets/css/main.css'],
+
+  // `text-primary` etc. follow the brand color from main.css.
+  unocss: {
+    theme: { colors: { primary: 'var(--color-primary)' } },
+  },
 
   components: {
     dirs: [
@@ -51,6 +69,7 @@ export default defineNuxtConfig({
     // CSR for private/interactive pages
     '/read/**': { ssr: false },
     '/bookshelf': { ssr: false },
+    '/notifications': { ssr: false },
     '/profile/**': { ssr: false },
     '/admin/**': { ssr: false },
   },

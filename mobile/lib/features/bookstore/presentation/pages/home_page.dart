@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/widgets/common_widgets.dart';
+import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../domain/entities/home_data.dart';
 import '../../domain/entities/novel.dart';
 import '../providers/bookstore_provider.dart';
@@ -20,6 +21,7 @@ class HomePage extends ConsumerWidget {
         title: const Text('Palimpsest'),
         actions: [
           IconButton(tooltip: '搜尋', icon: const Icon(Icons.search), onPressed: () => context.push('/search')),
+          const NotificationBell(),
         ],
       ),
       body: RefreshIndicator(

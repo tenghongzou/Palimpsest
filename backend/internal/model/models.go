@@ -19,5 +19,7 @@ func All() []interface{} {
 		&Like{},
 		&Report{},
 		&Banner{},
+		&Notification{},
+		&UserDevice{},
 	}
 }

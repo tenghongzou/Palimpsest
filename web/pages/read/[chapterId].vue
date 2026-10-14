@@ -8,7 +8,7 @@
       <div class="max-w-3xl mx-auto px-4 pt-3">
         <n-card size="small" class="shadow">
           <div class="flex items-center justify-between gap-3">
-            <NuxtLink v-if="chapter" :to="`/novel/${chapter.novel_id}`" class="text-sm truncate" data-testid="reader-back">
+            <NuxtLink v-if="chapter" :to="`/novel/${chapter.novel_id}`" class="text-sm truncate no-underline" style="color: inherit" data-testid="reader-back">
               ‹ {{ novelTitle || '返回小說' }}
             </NuxtLink>
             <span class="text-xs text-gray-500 truncate">{{ chapter?.title }}</span>
@@ -31,6 +31,9 @@
           :title="translatedTitle || chapter.title"
           :settings="settings"
           :highlight="highlightParagraph"
+          :active-paragraph="showParagraphComments ? paragraphTarget : null"
+          :comment-counts="markerCounts"
+          @open-paragraph-comments="openParagraphComments"
         />
 
         <div class="text-center py-8 space-x-4">
@@ -73,7 +76,7 @@
             v-for="ch in chapterList"
             :key="ch.id"
             class="px-3 py-2 rounded cursor-pointer text-sm"
-            :class="ch.id === chapter?.id ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'"
+            :class="ch.id === chapter?.id ? 'bg-blue-500 text-white' : 'hover:bg-gray-500/15'"
             @click="navigateToChapter(ch.id)"
           >
             {{ chapterLabel(ch.chapter_number, ch.title) }}
@@ -111,8 +114,37 @@
 
     <n-drawer v-model:show="showComments" placement="right" :width="440">
       <n-drawer-content title="本章留言" closable>
-        <ChapterComments v-if="chapter && commentsMounted" :chapter-id="chapter.id" :current-paragraph="currentParagraph" />
+        <ChapterComments
+          v-if="chapter && commentsMounted"
+          :chapter-id="chapter.id"
+          :current-paragraph="currentParagraph"
+          :focus-thread="focusThread"
+          :paragraph-attachable="paragraphsMatch"
+          @changed="refreshParagraphCounts"
+        />
         <div v-if="offline" class="text-sm text-gray-400">離線時無法載入留言。</div>
+      </n-drawer-content>
+    </n-drawer>
+
+    <n-drawer v-model:show="showParagraphComments" placement="right" :width="440">
+      <n-drawer-content :title="paragraphTarget !== null ? `第 ${paragraphTarget + 1} 段的評論` : '段落評論'" closable>
+        <div data-testid="paragraph-comments-drawer">
+          <blockquote
+            v-if="paragraphTarget !== null"
+            class="paragraph-excerpt text-sm mb-4"
+            data-testid="paragraph-excerpt"
+          >
+            {{ paragraphExcerpt(displayParagraphs[paragraphTarget], 120) }}
+          </blockquote>
+          <ChapterComments
+            v-if="chapter && paragraphTarget !== null"
+            :chapter-id="chapter.id"
+            :current-paragraph="paragraphTarget"
+            :paragraph-index="paragraphTarget"
+            :focus-thread="paragraphFocusThread"
+            @changed="refreshParagraphCounts"
+          />
+        </div>
       </n-drawer-content>
     </n-drawer>
 
@@ -140,8 +172,11 @@
 import {
   NSpin, NButton, NDrawer, NDrawerContent, NRadioGroup, NRadio, NCard, NInput, NAlert, useMessage,
 } from 'naive-ui'
-import { useThrottleFn, useDebounceFn, useEventListener } from '@vueuse/core'
+import { useThrottleFn, useDebounceFn, useEventListener, useOnline } from '@vueuse/core'
 import type { LocalBookmark } from '~/utils/localDb'
+import type { ApiComment } from '~/types/models'
+import { paragraphExcerpt, paragraphsAligned, threadPanel } from '~/utils/paragraphComments'
+import { splitParagraphs } from '~/utils/text'
 
 definePageMeta({ layout: 'reader' })
 
@@ -186,6 +221,75 @@ const chapterBookmarked = computed(() => novelBookmarks.value.some(b => b.chapte
 useHead({ title: computed(() => chapter.value ? `${chapter.value.title} — 閱讀` : '閱讀中...') })
 
 const displayContent = computed(() => translatedContent.value || chapter.value?.content || '')
+const displayParagraphs = computed(() => splitParagraphs(displayContent.value))
+
+// ------------------------------------------------------ paragraph comments
+
+const online = useOnline()
+const paragraphCounts = useParagraphCounts(() => chapter.value?.id)
+const showParagraphComments = ref(false)
+const paragraphTarget = ref<number | null>(null)
+/** Thread to highlight in the chapter comments / paragraph panel (from a notification). */
+const focusThread = ref<ApiComment | null>(null)
+const paragraphFocusThread = ref<ApiComment | null>(null)
+
+/** Paragraph indexes refer to the original text; a translation must split the same way. */
+const paragraphsMatch = computed(() => paragraphsAligned(chapter.value?.content, translatedContent.value))
+
+/** Counts for the paragraph markers, or null to hide them (offline, not loaded, misaligned). */
+const markerCounts = computed(() => {
+  if (offline.value || !online.value || !paragraphCounts.available.value || !paragraphsMatch.value) return null
+  return paragraphCounts.counts.value
+})
+
+function refreshParagraphCounts() {
+  if (!chapter.value || offline.value) return
+  void paragraphCounts.load(splitParagraphs(chapter.value.content).length)
+}
+
+function openParagraphComments(index: number, thread: ApiComment | null = null) {
+  paragraphFocusThread.value = thread
+  paragraphTarget.value = index
+  showParagraphComments.value = true
+}
+
+/**
+ * Opens the comments on the thread containing `commentId` (a `comment_reply`
+ * notification): the paragraph panel for paragraph comments, otherwise the
+ * chapter comments, with the thread highlighted.
+ */
+async function openThread(commentId: string) {
+  if (offline.value) {
+    openComments()
+    return
+  }
+  let thread: ApiComment
+  try {
+    thread = await fetchCommentThread(commentId)
+  }
+  catch (e) {
+    message.info(describeError(e, { 404: '找不到這則留言，可能已被刪除' }, '無法載入這則留言'))
+    openComments()
+    return
+  }
+  if (thread.chapter_id && thread.chapter_id !== chapter.value?.id) {
+    openComments()
+    return
+  }
+  const panel = threadPanel(thread, displayParagraphs.value.length, paragraphsMatch.value)
+  if (panel.kind === 'paragraph') {
+    scrollToParagraph(panel.index)
+    openParagraphComments(panel.index, thread)
+  }
+  else {
+    focusThread.value = thread
+    openComments()
+  }
+}
+
+watch(online, (isOnline) => {
+  if (isOnline && !paragraphCounts.available.value) refreshParagraphCounts()
+})
 
 const loadErrorText = computed(() => {
   const status = statusOf(error.value)
@@ -272,6 +376,12 @@ watch(() => chapter.value?.id, async (id) => {
   if (!id || !chapter.value) return
   translatedContent.value = null
   translatedTitle.value = null
+  showParagraphComments.value = false
+  paragraphTarget.value = null
+  focusThread.value = null
+  paragraphFocusThread.value = null
+  paragraphCounts.clear()
+  refreshParagraphCounts()
   await nextTick()
   const p = Number(route.query.p)
   if (Number.isInteger(p) && p > 0) scrollToParagraph(p)
@@ -279,6 +389,14 @@ watch(() => chapter.value?.id, async (id) => {
   measurePosition()
   void saveProgress(position())
   void loadNovelBookmarks()
+  // From a notification: open the comments, on the replied thread if given.
+  const focus = route.query.comment
+  if (typeof focus === 'string' && focus) {
+    void openThread(focus)
+  }
+  else if (route.query.comments === '1') {
+    openComments()
+  }
   if (!novelTitle.value) {
     apiFetch<{ data: { title: string } }>(`/novels/${chapter.value.novel_id}`)
       .then((res) => { novelTitle.value = res.data.title })
@@ -441,3 +559,15 @@ async function handleTranslate() {
   }
 }
 </script>
+
+<style scoped>
+.paragraph-excerpt {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid rgba(128, 128, 128, 0.45);
+  background-color: rgba(128, 128, 128, 0.08);
+  border-radius: 0 4px 4px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+</style>

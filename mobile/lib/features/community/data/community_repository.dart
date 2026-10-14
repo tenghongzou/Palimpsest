@@ -46,13 +46,35 @@ class CommunityRepository {
   Future<LikeResult> setReviewLike(String reviewId, bool like) =>
       _like(like ? _api.dio.post('/reviews/$reviewId/like') : _api.dio.delete('/reviews/$reviewId/like'));
 
-  Future<Paginated<Comment>> getComments(String chapterId, {int page = 1, int pageSize = 20, String sortBy = 'latest'}) async {
+  /// With [paragraphIndex], only the comments on that paragraph.
+  Future<Paginated<Comment>> getComments(String chapterId,
+      {int page = 1, int pageSize = 20, String sortBy = 'latest', int? paragraphIndex}) async {
     final response = await _api.dio.get('/chapters/$chapterId/comments', queryParameters: {
       'page': page,
       'page_size': pageSize,
       'sort_by': sortBy,
+      if (paragraphIndex != null) 'paragraph_index': paragraphIndex,
     });
     return Paginated.fromJson(response.data['data'] as Map<String, dynamic>, Comment.fromJson);
+  }
+
+  /// Top-level comment count per paragraph index; paragraphs without
+  /// comments are absent.
+  Future<Map<int, int>> getParagraphCounts(String chapterId) async {
+    final response = await _api.dio.get('/chapters/$chapterId/comments/paragraph-counts');
+    return parseParagraphCounts(response.data['data']);
+  }
+
+  /// Parses `[{paragraph_index, count}]`.
+  static Map<int, int> parseParagraphCounts(Object? data) {
+    final counts = <int, int>{};
+    for (final e in data is List ? data : const []) {
+      if (e is! Map) continue;
+      final index = (e['paragraph_index'] as num?)?.toInt();
+      final count = (e['count'] as num?)?.toInt() ?? 0;
+      if (index != null && index >= 0 && count > 0) counts[index] = count;
+    }
+    return counts;
   }
 
   Future<Comment> createComment(String chapterId, String content, {String? parentId, int? paragraphIndex}) async {
@@ -61,6 +83,13 @@ class CommunityRepository {
       if (parentId != null) 'parent_id': parentId,
       if (paragraphIndex != null) 'paragraph_index': paragraphIndex,
     });
+    return Comment.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  /// The thread holding [commentId] (a top-level comment or a reply): its
+  /// top-level comment with the replies. A 404 means it was deleted.
+  Future<Comment> getCommentThread(String commentId) async {
+    final response = await _api.dio.get('/comments/$commentId');
     return Comment.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 

@@ -171,10 +171,34 @@ func (s *BookshelfService) RemoveMany(userID uuid.UUID, novelIDs []uuid.UUID) er
 	})
 }
 
-// SetGroup moves a shelved novel into another group.
-func (s *BookshelfService) SetGroup(userID, novelID uuid.UUID, groupName string) error {
-	res := s.db.Model(&model.BookshelfItem{}).Where("user_id = ? AND novel_id = ?", userID, novelID).
-		Update("group_name", groupName)
+// ItemUpdate changes a bookshelf entry; nil fields stay as they are.
+type ItemUpdate struct {
+	GroupName  *string `json:"group_name" binding:"omitempty,min=1,max=50"`
+	IsNotified *bool   `json:"is_notified"`
+}
+
+// UpdateItem moves a bookshelf entry to another group or turns its update
+// notifications on or off.
+func (s *BookshelfService) UpdateItem(userID, novelID uuid.UUID, u ItemUpdate) error {
+	updates := map[string]interface{}{}
+	if u.GroupName != nil {
+		updates["group_name"] = *u.GroupName
+	}
+	if u.IsNotified != nil {
+		updates["is_notified"] = *u.IsNotified
+	}
+	q := s.db.Model(&model.BookshelfItem{}).Where("user_id = ? AND novel_id = ?", userID, novelID)
+	if len(updates) == 0 {
+		var n int64
+		if err := q.Count(&n).Error; err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	}
+	res := q.Updates(updates)
 	if res.Error != nil {
 		return res.Error
 	}

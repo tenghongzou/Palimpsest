@@ -6,6 +6,7 @@ import '../../../../core/widgets/common_widgets.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../bookshelf/presentation/providers/bookshelf_provider.dart';
+import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../domain/entities/reading_stats.dart';
 import '../providers/profile_provider.dart';
 
@@ -17,7 +18,7 @@ class ProfilePage extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('我的')),
+      appBar: AppBar(title: const Text('我的'), actions: const [NotificationBell()]),
       body: authState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _buildNotLoggedIn(context),
@@ -39,6 +40,7 @@ class ProfilePage extends ConsumerWidget {
                   child: Column(
                     children: [
                       _menu(context, Icons.book_outlined, '我的書架', () => context.go('/bookshelf')),
+                      _menu(context, Icons.notifications_outlined, '通知', () => context.push('/notifications')),
                       _menu(context, Icons.history, '閱讀記錄', () => context.push('/history')),
                       _menu(context, Icons.bookmarks_outlined, '我的書籤', () => context.push('/bookmarks')),
                       _menu(context, Icons.download_outlined, '離線下載', () => context.push('/downloads')),

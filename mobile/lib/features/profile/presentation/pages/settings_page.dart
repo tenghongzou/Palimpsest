@@ -50,6 +50,13 @@ class SettingsPage extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/settings/password'),
             ),
+            ListTile(
+              leading: const Icon(Icons.devices_outlined),
+              title: const Text('登入裝置'),
+              subtitle: const Text('查看與移除已登入的裝置'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/settings/devices'),
+            ),
           ],
           const _SectionTitle('閱讀'),
           ListTile(

@@ -107,7 +107,8 @@ func main() {
 	homeSvc := service.NewHomeService(db, rdb)
 	userSvc := service.NewUserService(db)
 	bookmarkSvc := service.NewBookmarkService(db)
-	communitySvc := service.NewCommunityService(db, novelSvc.InvalidateNovel)
+	notificationSvc := service.NewNotificationService(db)
+	communitySvc := service.NewCommunityService(db, novelSvc.InvalidateNovel).WithNotifications(notificationSvc)
 	adminSvc := service.NewAdminService(db)
 	var translator translate.MachineTranslator
 	if g := translate.NewGoogleTranslator(cfg.Translation.GoogleAPIKey, cfg.Translation.GoogleEndpoint); g != nil {
@@ -125,7 +126,7 @@ func main() {
 	translationH := handler.NewTranslationHandler(translationSvc)
 	adminH := handler.NewAdminHandler(handler.AdminDeps{
 		NovelRepo: novelRepo, NovelSvc: novelSvc, AdminSvc: adminSvc, CommunitySvc: communitySvc,
-		HomeSvc: homeSvc, SearchSvc: searchSvc, Store: store, DB: db, Redis: rdb,
+		HomeSvc: homeSvc, SearchSvc: searchSvc, Notifications: notificationSvc, Store: store, DB: db, Redis: rdb,
 	})
 
 	// Configure the search index and backfill it without blocking startup.
@@ -144,17 +145,18 @@ func main() {
 
 	// --- Router ---
 	handlers := &Handlers{
-		Auth:        authH,
-		User:        handler.NewUserHandler(userSvc, store),
-		Novel:       novelH,
-		Home:        handler.NewHomeHandler(homeSvc),
-		Bookshelf:   bookshelfH,
-		Bookmark:    handler.NewBookmarkHandler(bookmarkSvc),
-		Community:   handler.NewCommunityHandler(communitySvc),
-		Search:      searchH,
-		Translation: translationH,
-		Admin:       adminH,
-		Ranking:     rankingSvc,
+		Auth:         authH,
+		User:         handler.NewUserHandler(userSvc, store),
+		Novel:        novelH,
+		Home:         handler.NewHomeHandler(homeSvc),
+		Bookshelf:    bookshelfH,
+		Bookmark:     handler.NewBookmarkHandler(bookmarkSvc),
+		Community:    handler.NewCommunityHandler(communitySvc),
+		Search:       searchH,
+		Translation:  translationH,
+		Admin:        adminH,
+		Notification: handler.NewNotificationHandler(notificationSvc),
+		Ranking:      rankingSvc,
 	}
 	// --- Metrics (separate port, never exposed through the ingress) ---
 	var metricsSrv *http.Server
