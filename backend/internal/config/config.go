@@ -7,14 +7,27 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	DB       DatabaseConfig
-	Redis    RedisConfig
-	JWT      JWTConfig
-	MinIO    MinIOConfig
-	Meili    MeilisearchConfig
-	CORS     CORSConfig
+	Server      ServerConfig
+	DB          DatabaseConfig
+	Redis       RedisConfig
+	JWT         JWTConfig
+	MinIO       MinIOConfig
+	Meili       MeilisearchConfig
+	CORS        CORSConfig
 	Translation TranslationConfig
+	Mail        MailConfig
+	// WebBaseURL is the public address of the web app, used in emailed links.
+	WebBaseURL string
+}
+
+// MailConfig configures outgoing email over SMTP. Without a host, emails
+// are logged instead of sent (development only).
+type MailConfig struct {
+	Host     string
+	Port     string
+	Username string
+	Password string
+	From     string
 }
 
 type TranslationConfig struct {
@@ -52,8 +65,8 @@ type RedisConfig struct {
 }
 
 type JWTConfig struct {
-	Secret           string
-	AccessExpiryHrs  int
+	Secret            string
+	AccessExpiryHrs   int
 	RefreshExpiryDays int
 }
 
@@ -63,6 +76,8 @@ type MinIOConfig struct {
 	SecretKey string
 	Bucket    string
 	UseSSL    bool
+	// PublicURL is where browsers fetch uploaded objects, without a trailing slash.
+	PublicURL string
 }
 
 type MeilisearchConfig struct {
@@ -100,7 +115,7 @@ func Load() (*Config, error) {
 			DB:       0,
 		},
 		JWT: JWTConfig{
-			Secret:            getEnv("JWT_SECRET", "change-me-in-production"),
+			Secret:            getEnv("JWT_SECRET", defaultJWTSecret),
 			AccessExpiryHrs:   24,
 			RefreshExpiryDays: 30,
 		},
@@ -109,7 +124,8 @@ func Load() (*Config, error) {
 			AccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 			SecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
 			Bucket:    getEnv("MINIO_BUCKET", "palimpsest"),
-			UseSSL:    false,
+			UseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
+			PublicURL: strings.TrimRight(getEnv("MINIO_PUBLIC_URL", "http://localhost:9000/palimpsest"), "/"),
 		},
 		Meili: MeilisearchConfig{
 			Host:   getEnv("MEILI_HOST", "http://localhost:7700"),
@@ -122,10 +138,26 @@ func Load() (*Config, error) {
 			GoogleAPIKey:   getEnv("GOOGLE_TRANSLATE_API_KEY", ""),
 			GoogleEndpoint: getEnv("GOOGLE_TRANSLATE_ENDPOINT", ""),
 		},
+		Mail: MailConfig{
+			Host:     getEnv("SMTP_HOST", ""),
+			Port:     getEnv("SMTP_PORT", "587"),
+			Username: getEnv("SMTP_USERNAME", ""),
+			Password: getEnv("SMTP_PASSWORD", ""),
+			From:     getEnv("SMTP_FROM", "Palimpsest <no-reply@palimpsest.local>"),
+		},
+		WebBaseURL: strings.TrimRight(getEnv("WEB_BASE_URL", "http://localhost:3000"), "/"),
+	}
+
+	if cfg.Server.Mode == "release" {
+		if cfg.JWT.Secret == defaultJWTSecret || len(cfg.JWT.Secret) < 32 {
+			return nil, fmt.Errorf("JWT_SECRET must be set to a random value of at least 32 characters in release mode")
+		}
 	}
 
 	return cfg, nil
 }
+
+const defaultJWTSecret = "change-me-in-production"
 
 func parseOrigins(raw string) []string {
 	if raw == "" || raw == "*" {

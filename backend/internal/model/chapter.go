@@ -2,8 +2,10 @@ package model
 
 import (
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Volume struct {
@@ -28,4 +30,42 @@ type Chapter struct {
 	PublishedAt   *time.Time `json:"published_at,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+// ChapterRef identifies a neighbouring chapter for reader navigation.
+type ChapterRef struct {
+	ID            uuid.UUID `json:"id"`
+	Title         string    `json:"title"`
+	ChapterNumber int       `json:"chapter_number"`
+}
+
+// ChapterDetail is a chapter with links to the previous and next published chapters.
+type ChapterDetail struct {
+	Chapter
+	PrevChapter *ChapterRef `json:"prev_chapter"`
+	NextChapter *ChapterRef `json:"next_chapter"`
+}
+
+// BeforeSave keeps word_count in step with the content and stamps the
+// first publication time. Chinese text has no
+// spaces, so every non-whitespace character counts as one word.
+func (c *Chapter) BeforeSave(*gorm.DB) error {
+	if c.Content != "" {
+		c.WordCount = CountWords(c.Content)
+	}
+	if c.IsPublished && c.PublishedAt == nil {
+		now := time.Now()
+		c.PublishedAt = &now
+	}
+	return nil
+}
+
+func CountWords(text string) int {
+	n := 0
+	for _, r := range text {
+		if !unicode.IsSpace(r) {
+			n++
+		}
+	}
+	return n
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -96,8 +97,11 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	_, _ = h.authSvc.ForgotPassword(&req)
-	// Always return success to prevent email enumeration
+	if err := h.authSvc.ForgotPassword(&req); err != nil {
+		// Still report success: the response must not reveal whether the
+		// address has an account.
+		log.Printf("auth: password reset email failed: %v", err)
+	}
 	c.JSON(http.StatusOK, model.SuccessResponse(gin.H{
 		"message": "if the email exists, a reset link has been sent",
 	}))

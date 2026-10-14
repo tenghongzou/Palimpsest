@@ -10,7 +10,7 @@ import (
 )
 
 func TestAdminUpdateNovelInvalidID(t *testing.T) {
-	h := NewAdminHandler(nil, nil, nil)
+	h := NewAdminHandler(AdminDeps{})
 	r := gin.New()
 	r.PUT("/admin/novels/:id", h.UpdateNovel)
 
@@ -33,7 +33,7 @@ func TestAdminUpdateNovelInvalidID(t *testing.T) {
 }
 
 func TestAdminDeleteNovelInvalidID(t *testing.T) {
-	h := NewAdminHandler(nil, nil, nil)
+	h := NewAdminHandler(AdminDeps{})
 	r := gin.New()
 	r.DELETE("/admin/novels/:id", h.DeleteNovel)
 
@@ -55,7 +55,7 @@ func TestAdminDeleteNovelInvalidID(t *testing.T) {
 }
 
 func TestAdminPublishNovelInvalidID(t *testing.T) {
-	h := NewAdminHandler(nil, nil, nil)
+	h := NewAdminHandler(AdminDeps{})
 	r := gin.New()
 	r.POST("/admin/novels/:id/publish", h.PublishNovel)
 
@@ -77,7 +77,7 @@ func TestAdminPublishNovelInvalidID(t *testing.T) {
 }
 
 func TestAdminCreateChapterMissingBody(t *testing.T) {
-	h := NewAdminHandler(nil, nil, nil)
+	h := NewAdminHandler(AdminDeps{})
 	r := gin.New()
 	r.POST("/admin/chapters", h.CreateChapter)
 
@@ -100,7 +100,7 @@ func TestAdminCreateChapterMissingBody(t *testing.T) {
 }
 
 func TestAdminUpdateUserStatusInvalidID(t *testing.T) {
-	h := NewAdminHandler(nil, nil, nil)
+	h := NewAdminHandler(AdminDeps{})
 	r := gin.New()
 	r.PUT("/admin/users/:userId/status", h.UpdateUserStatus)
 
@@ -123,7 +123,7 @@ func TestAdminUpdateUserStatusInvalidID(t *testing.T) {
 }
 
 func TestAdminGetUserInvalidID(t *testing.T) {
-	h := NewAdminHandler(nil, nil, nil)
+	h := NewAdminHandler(AdminDeps{})
 	r := gin.New()
 	r.GET("/admin/users/:userId", h.GetUser)
 
@@ -145,7 +145,7 @@ func TestAdminGetUserInvalidID(t *testing.T) {
 }
 
 func TestAdminModerateReviewInvalidID(t *testing.T) {
-	h := NewAdminHandler(nil, nil, nil)
+	h := NewAdminHandler(AdminDeps{})
 	r := gin.New()
 	r.PUT("/admin/reviews/:reviewId", h.ModerateReview)
 

@@ -17,6 +17,8 @@ import (
 	"github.com/tenghongzou/palimpsest/backend/internal/config"
 	"github.com/tenghongzou/palimpsest/backend/internal/handler"
 	"github.com/tenghongzou/palimpsest/backend/internal/model"
+	"github.com/tenghongzou/palimpsest/backend/internal/pkg/mail"
+	"github.com/tenghongzou/palimpsest/backend/internal/pkg/storage"
 	"github.com/tenghongzou/palimpsest/backend/internal/pkg/translate"
 	"github.com/tenghongzou/palimpsest/backend/internal/repository"
 	"github.com/tenghongzou/palimpsest/backend/internal/service"
@@ -48,19 +50,7 @@ func main() {
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
 	// Auto-migrate models
-	if err := db.AutoMigrate(
-		&model.User{},
-		&model.Category{},
-		&model.Tag{},
-		&model.Novel{},
-		&model.Volume{},
-		&model.Chapter{},
-		&model.BookshelfItem{},
-		&model.ReadingProgress{},
-		&model.Bookmark{},
-		&model.Review{},
-		&model.Comment{},
-	); err != nil {
+	if err := db.AutoMigrate(model.All()...); err != nil {
 		log.Fatalf("failed to auto-migrate: %v", err)
 	}
 	dropLegacyIndexes(db)
@@ -86,10 +76,17 @@ func main() {
 		Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKey, cfg.MinIO.SecretKey, ""),
 		Secure: cfg.MinIO.UseSSL,
 	})
+	var store storage.Store
 	if err != nil {
-		log.Printf("WARNING: MinIO connection failed: %v (continuing without object storage)", err)
+		log.Printf("WARNING: MinIO client setup failed: %v (uploads disabled)", err)
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		store, err = storage.NewMinIO(ctx, minioClient, cfg.MinIO.Bucket, cfg.MinIO.PublicURL)
+		cancel()
+		if err != nil {
+			log.Printf("WARNING: MinIO unavailable: %v (uploads disabled)", err)
+		}
 	}
-	_ = minioClient // used by future upload handlers
 
 	// --- Repositories ---
 	userRepo := repository.NewUserRepository(db)
@@ -98,11 +95,16 @@ func main() {
 	cacheRepo := repository.NewCacheRepository(rdb)
 
 	// --- Services ---
-	authSvc := service.NewAuthService(userRepo, cfg)
-	novelSvc := service.NewNovelService(novelRepo, cacheRepo)
+	authSvc := service.NewAuthService(userRepo, cfg, mail.New(cfg))
 	bookshelfSvc := service.NewBookshelfService(bookshelfRepo, db)
 	searchSvc := service.NewSearchService(meiliClient, rdb, novelRepo)
 	rankingSvc := service.NewRankingService(rdb, novelRepo)
+	novelSvc := service.NewNovelService(novelRepo, cacheRepo, rankingSvc)
+	homeSvc := service.NewHomeService(db, rdb)
+	userSvc := service.NewUserService(db)
+	bookmarkSvc := service.NewBookmarkService(db)
+	communitySvc := service.NewCommunityService(db, novelSvc.InvalidateNovel)
+	adminSvc := service.NewAdminService(db)
 	var translator translate.MachineTranslator
 	if g := translate.NewGoogleTranslator(cfg.Translation.GoogleAPIKey, cfg.Translation.GoogleEndpoint); g != nil {
 		translator = g
@@ -117,7 +119,10 @@ func main() {
 	bookshelfH := handler.NewBookshelfHandler(bookshelfSvc)
 	searchH := handler.NewSearchHandler(searchSvc)
 	translationH := handler.NewTranslationHandler(translationSvc)
-	adminH := handler.NewAdminHandler(novelRepo, searchSvc, db)
+	adminH := handler.NewAdminHandler(handler.AdminDeps{
+		NovelRepo: novelRepo, NovelSvc: novelSvc, AdminSvc: adminSvc, CommunitySvc: communitySvc,
+		HomeSvc: homeSvc, SearchSvc: searchSvc, Store: store, DB: db, Redis: rdb,
+	})
 
 	// Configure the search index and backfill it without blocking startup.
 	go func() {
@@ -136,8 +141,12 @@ func main() {
 	// --- Router ---
 	handlers := &Handlers{
 		Auth:        authH,
+		User:        handler.NewUserHandler(userSvc, store),
 		Novel:       novelH,
+		Home:        handler.NewHomeHandler(homeSvc),
 		Bookshelf:   bookshelfH,
+		Bookmark:    handler.NewBookmarkHandler(bookmarkSvc),
+		Community:   handler.NewCommunityHandler(communitySvc),
 		Search:      searchH,
 		Translation: translationH,
 		Admin:       adminH,

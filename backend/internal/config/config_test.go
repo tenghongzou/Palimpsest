@@ -22,12 +22,9 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadWithEnv(t *testing.T) {
-	os.Setenv("SERVER_PORT", "9090")
-	os.Setenv("GIN_MODE", "release")
-	defer func() {
-		os.Unsetenv("SERVER_PORT")
-		os.Unsetenv("GIN_MODE")
-	}()
+	t.Setenv("SERVER_PORT", "9090")
+	t.Setenv("GIN_MODE", "release")
+	t.Setenv("JWT_SECRET", "a-sufficiently-long-random-test-secret")
 
 	cfg, err := Load()
 	if err != nil {
@@ -111,5 +108,15 @@ func TestDatabaseDSN(t *testing.T) {
 	expected := "host=localhost port=5432 user=test password=pass dbname=testdb sslmode=disable"
 	if dsn := cfg.DSN(); dsn != expected {
 		t.Errorf("DSN() = %q, want %q", dsn, expected)
+	}
+}
+
+func TestLoadRejectsWeakSecretInRelease(t *testing.T) {
+	t.Setenv("GIN_MODE", "release")
+	for _, secret := range []string{"", "short"} {
+		t.Setenv("JWT_SECRET", secret)
+		if _, err := Load(); err == nil {
+			t.Errorf("JWT_SECRET %q: expected an error in release mode", secret)
+		}
 	}
 }

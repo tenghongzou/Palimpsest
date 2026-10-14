@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -36,7 +37,7 @@ func (h *BookshelfHandler) Add(c *gin.Context) {
 
 	var req struct {
 		NovelID   string `json:"novel_id" binding:"required"`
-		GroupName string `json:"group_name"`
+		GroupName string `json:"group_name" binding:"max=50"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, model.ErrorResponse(40001, err.Error()))
@@ -50,8 +51,12 @@ func (h *BookshelfHandler) Add(c *gin.Context) {
 	}
 
 	item, err := h.bookshelfSvc.Add(userID, novelID, req.GroupName)
-	if err != nil {
+	if errors.Is(err, service.ErrConflict) {
 		c.JSON(http.StatusConflict, model.ErrorResponse(40901, "novel already in bookshelf"))
+		return
+	}
+	if err != nil {
+		serviceError(c, err, 40401, "novel not found")
 		return
 	}
 
@@ -87,6 +92,7 @@ func (h *BookshelfHandler) UpdateProgress(c *gin.Context) {
 		ParagraphIndex int        `json:"paragraph_index" binding:"min=0"`
 		ScrollOffset   float64    `json:"scroll_offset" binding:"min=0,max=1"`
 		ReadAt         *time.Time `json:"read_at"`
+		Duration       int        `json:"duration" binding:"min=0"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, model.ErrorResponse(40001, err.Error()))
@@ -103,7 +109,14 @@ func (h *BookshelfHandler) UpdateProgress(c *gin.Context) {
 	if req.ReadAt != nil {
 		readAt = *req.ReadAt
 	}
-	progress, err := h.bookshelfSvc.UpdateProgress(userID, novelID, chapterID, req.ParagraphIndex, req.ScrollOffset, readAt)
+	progress, err := h.bookshelfSvc.UpdateProgress(userID, novelID, service.ProgressUpdate{
+		ChapterID: chapterID, ParagraphIndex: req.ParagraphIndex, ScrollOffset: req.ScrollOffset,
+		ReadAt: readAt, Duration: req.Duration,
+	})
+	if errors.Is(err, service.ErrNotFound) {
+		c.JSON(http.StatusNotFound, model.ErrorResponse(40402, "chapter not found in this novel"))
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to update progress"))
 		return
@@ -114,7 +127,7 @@ func (h *BookshelfHandler) UpdateProgress(c *gin.Context) {
 
 func (h *BookshelfHandler) ListProgress(c *gin.Context) {
 	userID := c.MustGet("userID").(uuid.UUID)
-	progress, err := h.bookshelfSvc.ListProgress(userID)
+	progress, err := h.bookshelfSvc.ListProgress(userID, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "failed to list reading progress"))
 		return
@@ -137,4 +150,61 @@ func (h *BookshelfHandler) GetProgress(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, model.SuccessResponse(progress))
+}
+
+func (h *BookshelfHandler) SetGroup(c *gin.Context) {
+	novelID, ok := pathUUID(c, "novelId")
+	if !ok {
+		return
+	}
+	var req struct {
+		GroupName string `json:"group_name" binding:"required,max=50"`
+	}
+	if !bindJSON(c, &req) {
+		return
+	}
+	if err := h.bookshelfSvc.SetGroup(currentUser(c), novelID, req.GroupName); err != nil {
+		serviceError(c, err, 40401, "novel not in bookshelf")
+		return
+	}
+	c.JSON(http.StatusOK, model.SuccessResponse(gin.H{"group_name": req.GroupName}))
+}
+
+func (h *BookshelfHandler) BatchRemove(c *gin.Context) {
+	var req struct {
+		NovelIDs []uuid.UUID `json:"novel_ids" binding:"required,min=1,max=200"`
+	}
+	if !bindJSON(c, &req) {
+		return
+	}
+	if err := h.bookshelfSvc.RemoveMany(currentUser(c), req.NovelIDs); err != nil {
+		serviceError(c, err, 40401, "")
+		return
+	}
+	c.JSON(http.StatusOK, model.SuccessResponse(nil))
+}
+
+func (h *BookshelfHandler) BatchProgress(c *gin.Context) {
+	var req struct {
+		NovelIDs []uuid.UUID `json:"novel_ids" binding:"required,max=200"`
+	}
+	if !bindJSON(c, &req) {
+		return
+	}
+	progress, err := h.bookshelfSvc.ListProgress(currentUser(c), req.NovelIDs)
+	if err != nil {
+		serviceError(c, err, 40401, "")
+		return
+	}
+	c.JSON(http.StatusOK, model.SuccessResponse(progress))
+}
+
+func (h *BookshelfHandler) History(c *gin.Context) {
+	page, size := pageParams(c, 20, 100)
+	history, total, err := h.bookshelfSvc.History(currentUser(c), page, size)
+	if err != nil {
+		serviceError(c, err, 40401, "")
+		return
+	}
+	c.JSON(http.StatusOK, model.SuccessResponse(paginated(history, page, size, total)))
 }

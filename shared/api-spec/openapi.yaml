@@ -6,7 +6,10 @@ info:
 
     Every response is wrapped in an envelope: `{ "code": 0, "message": "success", "data": ... }`.
     `code` is 0 on success; otherwise it is one of the error codes listed under `ErrorResponse`.
-  version: 0.2.0
+
+    Authenticated endpoints answer 403 with code 40303 once the account has been
+    banned, even while the caller's access token has not expired yet.
+  version: 0.3.0
   contact:
     name: Palimpsest Team
 
@@ -33,6 +36,14 @@ tags:
     description: User bookshelf and reading progress
   - name: translation
     description: Chinese conversion (OpenCC) and machine translation
+  - name: users
+    description: The current user's profile, settings and statistics
+  - name: bookmarks
+    description: Bookmarks, synced across devices
+  - name: community
+    description: Reviews, chapter comments, likes and reports
+  - name: home
+    description: Bookstore front page
   - name: admin
     description: Admin management (admin role required)
 
@@ -44,6 +55,7 @@ paths:
       operationId: register
       security: []
       summary: Register a new user
+      description: Rate limited to 5 requests/minute per IP (login, password reset and registration each have their own quota).
       requestBody:
         required: true
         content:
@@ -57,6 +69,7 @@ paths:
               schema: { $ref: '#/components/schemas/AuthResultResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /auth/login:
     post:
@@ -78,6 +91,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /auth/refresh:
     post:
@@ -107,6 +121,7 @@ paths:
       summary: Logout (client discards its tokens)
       responses:
         '200': { $ref: '#/components/responses/Empty' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   /auth/forgot-password:
     post:
@@ -123,6 +138,7 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Message' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /auth/reset-password:
     post:
@@ -138,6 +154,7 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Message' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   # -------------------------------------------------------------- novels
   /novels:
@@ -152,6 +169,10 @@ paths:
         - name: category_id
           in: query
           schema: { type: integer }
+        - name: category
+          in: query
+          description: Category slug; ignored when category_id is given
+          schema: { type: string }
         - name: status
           in: query
           schema: { $ref: '#/components/schemas/NovelStatus' }
@@ -160,13 +181,14 @@ paths:
           schema: { $ref: '#/components/schemas/Language' }
         - name: sort_by
           in: query
-          schema: { type: string, enum: [latest, popular, rating, words, favorites], default: latest }
+          schema: { type: string, enum: [latest, popular, rating, words, favorites, new], default: latest }
       responses:
         '200':
           description: Paginated novel list
           content:
             application/json:
               schema: { $ref: '#/components/schemas/NovelPageResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   /novels/{novelId}:
     get:
@@ -209,16 +231,21 @@ paths:
       tags: [chapters]
       operationId: getChapter
       security: []
-      summary: Get chapter content
+      summary: Get a published chapter with links to its neighbours
+      description: Counts a view of the novel unless count_view=false.
       parameters:
         - $ref: '#/components/parameters/NovelId'
         - $ref: '#/components/parameters/ChapterId'
+        - name: count_view
+          in: query
+          description: Send false for bulk offline downloads so they are not counted as views
+          schema: { type: boolean, default: true }
       responses:
         '200':
           description: Chapter with content
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ChapterResponse' }
+              schema: { $ref: '#/components/schemas/ChapterDetailResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
 
@@ -227,17 +254,375 @@ paths:
       tags: [chapters]
       operationId: getChapterById
       security: []
-      summary: Get chapter content by chapter id alone (used by readers that route by chapter)
+      summary: Get a published chapter by id alone (used by readers that route by chapter)
+      description: Counts a view of the novel unless count_view=false.
       parameters:
         - $ref: '#/components/parameters/ChapterId'
+        - name: count_view
+          in: query
+          description: Send false for bulk offline downloads so they are not counted as views
+          schema: { type: boolean, default: true }
       responses:
         '200':
           description: Chapter with content
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ChapterResponse' }
+              schema: { $ref: '#/components/schemas/ChapterDetailResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /novels/{novelId}/reviews:
+    get:
+      tags: [community]
+      operationId: listReviews
+      summary: List approved reviews of a novel
+      description: With a bearer token, `liked_by_me` marks reviews the caller liked.
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort_by
+          in: query
+          schema: { type: string, enum: [latest, popular], default: latest }
+      responses:
+        '200':
+          description: Paginated reviews
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [items, pagination]
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/Review' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [community]
+      operationId: createReview
+      summary: Review a novel (once per user)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Review' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /chapters/{chapterId}/comments:
+    get:
+      tags: [community]
+      operationId: listComments
+      summary: List a chapter's top-level comments with their replies
+      description: With a bearer token, `liked_by_me` marks comments the caller liked.
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ChapterId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sort_by
+          in: query
+          schema: { type: string, enum: [latest, popular], default: latest }
+        - name: paragraph_index
+          in: query
+          description: Only comments on this paragraph
+          schema: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Paginated comments
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [items, pagination]
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/Comment' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [community]
+      operationId: createComment
+      summary: Comment on a chapter, or reply to a comment
+      description: Replies always attach to the top-level comment of the thread.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ChapterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Comment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /reviews/{reviewId}:
+    put:
+      tags: [community]
+      operationId: updateReview
+      summary: Update your review
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Review' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [community]
+      operationId: deleteReview
+      summary: Delete your review (admins may delete any)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /reviews/{reviewId}/like:
+    post:
+      tags: [community]
+      operationId: likeReview
+      summary: Like a review (idempotent)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Like state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/LikeResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [community]
+      operationId: unlikeReview
+      summary: Remove your like (idempotent)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Like state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/LikeResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /comments/{commentId}:
+    delete:
+      tags: [community]
+      operationId: deleteComment
+      summary: Delete your comment and its replies (admins may delete any)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /comments/{commentId}/like:
+    post:
+      tags: [community]
+      operationId: likeComment
+      summary: Like a comment (idempotent)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Like state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/LikeResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [community]
+      operationId: unlikeComment
+      summary: Remove your like (idempotent)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Like state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/LikeResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /reports:
+    post:
+      tags: [community]
+      operationId: createReport
+      summary: Report content to moderators
+      description: Reporting the same target again while a report is pending returns that report.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportInput' }
+      responses:
+        '201':
+          description: Report
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Report' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /home:
+    get:
+      tags: [home]
+      operationId: getHome
+      security: []
+      summary: Bookstore front page sections (cached for 5 minutes)
+      responses:
+        '200':
+          description: Front page
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/HomePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /banners:
+    get:
+      tags: [home]
+      operationId: listBanners
+      security: []
+      summary: Active banners within their schedule
+      responses:
+        '200':
+          description: Banners
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Banner' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   /categories:
     get:
@@ -258,6 +643,7 @@ paths:
                       data:
                         type: array
                         items: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   # -------------------------------------------------------------- search
   /search/novels:
@@ -304,6 +690,7 @@ paths:
           schema: { type: string }
       responses:
         '200': { $ref: '#/components/responses/StringList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   /search/hot-keywords:
     get:
@@ -313,6 +700,7 @@ paths:
       summary: Top 10 most searched keywords
       responses:
         '200': { $ref: '#/components/responses/StringList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   # ------------------------------------------------------------ rankings
   /rankings/{type}:
@@ -328,6 +716,7 @@ paths:
           schema: { type: string, enum: [views, favorites, rating, latest, completed] }
         - name: period
           in: query
+          description: Only the views board is computed per period; the other boards ignore it.
           schema: { type: string, enum: [daily, weekly, monthly, all], default: weekly }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -337,6 +726,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/NovelPageResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # ----------------------------------------------------------- bookshelf
   /bookshelf:
@@ -361,7 +751,7 @@ paths:
                     properties:
                       data:
                         type: array
-                        items: { $ref: '#/components/schemas/BookshelfItem' }
+                        items: { $ref: '#/components/schemas/BookshelfEntry' }
         '401': { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [bookshelf]
@@ -386,9 +776,59 @@ paths:
                       data: { $ref: '#/components/schemas/BookshelfItem' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /bookshelf/batch-remove:
+    post:
+      tags: [bookshelf]
+      operationId: batchRemoveFromBookshelf
+      summary: Remove several novels from the bookshelf
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NovelIdsRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   /bookshelf/{novelId}:
+    patch:
+      tags: [bookshelf]
+      operationId: setBookshelfGroup
+      summary: Move a shelved novel to another group
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [group_name]
+              properties:
+                group_name: { type: string, maxLength: 50 }
+      responses:
+        '200':
+          description: New group
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: 
+                        type: object
+                        properties:
+                          group_name: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [bookshelf]
       operationId: removeFromBookshelf
@@ -421,6 +861,62 @@ paths:
                         items: { $ref: '#/components/schemas/ReadingProgress' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /reading-progress/batch:
+    post:
+      tags: [bookshelf]
+      operationId: batchReadingProgress
+      summary: Reading progress for several novels
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NovelIdsRequest' }
+      responses:
+        '200':
+          description: Reading progress, most recent first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ReadingProgress' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /reading-history:
+    get:
+      tags: [bookshelf]
+      operationId: readingHistory
+      summary: Chapters the user opened, newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated history
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [items, pagination]
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/ReadingHistory' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   /reading-progress/{novelId}:
     get:
       tags: [bookshelf]
@@ -444,7 +940,8 @@ paths:
       description: |
         Last read wins: if `read_at` is older than the stored progress, the
         update is ignored and the stored progress is returned. Offline clients
-        should send the time the position was actually read.
+        should send the time the position was actually read. Moving to another
+        chapter adds a reading history entry and counts its words as read.
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/NovelId'
@@ -459,6 +956,294 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ReadingProgressResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ----------------------------------------------------------- bookmarks
+  /bookmarks:
+    get:
+      tags: [bookmarks]
+      operationId: listBookmarks
+      summary: List bookmarks, newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: novel_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Bookmarks
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Bookmark' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [bookmarks]
+      operationId: createBookmark
+      summary: Add a bookmark
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Bookmark' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /bookmarks/sync:
+    post:
+      tags: [bookmarks]
+      operationId: syncBookmarks
+      summary: Apply bookmarks changed offline and return the full list
+      description: |
+        Upserts keep client-generated ids. Upserts on deleted chapters, or
+        with ids belonging to another user, are skipped. At most 500 changes
+        per request.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkSync' }
+      responses:
+        '200':
+          description: All bookmarks after the sync
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Bookmark' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /bookmarks/{bookmarkId}:
+    patch:
+      tags: [bookmarks]
+      operationId: updateBookmark
+      summary: Change a bookmark's note or position
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: bookmarkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Bookmark' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [bookmarks]
+      operationId: deleteBookmark
+      summary: Delete a bookmark
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: bookmarkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # --------------------------------------------------------------- users
+  /users/me:
+    get:
+      tags: [users]
+      operationId: getMe
+      summary: The current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [users]
+      operationId: updateMe
+      summary: Update profile fields; omitted fields stay unchanged
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdate' }
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/me/avatar:
+    post:
+      tags: [users]
+      operationId: uploadAvatar
+      summary: Upload an avatar (JPEG, PNG, WebP or GIF, at most 2 MB)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar: { type: string, format: binary }
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/BadRequest' }
+        '415': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /users/me/password:
+    put:
+      tags: [users]
+      operationId: changePassword
+      summary: Change password
+      description: Revokes refresh tokens and reset links issued before the change.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/me/reading-stats:
+    get:
+      tags: [users]
+      operationId: readingStats
+      summary: Reading totals and per-period activity
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: period
+          in: query
+          description: daily = last 7 days, weekly = last 8 weeks, monthly = last 12 months
+          schema: { type: string, enum: [daily, weekly, monthly], default: daily }
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ReadingStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/me/reading-settings:
+    get:
+      tags: [users]
+      operationId: getReadingSettings
+      summary: Reader preferences (defaults when never saved)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ReadingSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      tags: [users]
+      operationId: putReadingSettings
+      summary: Replace reader preferences
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReadingSettings' }
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ReadingSettings' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
@@ -546,6 +1331,16 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
+        - name: q
+          in: query
+          description: Matches title or author
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/NovelStatus' }
+        - name: is_published
+          in: query
+          schema: { type: boolean }
       responses:
         '200':
           description: Paginated novels
@@ -575,6 +1370,20 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/novels/{novelId}:
+    get:
+      tags: [admin]
+      operationId: adminGetNovel
+      summary: Get any novel, published or not
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      responses:
+        '200':
+          description: Novel
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NovelResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
     put:
       tags: [admin]
       operationId: adminUpdateNovel
@@ -604,15 +1413,25 @@ paths:
         - $ref: '#/components/parameters/NovelId'
       responses:
         '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/novels/{novelId}/publish:
     post:
       tags: [admin]
       operationId: adminPublishNovel
-      summary: Publish a novel
+      summary: "Publish a novel, or unpublish it with `{\"is_published\": false}`"
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/NovelId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_published: { type: boolean, default: true }
       responses:
         '200':
           description: Published
@@ -622,6 +1441,21 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /admin/novels/{novelId}/chapters:
+    get:
+      tags: [admin]
+      operationId: adminListChapters
+      summary: All chapters of a novel, published or not (no content)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+      responses:
+        '200':
+          description: Chapters
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChapterListResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [admin]
       operationId: adminCreateChapter
@@ -641,12 +1475,13 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ChapterResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
   /admin/novels/{novelId}/chapters/batch:
     post:
       tags: [admin]
       operationId: adminBatchImportChapters
-      summary: Batch import chapters
+      summary: Batch import up to 500 chapters
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/NovelId'
@@ -674,6 +1509,20 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
 
   /admin/chapters/{chapterId}:
+    get:
+      tags: [admin]
+      operationId: adminGetChapter
+      summary: Get any chapter with content
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ChapterId'
+      responses:
+        '200':
+          description: Chapter
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChapterResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
     put:
       tags: [admin]
       operationId: adminUpdateChapter
@@ -702,6 +1551,8 @@ paths:
         - $ref: '#/components/parameters/ChapterId'
       responses:
         '200': { $ref: '#/components/responses/Empty' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/users:
     get:
@@ -712,6 +1563,13 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
+        - name: q
+          in: query
+          description: Matches username, email or nickname
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, banned] }
       responses:
         '200':
           description: Paginated users
@@ -729,6 +1587,8 @@ paths:
                             type: array
                             items: { $ref: '#/components/schemas/User' }
                           pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/users/{userId}:
     get:
@@ -782,16 +1642,24 @@ paths:
                         type: object
                         properties:
                           status: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/reviews:
     get:
       tags: [admin]
       operationId: adminListReviews
-      summary: List the latest 50 reviews
+      summary: List reviews for moderation
       security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/ModerationStatus' }
       responses:
         '200':
-          description: Reviews
+          description: Paginated reviews
           content:
             application/json:
               schema:
@@ -800,14 +1668,21 @@ paths:
                   - type: object
                     properties:
                       data:
-                        type: array
-                        items: { $ref: '#/components/schemas/Review' }
+                        type: object
+                        required: [items, pagination]
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/Review' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/reviews/{reviewId}:
     put:
       tags: [admin]
       operationId: adminModerateReview
-      summary: Approve or reject a review
+      summary: Approve, reject or hide a review (updates the novel's rating)
       security: [{ bearerAuth: [] }]
       parameters:
         - name: reviewId
@@ -822,19 +1697,98 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { type: string, enum: [approved, rejected] }
+                status: { $ref: '#/components/schemas/ModerationStatus' }
       responses:
-        '200': { $ref: '#/components/responses/Empty' }
+        '200':
+          description: Moderated review
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Review' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /admin/reports:
     get:
       tags: [admin]
       operationId: adminListReports
-      summary: List reports (not yet implemented, returns an empty list)
+      summary: List reports with a preview of the reported content
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, resolved, dismissed] }
+      responses:
+        '200':
+          description: Paginated reports
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [items, pagination]
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/ReportView' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/reports/{reportId}:
+    put:
+      tags: [admin]
+      operationId: adminResolveReport
+      summary: Resolve or dismiss a report, optionally hiding the reported review or comment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [resolved, dismissed] }
+                hide_target: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Closed report
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Report' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/categories:
+    get:
+      tags: [admin]
+      operationId: adminListCategories
+      summary: All categories, flat, including inactive ones
       security: [{ bearerAuth: [] }]
       responses:
         '200':
-          description: Reports
+          description: Categories
           content:
             application/json:
               schema:
@@ -844,27 +1798,208 @@ paths:
                     properties:
                       data:
                         type: array
-                        items: { type: object }
+                        items: { $ref: '#/components/schemas/Category' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [admin]
+      operationId: adminCreateCategory
+      summary: Create a category (two levels at most)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
-  /admin/reports/{reportId}:
+  /admin/categories/{categoryId}:
     put:
       tags: [admin]
-      operationId: adminResolveReport
-      summary: Resolve a report (not yet implemented)
+      operationId: adminUpdateCategory
+      summary: Update a category
       security: [{ bearerAuth: [] }]
       parameters:
-        - name: reportId
+        - name: categoryId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteCategory
+      summary: Delete a category without subcategories
+      description: Answers 409 with code 40905 while subcategories exist; a duplicate slug on create or update is 40903.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { $ref: '#/components/responses/Empty' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /admin/banners:
+    get:
+      tags: [admin]
+      operationId: adminListBanners
+      summary: All banners
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Banners
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Banner' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [admin]
+      operationId: adminCreateBanner
+      summary: Create a banner
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BannerInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Banner' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /admin/banners/{bannerId}:
+    put:
+      tags: [admin]
+      operationId: adminUpdateBanner
+      summary: Update a banner
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: bannerId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BannerInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Banner' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteBanner
+      summary: Delete a banner
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: bannerId
           in: path
           required: true
           schema: { type: string, format: uuid }
       responses:
         '200': { $ref: '#/components/responses/Empty' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/uploads:
+    post:
+      tags: [admin]
+      operationId: adminUploadImage
+      summary: Upload a cover or banner image (at most 5 MB) and get its URL
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: kind
+          in: query
+          schema: { type: string, enum: [covers, banners], default: covers }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: 
+                        type: object
+                        properties:
+                          url: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
   /admin/stats:
     get:
       tags: [admin]
       operationId: adminStats
-      summary: Overview counts
+      summary: Dashboard overview counts
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -877,6 +2012,8 @@ paths:
                   - type: object
                     properties:
                       data: { $ref: '#/components/schemas/AdminStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
 components:
   securitySchemes:
@@ -979,7 +2116,9 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
     ServiceUnavailable:
-      description: Upstream translation provider not configured or failing (50301)
+      description: |
+        A dependency is not configured or failing: translation provider
+        (50301, 50302) or file storage (50303)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -1148,6 +2287,14 @@ components:
         status: { $ref: '#/components/schemas/NovelStatus' }
         language: { $ref: '#/components/schemas/Language' }
         is_featured: { type: boolean }
+        category_ids:
+          type: array
+          description: Replaces the novel's categories when present
+          items: { type: integer }
+        tags:
+          type: array
+          description: Replaces the novel's tags when present; unknown tags are created
+          items: { type: string, maxLength: 30 }
 
     NovelResponse:
       allOf:
@@ -1180,6 +2327,7 @@ components:
         slug: { type: string }
         icon_url: { type: string }
         sort_order: { type: integer }
+        is_active: { type: boolean }
         children:
           type: array
           items: { $ref: '#/components/schemas/Category' }
@@ -1232,6 +2380,36 @@ components:
           properties:
             data: { $ref: '#/components/schemas/Chapter' }
 
+    ChapterRef:
+      type: object
+      required: [id, title, chapter_number]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        chapter_number: { type: integer }
+
+    ChapterDetail:
+      allOf:
+        - $ref: '#/components/schemas/Chapter'
+        - type: object
+          required: [prev_chapter, next_chapter]
+          properties:
+            prev_chapter:
+              type: object
+              nullable: true
+              allOf: [{ $ref: '#/components/schemas/ChapterRef' }]
+            next_chapter:
+              type: object
+              nullable: true
+              allOf: [{ $ref: '#/components/schemas/ChapterRef' }]
+
+    ChapterDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ChapterDetail' }
+
     ChapterListResponse:
       allOf:
         - $ref: '#/components/schemas/Envelope'
@@ -1269,6 +2447,34 @@ components:
         is_notified: { type: boolean }
         added_at: { type: string, format: date-time }
         novel: { $ref: '#/components/schemas/Novel' }
+
+    BookshelfEntry:
+      allOf:
+        - $ref: '#/components/schemas/BookshelfItem'
+        - type: object
+          required: [reading_progress, has_update]
+          properties:
+            reading_progress:
+              type: object
+              nullable: true
+              properties:
+                chapter_id: { type: string, format: uuid }
+                chapter_title: { type: string }
+                chapter_number: { type: integer }
+                percentage: { type: number, minimum: 0, maximum: 100 }
+                read_at: { type: string, format: date-time }
+            has_update:
+              type: boolean
+              description: Chapters were published after the reader last read
+
+    NovelIdsRequest:
+      type: object
+      required: [novel_ids]
+      properties:
+        novel_ids:
+          type: array
+          maxItems: 200
+          items: { type: string, format: uuid }
 
     AddBookshelfRequest:
       type: object
@@ -1309,6 +2515,136 @@ components:
           type: string
           format: date-time
           description: When the position was read; defaults to now
+        duration:
+          type: integer
+          minimum: 0
+          description: Seconds read since the previous report (at most 3600 count)
+
+    ReadingHistory:
+      type: object
+      required: [id, novel_id, chapter_id, read_at]
+      properties:
+        id: { type: string, format: uuid }
+        novel_id: { type: string, format: uuid }
+        chapter_id: { type: string, format: uuid }
+        read_at: { type: string, format: date-time }
+        duration: { type: integer }
+        novel: { $ref: '#/components/schemas/Novel' }
+        chapter: { $ref: '#/components/schemas/Chapter' }
+
+    # ----------------------------------------------------------- bookmarks
+    Bookmark:
+      type: object
+      required: [id, novel_id, chapter_id, paragraph_index]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        novel_id: { type: string, format: uuid }
+        chapter_id: { type: string, format: uuid }
+        paragraph_index: { type: integer }
+        note: { type: string }
+        created_at: { type: string, format: date-time }
+        synced_at: { type: string, format: date-time }
+        chapter: { $ref: '#/components/schemas/Chapter' }
+        novel:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            title: { type: string }
+
+    BookmarkInput:
+      type: object
+      required: [chapter_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Client-generated id, so offline bookmarks keep their identity
+        chapter_id: { type: string, format: uuid }
+        paragraph_index: { type: integer, minimum: 0 }
+        note: { type: string, maxLength: 500 }
+        created_at: { type: string, format: date-time }
+
+    BookmarkPatch:
+      type: object
+      properties:
+        paragraph_index: { type: integer, minimum: 0 }
+        note: { type: string, maxLength: 500 }
+
+    BookmarkSync:
+      type: object
+      properties:
+        upserts:
+          type: array
+          items: { $ref: '#/components/schemas/BookmarkInput' }
+        deletes:
+          type: array
+          items: { type: string, format: uuid }
+
+    # --------------------------------------------------------------- users
+    ProfileUpdate:
+      type: object
+      properties:
+        nickname: { type: string, minLength: 1, maxLength: 50 }
+        bio: { type: string, maxLength: 500 }
+        avatar_url: { type: string, maxLength: 500 }
+        language_pref: { $ref: '#/components/schemas/Language' }
+
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password: { type: string }
+        new_password: { type: string, minLength: 8, maxLength: 72 }
+
+    ReadingSettings:
+      type: object
+      required: [font_size, line_height, theme, reading_mode, brightness]
+      properties:
+        font_size: { type: integer, minimum: 12, maximum: 36 }
+        line_height: { type: number, minimum: 1.2, maximum: 3 }
+        letter_spacing: { type: number, minimum: 0, maximum: 5 }
+        margin: { type: integer, minimum: 0, maximum: 64 }
+        font_family: { type: string, maxLength: 50 }
+        theme: { type: string, enum: [white, sepia, green, dark, black] }
+        reading_mode: { type: string, enum: [scroll, page] }
+        brightness: { type: integer, minimum: 10, maximum: 100 }
+        keep_screen_on: { type: boolean }
+        auto_chapter: { type: boolean }
+        updated_at: { type: string, format: date-time, readOnly: true }
+
+    ReadingStats:
+      type: object
+      required: [total_read_words, total_read_seconds, chapters_read, novels_read, period, buckets]
+      properties:
+        total_read_words: { type: integer, format: int64 }
+        total_read_seconds: { type: integer, format: int64 }
+        chapters_read: { type: integer }
+        novels_read: { type: integer }
+        bookshelf_count: { type: integer }
+        bookmark_count: { type: integer }
+        review_count: { type: integer }
+        period: { type: string, enum: [daily, weekly, monthly] }
+        buckets:
+          type: array
+          description: Oldest first; the last bucket is the current day, week or month
+          items:
+            type: object
+            required: [start, chapters, words, seconds]
+            properties:
+              start: { type: string, format: date-time }
+              chapters: { type: integer }
+              words: { type: integer }
+              seconds: { type: integer }
+
+    UserBrief:
+      type: object
+      required: [id, username, nickname]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        nickname: { type: string }
+        avatar_url: { type: string }
 
     # --------------------------------------------------------- translation
     ConvertRequest:
@@ -1363,26 +2699,195 @@ components:
         translated_content: { type: string }
         is_cached: { type: boolean }
 
-    # --------------------------------------------------------------- admin
+    # ----------------------------------------------------------- community
+    ModerationStatus:
+      type: string
+      enum: [approved, rejected, hidden]
+
     Review:
       type: object
+      required: [id, user_id, novel_id, title, content, rating, like_count, status, liked_by_me]
       properties:
         id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
         novel_id: { type: string, format: uuid }
         title: { type: string }
         content: { type: string }
-        rating: { type: number }
+        rating: { type: number, minimum: 0.5, maximum: 5, multipleOf: 0.5 }
         like_count: { type: integer }
-        status: { type: string, enum: [approved, pending, rejected] }
-        user: { $ref: '#/components/schemas/User' }
+        status: { $ref: '#/components/schemas/ModerationStatus' }
+        user: { $ref: '#/components/schemas/UserBrief' }
+        novel:
+          type: object
+          description: Only in admin listings
+          properties:
+            id: { type: string, format: uuid }
+            title: { type: string }
+        liked_by_me: { type: boolean }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    ReviewInput:
+      type: object
+      required: [title, content, rating]
+      properties:
+        title: { type: string, maxLength: 200 }
+        content: { type: string, maxLength: 10000 }
+        rating:
+          type: number
+          minimum: 0.5
+          maximum: 5
+          description: Rounded to the nearest half star
+
+    Comment:
+      type: object
+      required: [id, user_id, chapter_id, content, like_count, liked_by_me]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        chapter_id: { type: string, format: uuid }
+        parent_id: { type: string, format: uuid }
+        content: { type: string }
+        paragraph_index: { type: integer }
+        like_count: { type: integer }
+        status: { $ref: '#/components/schemas/ModerationStatus' }
+        user: { $ref: '#/components/schemas/UserBrief' }
+        liked_by_me: { type: boolean }
+        replies:
+          type: array
+          items: { $ref: '#/components/schemas/Comment' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CommentInput:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, maxLength: 2000 }
+        parent_id: { type: string, format: uuid }
+        paragraph_index: { type: integer, minimum: 0 }
+
+    LikeResult:
+      type: object
+      required: [liked, like_count]
+      properties:
+        liked: { type: boolean }
+        like_count: { type: integer }
+
+    ReportInput:
+      type: object
+      required: [target_type, target_id, reason]
+      properties:
+        target_type: { type: string, enum: [review, comment, novel, chapter, user] }
+        target_id: { type: string, format: uuid }
+        reason: { type: string, enum: [spam, abuse, spoiler, copyright, inappropriate, other] }
+        description: { type: string, maxLength: 1000 }
+
+    Report:
+      type: object
+      required: [id, reporter_id, target_type, target_id, reason, status]
+      properties:
+        id: { type: string, format: uuid }
+        reporter_id: { type: string, format: uuid }
+        target_type: { type: string }
+        target_id: { type: string, format: uuid }
+        reason: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [pending, resolved, dismissed] }
+        resolved_by: { type: string, format: uuid }
+        resolved_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        reporter: { $ref: '#/components/schemas/UserBrief' }
+
+    ReportView:
+      allOf:
+        - $ref: '#/components/schemas/Report'
+        - type: object
+          properties:
+            target_preview:
+              type: string
+              description: First 120 characters of the reported content
+    # --------------------------------------------------------------- admin
+    # ---------------------------------------------------------------- home
+    Banner:
+      type: object
+      required: [id, title, image_url, sort_order, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        image_url: { type: string }
+        link_type: { type: string, enum: [novel, url, category] }
+        link_value: { type: string }
+        sort_order: { type: integer }
+        is_active: { type: boolean }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+
+    BannerInput:
+      type: object
+      required: [title, image_url]
+      properties:
+        title: { type: string, maxLength: 200 }
+        image_url: { type: string, maxLength: 500 }
+        link_type: { type: string, enum: [novel, url, category] }
+        link_value:
+          type: string
+          maxLength: 500
+          description: Novel id, absolute URL, or category slug, depending on link_type
+        sort_order: { type: integer }
+        is_active: { type: boolean, default: true }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+
+    HomePage:
+      type: object
+      required: [banners, featured, latest_updates, popular, new_arrivals, completed]
+      properties:
+        banners:
+          type: array
+          items: { $ref: '#/components/schemas/Banner' }
+        featured:
+          type: array
+          items: { $ref: '#/components/schemas/Novel' }
+        latest_updates:
+          type: array
+          items: { $ref: '#/components/schemas/Novel' }
+        popular:
+          type: array
+          items: { $ref: '#/components/schemas/Novel' }
+        new_arrivals:
+          type: array
+          items: { $ref: '#/components/schemas/Novel' }
+        completed:
+          type: array
+          items: { $ref: '#/components/schemas/Novel' }
+
+    # --------------------------------------------------------------- admin
+    CategoryInput:
+      type: object
+      required: [name, slug]
+      properties:
+        parent_id:
+          type: integer
+          description: A top-level category; categories are at most two levels deep
+        name: { type: string, maxLength: 50 }
+        slug: { type: string, maxLength: 50 }
+        icon_url: { type: string, maxLength: 500 }
+        sort_order: { type: integer }
+        is_active: { type: boolean, default: true }
+
     AdminStats:
       type: object
-      required: [users, novels, chapters]
+      required: [users, new_users_today, novels, published_novels, chapters, reviews, comments, pending_reports, active_readers_7d, reads_today]
       properties:
         users: { type: integer }
+        new_users_today: { type: integer }
         novels: { type: integer }
+        published_novels: { type: integer }
         chapters: { type: integer }
+        reviews: { type: integer }
+        comments: { type: integer }
+        pending_reports: { type: integer }
+        active_readers_7d: { type: integer }
+        reads_today: { type: integer }
