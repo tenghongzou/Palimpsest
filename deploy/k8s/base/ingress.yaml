@@ -1,0 +1,35 @@
+# The web app (which proxies /api for browsers) and a separate API host for
+# the mobile app. TLS certificates are issued by cert-manager.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: palimpsest
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/proxy-body-size: 8m
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [palimpsest.cc, api.palimpsest.cc]
+      secretName: palimpsest-tls
+  rules:
+    - host: palimpsest.cc
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  name: http
+    - host: api.palimpsest.cc
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  name: http

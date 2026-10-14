@@ -1,0 +1,27 @@
+# Application workloads. Dependencies (PostgreSQL, Redis, Meilisearch,
+# S3-compatible storage) are external in production; the staging overlay adds
+# in-cluster ones through components/in-cluster-deps.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: palimpsest
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: palimpsest
+    includeSelectors: false
+
+resources:
+  - namespace.yaml
+  - config.yaml
+  - backend.yaml
+  - web.yaml
+  - ingress.yaml
+
+images:
+  - name: palimpsest-backend
+    newName: ghcr.io/tenghongzou/palimpsest-backend
+    newTag: latest
+  - name: palimpsest-web
+    newName: ghcr.io/tenghongzou/palimpsest-web
+    newTag: latest

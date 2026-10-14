@@ -1,0 +1,67 @@
+# S3-compatible storage for avatars, covers and banners (RustFS, which the
+# backend talks to through the MinIO client).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: object-storage
+  labels:
+    app.kubernetes.io/name: object-storage
+spec:
+  serviceName: object-storage
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: object-storage
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: object-storage
+    spec:
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:1.0.0
+          ports:
+            - name: s3
+              containerPort: 9000
+          env:
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: palimpsest-secrets
+                  key: MINIO_ACCESS_KEY
+            - name: RUSTFS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: palimpsest-secrets
+                  key: MINIO_SECRET_KEY
+          readinessProbe:
+            tcpSocket:
+              port: s3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: object-storage
+spec:
+  selector:
+    app.kubernetes.io/name: object-storage
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3

@@ -1,0 +1,69 @@
+# Staging: one replica of each app plus in-cluster dependencies.
+#   kubectl apply -k deploy/k8s/overlays/staging
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - storage-ingress.yaml
+
+components:
+  - ../../components/in-cluster-deps
+
+images:
+  - name: palimpsest-backend
+    newName: ghcr.io/tenghongzou/palimpsest-backend
+    newTag: main
+  - name: palimpsest-web
+    newName: ghcr.io/tenghongzou/palimpsest-web
+    newTag: main
+
+patches:
+  - target:
+      kind: HorizontalPodAutoscaler
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+  - target:
+      kind: Deployment
+      name: (backend|web)
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: PodDisruptionBudget
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 0
+  - target:
+      kind: ConfigMap
+      name: palimpsest-backend-config
+    patch: |-
+      - op: replace
+        path: /data/MINIO_PUBLIC_URL
+        value: https://cdn.staging.palimpsest.cc/palimpsest
+      - op: replace
+        path: /data/CORS_ALLOWED_ORIGINS
+        value: https://staging.palimpsest.cc
+      - op: replace
+        path: /data/WEB_BASE_URL
+        value: https://staging.palimpsest.cc
+  - target:
+      kind: Ingress
+      name: palimpsest
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts
+        value: [staging.palimpsest.cc, api.staging.palimpsest.cc]
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.palimpsest.cc
+      - op: replace
+        path: /spec/rules/1/host
+        value: api.staging.palimpsest.cc

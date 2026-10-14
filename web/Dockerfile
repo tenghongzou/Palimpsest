@@ -14,10 +14,14 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/.output .output
+COPY --from=builder --chown=node:node /app/.output .output
 
 ENV HOST=0.0.0.0
 ENV PORT=3000
+# Backend address for the BFF; set at runtime (API_BASE_URL only applies at build time).
+ENV NUXT_API_BASE_URL=http://localhost:8080
+
+USER node
 
 EXPOSE 3000
 

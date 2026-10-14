@@ -1,0 +1,24 @@
+# Serves uploaded images straight from object storage. Only keys under
+# public/ are readable anonymously (the backend sets that bucket policy).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: object-storage
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [cdn.staging.palimpsest.cc]
+      secretName: palimpsest-cdn-tls
+  rules:
+    - host: cdn.staging.palimpsest.cc
+      http:
+        paths:
+          - path: /palimpsest/public/
+            pathType: Prefix
+            backend:
+              service:
+                name: object-storage
+                port:
+                  name: s3
