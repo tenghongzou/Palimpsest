@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme-overrides="themeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
+  <n-config-provider :theme-overrides="brandThemeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
     <n-message-provider>
       <PwaPrompt />
       <n-dialog-provider>
@@ -24,15 +24,6 @@ import {
   NConfigProvider, NMessageProvider, NDialogProvider,
   NLayout, NLayoutHeader, NLayoutContent, NLayoutFooter,
 } from 'naive-ui'
-import type { GlobalThemeOverrides } from 'naive-ui'
 
 const { naiveLocale, naiveDateLocale } = useNaiveLocale()
-
-const themeOverrides: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#1890FF',
-    primaryColorHover: '#40a9ff',
-    primaryColorPressed: '#096dd9',
-  },
-}
 </script>

@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme="naiveTheme" :locale="naiveLocale" :date-locale="naiveDateLocale">
+  <n-config-provider :theme="naiveTheme" :theme-overrides="naiveTheme ? brandDarkThemeOverrides : brandThemeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
     <n-message-provider>
       <PwaPrompt />
       <n-dialog-provider>
