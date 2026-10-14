@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold">分類管理</h1>
-      <n-button type="primary" @click="openCreate(null)">新增分類</n-button>
+      <h1 class="text-xl font-bold">{{ $t('admin.menu.categories') }}</h1>
+      <n-button type="primary" @click="openCreate(null)">{{ $t('admin.categories.create') }}</n-button>
     </div>
 
     <n-data-table
@@ -15,37 +15,37 @@
       :scroll-x="800"
     />
 
-    <n-modal v-model:show="modalOpen" preset="card" :title="form.id ? '編輯分類' : '新增分類'" class="max-w-lg" :mask-closable="false">
-      <n-form label-placement="left" label-width="80">
-        <n-form-item label="上層分類">
+    <n-modal v-model:show="modalOpen" preset="card" :title="form.id ? $t('admin.categories.edit') : $t('admin.categories.create')" class="max-w-lg" :mask-closable="false">
+      <n-form label-placement="left" :label-width="locale === 'en' ? 110 : 80">
+        <n-form-item :label="$t('admin.categories.parent')">
           <n-select
             v-model:value="form.parent_id"
             :options="parentOptions"
             :disabled="hasChildren(form.id)"
-            placeholder="無（頂層分類）"
+            :placeholder="$t('admin.categories.noParent')"
             clearable
           />
         </n-form-item>
-        <n-form-item label="名稱">
-          <n-input v-model:value="form.name" placeholder="分類名稱" maxlength="50" />
+        <n-form-item :label="$t('admin.columns.name')">
+          <n-input v-model:value="form.name" :placeholder="$t('admin.categories.namePlaceholder')" maxlength="50" />
         </n-form-item>
-        <n-form-item label="代稱">
-          <n-input v-model:value="form.slug" placeholder="英文代稱，例如 xuanhuan" maxlength="50" />
+        <n-form-item :label="$t('admin.columns.slug')">
+          <n-input v-model:value="form.slug" :placeholder="$t('admin.categories.slugPlaceholder')" maxlength="50" />
         </n-form-item>
-        <n-form-item label="圖示網址">
-          <n-input v-model:value="form.icon_url" placeholder="選填" />
+        <n-form-item :label="$t('admin.categories.iconUrl')">
+          <n-input v-model:value="form.icon_url" :placeholder="$t('admin.optional')" />
         </n-form-item>
-        <n-form-item label="排序">
+        <n-form-item :label="$t('admin.columns.sortOrder')">
           <n-input-number v-model:value="form.sort_order" :min="0" />
         </n-form-item>
-        <n-form-item label="啟用">
+        <n-form-item :label="$t('admin.enabled')">
           <n-switch v-model:value="form.is_active" />
         </n-form-item>
       </n-form>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <n-button @click="modalOpen = false">取消</n-button>
-          <n-button type="primary" :loading="saving" @click="save">儲存分類</n-button>
+          <n-button @click="modalOpen = false">{{ $t('common.cancel') }}</n-button>
+          <n-button type="primary" :loading="saving" @click="save">{{ $t('admin.categories.save') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -63,7 +63,9 @@ import type { ApiResponse } from '~/utils/api'
 import type { ApiCategory, ApiCategoryInput } from '~/types/models'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
-useHead({ title: '分類管理 — Palimpsest' })
+
+const { t, locale } = useI18n()
+useHead({ title: () => t('admin.menu.categories') })
 
 type CategoryRow = ApiCategory & { children?: CategoryRow[] }
 
@@ -99,7 +101,7 @@ async function load() {
     categories.value = res.data
   }
   catch (error) {
-    message.error(describeError(error, {}, '載入分類失敗'))
+    message.error(describeError(t, error, {}, t('admin.categories.loadFailed')))
   }
   finally {
     loading.value = false
@@ -138,7 +140,7 @@ function openEdit(row: ApiCategory) {
 
 async function save() {
   if (!form.name.trim() || !form.slug.trim()) {
-    message.warning('請填寫名稱與代稱')
+    message.warning(t('admin.categories.required'))
     return
   }
   const body: ApiCategoryInput = {
@@ -153,12 +155,12 @@ async function save() {
   try {
     if (form.id) await apiFetch(`/admin/categories/${form.id}`, { method: 'PUT', body })
     else await apiFetch('/admin/categories', { method: 'POST', body })
-    message.success('分類已儲存')
+    message.success(t('admin.categories.saved'))
     modalOpen.value = false
     await load()
   }
   catch (error) {
-    message.error(statusOf(error) === 409 ? '代稱已被其他分類使用' : describeError(error, {}, '儲存失敗'))
+    message.error(statusOf(error) === 409 ? t('admin.categories.slugTaken') : describeError(t, error, {}, t('common.saveFailed')))
   }
   finally {
     saving.value = false
@@ -167,48 +169,48 @@ async function save() {
 
 function confirmDelete(row: ApiCategory) {
   if (hasChildren(row.id)) {
-    message.warning('請先刪除或移動此分類下的子分類')
+    message.warning(t('admin.categories.hasChildren'))
     return
   }
   dialog.warning({
-    title: '刪除分類',
-    content: `確定要刪除「${row.name}」嗎？`,
-    positiveText: '刪除',
-    negativeText: '取消',
+    title: t('admin.categories.delete'),
+    content: t('admin.confirmDeleteNamed', { name: row.name }),
+    positiveText: t('common.delete'),
+    negativeText: t('common.cancel'),
     onPositiveClick: async () => {
       try {
         await apiFetch(`/admin/categories/${row.id}`, { method: 'DELETE' })
-        message.success('已刪除')
+        message.success(t('common.deleted'))
         await load()
       }
       catch (error) {
-        message.error(statusOf(error) === 409 ? '此分類仍有子分類，無法刪除' : describeError(error, {}, '刪除失敗'))
+        message.error(statusOf(error) === 409 ? t('admin.categories.deleteHasChildren') : describeError(t, error, {}, t('common.deleteFailed')))
       }
     },
   })
 }
 
-const columns: DataTableColumns<CategoryRow> = [
-  { title: '名稱', key: 'name', minWidth: 180 },
-  { title: '代稱', key: 'slug', width: 180 },
-  { title: '排序', key: 'sort_order', width: 70 },
+const columns = computed<DataTableColumns<CategoryRow>>(() => [
+  { title: t('admin.columns.name'), key: 'name', minWidth: 180 },
+  { title: t('admin.columns.slug'), key: 'slug', width: 180 },
+  { title: t('admin.columns.sortOrder'), key: 'sort_order', width: 70 },
   {
-    title: '狀態',
+    title: t('admin.columns.status'),
     key: 'is_active',
     width: 80,
-    render: row => h(NTag, { size: 'small', type: row.is_active === false ? 'default' : 'success' }, () => row.is_active === false ? '停用' : '啟用'),
+    render: row => h(NTag, { size: 'small', type: row.is_active === false ? 'default' : 'success' }, () => row.is_active === false ? t('admin.disabled') : t('admin.enabled')),
   },
   {
-    title: '操作',
+    title: t('admin.columns.actions'),
     key: 'actions',
     width: 230,
     render: row => h(NSpace, { size: 'small' }, () => [
-      h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => '編輯'),
-      row.parent_id ? null : h(NButton, { size: 'small', onClick: () => openCreate(row.id) }, () => '新增子分類'),
-      h(NButton, { size: 'small', type: 'error', onClick: () => confirmDelete(row) }, () => '刪除'),
+      h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('common.edit')),
+      row.parent_id ? null : h(NButton, { size: 'small', onClick: () => openCreate(row.id) }, () => t('admin.categories.createChild')),
+      h(NButton, { size: 'small', type: 'error', onClick: () => confirmDelete(row) }, () => t('common.delete')),
     ]),
   },
-]
+])
 
 onMounted(load)
 </script>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_IMPORT_CHAPTERS, matchHeading, parseChapterImport, parseChapterNumeral } from '~/utils/chapterImport'
+import { makeT } from '../i18n'
 
 describe('parseChapterNumeral', () => {
   it.each([
@@ -55,8 +56,8 @@ describe('parseChapterImport (text)', () => {
   it('reports chapters without content and duplicate numbers', () => {
     const { chapters, errors } = parseChapterImport('第1章 a\n\n第1章 b\n文字')
     expect(chapters).toHaveLength(2)
-    expect(errors.some(e => e.includes('沒有內容'))).toBe(true)
-    expect(errors.some(e => e.includes('重複'))).toBe(true)
+    expect(errors.some(e => e.key === 'admin.import.errors.noContent' && e.params?.title === '第1章 a')).toBe(true)
+    expect(errors).toContainEqual({ key: 'admin.import.errors.duplicateNumber', params: { n: 1 } })
   })
 
   it('reports text without headings', () => {
@@ -66,14 +67,14 @@ describe('parseChapterImport (text)', () => {
   })
 
   it('reports empty input', () => {
-    expect(parseChapterImport('   ').errors).toEqual(['請貼上章節內容'])
+    expect(parseChapterImport('   ').errors).toEqual([{ key: 'admin.import.errors.empty' }])
   })
 
   it('limits the number of chapters', () => {
     const text = Array.from({ length: MAX_IMPORT_CHAPTERS + 1 }, (_, i) => `第${i + 1}章\n內容`).join('\n')
     const { chapters, errors } = parseChapterImport(text)
     expect(chapters).toHaveLength(MAX_IMPORT_CHAPTERS + 1)
-    expect(errors.some(e => e.includes(String(MAX_IMPORT_CHAPTERS)))).toBe(true)
+    expect(errors.some(e => e.key === 'admin.import.errors.tooMany' && e.params?.max === MAX_IMPORT_CHAPTERS)).toBe(true)
   })
 })
 
@@ -91,8 +92,19 @@ describe('parseChapterImport (JSON)', () => {
   })
 
   it('reports invalid JSON and missing fields', () => {
-    expect(parseChapterImport('[oops').errors).toEqual(['JSON 格式錯誤'])
+    expect(parseChapterImport('[oops').errors).toEqual([{ key: 'admin.import.errors.invalidJson' }])
     const { errors } = parseChapterImport('[{"title":"","content":"x"}]')
-    expect(errors).toEqual(['第 1 筆缺少 title'])
+    expect(errors).toEqual([{ key: 'admin.import.errors.missingTitle', params: { n: 1 } }])
+  })
+})
+
+describe('import problems are translatable', () => {
+  it('maps to messages in the UI language', () => {
+    const t = makeT('en')
+    const { errors } = parseChapterImport('第1章 a\n\n第1章 b\n文字')
+    const texts = errors.map(e => t(e.key, e.params))
+    expect(texts).toContain('"第1章 a" has no content')
+    expect(texts).toContain('Duplicate chapter number: 1')
+    expect(makeT('zh-TW')('admin.import.errors.missingTitle', { n: 2 })).toBe('第 2 筆缺少 title')
   })
 })

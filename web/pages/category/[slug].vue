@@ -19,9 +19,9 @@
     </div>
 
     <div v-if="activeTop?.children?.length" class="flex items-center gap-2 flex-wrap text-sm">
-      <span class="text-gray-500">子分類：</span>
+      <span class="text-gray-500">{{ $t('category.subcategories') }}</span>
       <NuxtLink :to="`/category/${activeTop.slug}`" class="no-underline">
-        <n-tag size="small" :type="slug === activeTop.slug ? 'primary' : 'default'" class="cursor-pointer">全部</n-tag>
+        <n-tag size="small" :type="slug === activeTop.slug ? 'primary' : 'default'" class="cursor-pointer">{{ $t('common.all') }}</n-tag>
       </NuxtLink>
       <NuxtLink v-for="child in activeTop.children" :key="child.id" :to="`/category/${child.slug}`" class="no-underline">
         <n-tag size="small" :type="slug === child.slug ? 'primary' : 'default'" class="cursor-pointer">{{ child.name }}</n-tag>
@@ -29,7 +29,7 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <n-select v-model:value="sortBy" :options="NOVEL_SORT_OPTIONS" size="small" class="w-32" />
+      <n-select v-model:value="sortBy" :options="sortOptions" size="small" class="w-32" />
       <n-select v-model:value="statusFilter" :options="statusOptions" size="small" class="w-32" />
     </div>
 
@@ -37,7 +37,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <NovelCard v-for="novel in novels" :key="novel.id" :novel="novel" />
       </div>
-      <n-empty v-if="!loading && novels.length === 0" description="暫無小說" />
+      <n-empty v-if="!loading && novels.length === 0" :description="$t('category.noNovels')" />
     </n-spin>
 
     <div v-if="pagination.total_pages > 1" class="flex justify-center mt-6">
@@ -53,6 +53,7 @@
 <script setup lang="ts">
 import { NSpin, NTag, NSelect, NPagination, NEmpty } from 'naive-ui'
 
+const { t } = useI18n()
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 const { categories } = useCategories()
@@ -67,17 +68,16 @@ const activeTop = computed(() =>
 )
 const activeName = computed(() => {
   const top = activeTop.value
-  if (!top) return '分類'
+  if (!top) return t('category.title')
   return top.slug === slug.value ? top.name : top.children?.find(c => c.slug === slug.value)?.name ?? top.name
 })
-useHead({ title: computed(() => `${activeName.value} — Palimpsest`) })
+useHead({ title: () => activeName.value })
 
-const statusOptions = [
-  { label: '全部狀態', value: 'all' },
-  { label: '連載中', value: 'ongoing' },
-  { label: '已完結', value: 'completed' },
-  { label: '暫停', value: 'hiatus' },
-]
+const sortOptions = computed(() => NOVEL_SORT_OPTIONS.map(o => ({ label: t(o.labelKey), value: o.value })))
+const statusOptions = computed(() => [
+  { label: t('category.allStatuses'), value: 'all' },
+  ...(['ongoing', 'completed', 'hiatus'] as const).map(value => ({ label: t(`novel.status.${value}`), value })),
+])
 
 function loadNovels(page = 1) {
   fetchNovels({

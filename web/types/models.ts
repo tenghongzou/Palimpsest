@@ -40,11 +40,5 @@ export type ApiDevice = Schemas['Device']
 export type ApiDeviceInput = Schemas['DeviceInput']
 export type ApiBookshelfItemUpdate = Schemas['BookshelfItemUpdate']
 
-export const REPORT_REASONS: { label: string, value: ReportReason }[] = [
-  { label: '垃圾訊息', value: 'spam' },
-  { label: '辱罵攻擊', value: 'abuse' },
-  { label: '劇透', value: 'spoiler' },
-  { label: '侵權', value: 'copyright' },
-  { label: '不當內容', value: 'inappropriate' },
-  { label: '其他', value: 'other' },
-]
+/** Labels: i18n keys `community.report.reasons.<reason>`. */
+export const REPORT_REASONS: ReportReason[] = ['spam', 'abuse', 'spoiler', 'copyright', 'inappropriate', 'other']

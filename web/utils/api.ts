@@ -82,16 +82,21 @@ export function apiUpload<T>(path: string, field: string, file: File | Blob, opt
 }
 
 /**
- * A user-facing (Traditional Chinese) message for a failed request: the entry
+ * A user-facing message for a failed request in the UI language: the entry
  * for its HTTP status in `byStatus`, common defaults, or `fallback`. Backend
- * messages are English, so they are not shown directly.
+ * messages are English developer text, so they are not shown directly.
  */
-export function describeError(error: unknown, byStatus: Record<number, string>, fallback: string): string {
+export function describeError(
+  t: (key: string) => string,
+  error: unknown,
+  byStatus: Record<number, string>,
+  fallback: string,
+): string {
   const status = statusOf(error)
   if (status !== undefined && byStatus[status]) return byStatus[status]
-  if (status === 429) return '操作太頻繁，請稍後再試'
-  if (status === 401) return '登入已過期，請重新登入'
-  if (status === 403) return '沒有權限執行此操作'
-  if (status === undefined || status === 0) return '無法連線到伺服器，請檢查網路'
+  if (status === 429) return t('errors.rateLimited')
+  if (status === 401) return t('errors.sessionExpired')
+  if (status === 403) return t('errors.forbidden')
+  if (status === undefined || status === 0) return t('errors.network')
   return fallback
 }

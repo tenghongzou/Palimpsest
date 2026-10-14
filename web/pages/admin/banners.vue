@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold">橫幅管理</h1>
-      <n-button type="primary" @click="openCreate">新增橫幅</n-button>
+      <h1 class="text-xl font-bold">{{ $t('admin.menu.banners') }}</h1>
+      <n-button type="primary" @click="openCreate">{{ $t('admin.banners.create') }}</n-button>
     </div>
 
     <n-data-table
@@ -13,37 +13,37 @@
       :scroll-x="1000"
     />
 
-    <n-modal v-model:show="modalOpen" preset="card" :title="form.id ? '編輯橫幅' : '新增橫幅'" class="max-w-2xl" :mask-closable="false">
-      <n-form label-placement="left" label-width="90">
-        <n-form-item label="標題">
-          <n-input v-model:value="form.title" placeholder="橫幅標題" maxlength="200" />
+    <n-modal v-model:show="modalOpen" preset="card" :title="form.id ? $t('admin.banners.edit') : $t('admin.banners.create')" class="max-w-2xl" :mask-closable="false">
+      <n-form label-placement="left" :label-width="locale === 'en' ? 110 : 90">
+        <n-form-item :label="$t('admin.columns.title')">
+          <n-input v-model:value="form.title" :placeholder="$t('admin.banners.titlePlaceholder')" maxlength="200" />
         </n-form-item>
-        <n-form-item label="圖片">
+        <n-form-item :label="$t('admin.columns.image')">
           <AdminImageUpload v-model="form.image_url" kind="banners" />
         </n-form-item>
-        <n-form-item label="連結類型">
-          <n-select v-model:value="form.link_type" :options="linkTypeOptions" placeholder="不連結" clearable />
+        <n-form-item :label="$t('admin.banners.linkType')">
+          <n-select v-model:value="form.link_type" :options="linkTypeOptions" :placeholder="$t('admin.banners.noLink')" clearable />
         </n-form-item>
-        <n-form-item v-if="form.link_type" label="連結目標">
+        <n-form-item v-if="form.link_type" :label="$t('admin.banners.linkTarget')">
           <n-input v-model:value="form.link_value" :placeholder="linkPlaceholder" maxlength="500" />
         </n-form-item>
-        <n-form-item label="排序">
+        <n-form-item :label="$t('admin.columns.sortOrder')">
           <n-input-number v-model:value="form.sort_order" :min="0" />
         </n-form-item>
-        <n-form-item label="啟用">
+        <n-form-item :label="$t('admin.enabled')">
           <n-switch v-model:value="form.is_active" />
         </n-form-item>
-        <n-form-item label="開始時間">
-          <n-date-picker v-model:value="form.start_at" type="datetime" clearable placeholder="立即" class="w-full" />
+        <n-form-item :label="$t('admin.banners.startAt')">
+          <n-date-picker v-model:value="form.start_at" type="datetime" clearable :placeholder="$t('admin.banners.immediately')" class="w-full" />
         </n-form-item>
-        <n-form-item label="結束時間">
-          <n-date-picker v-model:value="form.end_at" type="datetime" clearable placeholder="不限" class="w-full" />
+        <n-form-item :label="$t('admin.banners.endAt')">
+          <n-date-picker v-model:value="form.end_at" type="datetime" clearable :placeholder="$t('admin.banners.noLimit')" class="w-full" />
         </n-form-item>
       </n-form>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <n-button @click="modalOpen = false">取消</n-button>
-          <n-button type="primary" :loading="saving" @click="save">儲存橫幅</n-button>
+          <n-button @click="modalOpen = false">{{ $t('common.cancel') }}</n-button>
+          <n-button type="primary" :loading="saving" @click="save">{{ $t('admin.banners.save') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -61,7 +61,10 @@ import type { ApiResponse } from '~/utils/api'
 import type { ApiBanner, ApiBannerInput } from '~/types/models'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
-useHead({ title: '橫幅管理 — Palimpsest' })
+
+const { t, locale } = useI18n()
+const { dateTime } = useAdminLabels()
+useHead({ title: () => t('admin.menu.banners') })
 
 type LinkType = NonNullable<ApiBannerInput['link_type']>
 
@@ -73,17 +76,9 @@ const loading = ref(false)
 
 const sortedBanners = computed(() => [...banners.value].sort((a, b) => a.sort_order - b.sort_order))
 
-const linkTypeOptions: { label: string, value: LinkType }[] = [
-  { label: '小說', value: 'novel' },
-  { label: '分類', value: 'category' },
-  { label: '網址', value: 'url' },
-]
+const linkTypeOptions = computed(() => (['novel', 'category', 'url'] as LinkType[]).map(value => ({ label: t(`admin.banners.linkTypes.${value}`), value })))
 
-const linkPlaceholder = computed(() => ({
-  novel: '小說 ID',
-  category: '分類代稱（slug）',
-  url: 'https://…',
-})[form.link_type ?? 'url'])
+const linkPlaceholder = computed(() => t(`admin.banners.linkPlaceholders.${form.link_type ?? 'url'}`))
 
 async function load() {
   loading.value = true
@@ -92,7 +87,7 @@ async function load() {
     banners.value = res.data
   }
   catch (error) {
-    message.error(describeError(error, {}, '載入橫幅失敗'))
+    message.error(describeError(t, error, {}, t('admin.banners.loadFailed')))
   }
   finally {
     loading.value = false
@@ -140,11 +135,11 @@ function openEdit(row: ApiBanner) {
 
 async function save() {
   if (!form.title.trim() || !form.image_url.trim()) {
-    message.warning('請填寫標題並上傳圖片')
+    message.warning(t('admin.banners.required'))
     return
   }
   if (form.start_at && form.end_at && form.end_at <= form.start_at) {
-    message.warning('結束時間必須晚於開始時間')
+    message.warning(t('admin.banners.endBeforeStart'))
     return
   }
   const body: ApiBannerInput = {
@@ -161,12 +156,12 @@ async function save() {
   try {
     if (form.id) await apiFetch(`/admin/banners/${form.id}`, { method: 'PUT', body })
     else await apiFetch('/admin/banners', { method: 'POST', body })
-    message.success('橫幅已儲存')
+    message.success(t('admin.banners.saved'))
     modalOpen.value = false
     await load()
   }
   catch (error) {
-    message.error(describeError(error, {}, '儲存失敗'))
+    message.error(describeError(t, error, {}, t('common.saveFailed')))
   }
   finally {
     saving.value = false
@@ -175,62 +170,65 @@ async function save() {
 
 function confirmDelete(row: ApiBanner) {
   dialog.warning({
-    title: '刪除橫幅',
-    content: `確定要刪除「${row.title}」嗎？`,
-    positiveText: '刪除',
-    negativeText: '取消',
+    title: t('admin.banners.delete'),
+    content: t('admin.confirmDeleteNamed', { name: row.title }),
+    positiveText: t('common.delete'),
+    negativeText: t('common.cancel'),
     onPositiveClick: async () => {
       try {
         await apiFetch(`/admin/banners/${row.id}`, { method: 'DELETE' })
-        message.success('已刪除')
+        message.success(t('common.deleted'))
         await load()
       }
       catch (error) {
-        message.error(describeError(error, {}, '刪除失敗'))
+        message.error(describeError(t, error, {}, t('common.deleteFailed')))
       }
     },
   })
 }
 
 function scheduleLabel(row: ApiBanner) {
-  if (!row.start_at && !row.end_at) return '不限'
-  return `${row.start_at ? adminDateTime(row.start_at) : '立即'} ～ ${row.end_at ? adminDateTime(row.end_at) : '不限'}`
+  if (!row.start_at && !row.end_at) return t('admin.banners.noLimit')
+  return t('admin.banners.schedule', {
+    start: row.start_at ? dateTime(row.start_at) : t('admin.banners.immediately'),
+    end: row.end_at ? dateTime(row.end_at) : t('admin.banners.noLimit'),
+  })
 }
 
-const columns: DataTableColumns<ApiBanner> = [
+const columns = computed<DataTableColumns<ApiBanner>>(() => [
   {
-    title: '圖片',
+    title: t('admin.columns.image'),
     key: 'image_url',
     width: 140,
     render: row => h('img', { src: row.image_url, alt: row.title, class: 'h-12 rounded object-cover' }),
   },
-  { title: '標題', key: 'title', minWidth: 160 },
+  { title: t('admin.columns.title'), key: 'title', minWidth: 160 },
   {
-    title: '連結',
+    title: t('admin.banners.link'),
     key: 'link_value',
     minWidth: 180,
     render: row => row.link_type
-      ? `${linkTypeOptions.find(o => o.value === row.link_type)?.label}：${row.link_value ?? ''}`
+      ? t('admin.banners.linkValue', { type: t(`admin.banners.linkTypes.${row.link_type}`), value: row.link_value ?? '' })
       : '—',
   },
-  { title: '排序', key: 'sort_order', width: 70 },
+  { title: t('admin.columns.sortOrder'), key: 'sort_order', width: 70 },
   {
-    title: '狀態',
+    title: t('admin.columns.status'),
     key: 'is_active',
     width: 80,
-    render: row => h(NTag, { size: 'small', type: row.is_active ? 'success' : 'default' }, () => row.is_active ? '啟用' : '停用'),
+    render: row => h(NTag, { size: 'small', type: row.is_active ? 'success' : 'default' }, () => row.is_active ? t('admin.enabled') : t('admin.disabled')),
   },
-  { title: '排程', key: 'start_at', minWidth: 220, render: row => scheduleLabel(row) },
+  { title: t('admin.banners.scheduleColumn'), key: 'start_at', minWidth: 220, render: row => scheduleLabel(row) },
   {
-    title: '操作',
+    title: t('admin.columns.actions'),
     key: 'actions',
     width: 140,
     render: row => h(NSpace, { size: 'small' }, () => [
-      h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => '編輯'),
-      h(NButton, { size: 'small', type: 'error', onClick: () => confirmDelete(row) }, () => '刪除'),
+      h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('common.edit')),
+      h(NButton, { size: 'small', type: 'error', onClick: () => confirmDelete(row) }, () => t('common.delete')),
     ]),
   },
-]
+])
 
 onMounted(load)
 </script>

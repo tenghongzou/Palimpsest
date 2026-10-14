@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-xl font-bold">用戶管理</h1>
+    <h1 class="text-xl font-bold">{{ $t('admin.menu.users') }}</h1>
 
     <div class="flex flex-wrap items-center gap-3">
       <n-input
         v-model:value="filters.q"
-        placeholder="搜尋帳號、電子郵件或暱稱"
+        :placeholder="$t('admin.users.searchPlaceholder')"
         clearable
         class="max-w-72"
         @keyup.enter="load(1)"
@@ -14,12 +14,12 @@
       <n-select
         v-model:value="filters.status"
         :options="statusOptions"
-        placeholder="全部狀態"
+        :placeholder="$t('category.allStatuses')"
         clearable
         class="w-32"
         @update:value="load(1)"
       />
-      <n-button @click="load(1)">搜尋</n-button>
+      <n-button @click="load(1)">{{ $t('common.search') }}</n-button>
     </div>
 
     <n-data-table
@@ -41,7 +41,10 @@ import { h } from 'vue'
 import type { ApiUser } from '~/types/models'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
-useHead({ title: '用戶管理 — Palimpsest' })
+
+const { t } = useI18n()
+const { dateTime } = useAdminLabels()
+useHead({ title: () => t('admin.menu.users') })
 
 const message = useMessage()
 const dialog = useDialog()
@@ -52,17 +55,13 @@ const { items, loading, filters, tablePagination, load } = useAdminList<ApiUser,
   status: string | null
 }>('/admin/users', { q: '', status: null })
 
-const statusOptions = [
-  { label: '正常', value: 'active' },
-  { label: '已停權', value: 'banned' },
-]
+const statusOptions = computed(() => [
+  { label: t('admin.users.status.active'), value: 'active' },
+  { label: t('admin.users.status.banned'), value: 'banned' },
+])
 
-const roleLabels: Record<string, string> = {
-  reader: '讀者',
-  author: '作者',
-  admin: '管理員',
-  super_admin: '超級管理員',
-}
+const ROLES = ['reader', 'author', 'admin', 'super_admin']
+const roleLabel = (role: string) => (ROLES.includes(role) ? t(`admin.users.roles.${role}`) : role)
 
 function clearSearch() {
   filters.q = ''
@@ -71,29 +70,28 @@ function clearSearch() {
 
 function setStatus(user: ApiUser, status: 'active' | 'banned') {
   const ban = status === 'banned'
+  const name = user.nickname || user.username
   dialog[ban ? 'warning' : 'info']({
-    title: ban ? '停權用戶' : '解除停權',
-    content: ban
-      ? `確定要停權「${user.nickname || user.username}」嗎？停權後該用戶無法登入。`
-      : `確定要恢復「${user.nickname || user.username}」的帳號嗎？`,
-    positiveText: ban ? '停權' : '解除停權',
-    negativeText: '取消',
+    title: ban ? t('admin.users.ban') : t('admin.users.unban'),
+    content: ban ? t('admin.users.confirmBan', { name }) : t('admin.users.confirmUnban', { name }),
+    positiveText: ban ? t('admin.users.banShort') : t('admin.users.unban'),
+    negativeText: t('common.cancel'),
     onPositiveClick: async () => {
       try {
         await apiFetch(`/admin/users/${user.id}/status`, { method: 'PUT', body: { status } })
-        message.success(ban ? '已停權' : '已解除停權')
+        message.success(ban ? t('admin.users.banned') : t('admin.users.unbanned'))
         await load()
       }
       catch (error) {
-        message.error(describeError(error, {}, '操作失敗'))
+        message.error(describeError(t, error, {}, t('common.operationFailed')))
       }
     },
   })
 }
 
-const columns: DataTableColumns<ApiUser> = [
+const columns = computed<DataTableColumns<ApiUser>>(() => [
   {
-    title: '用戶',
+    title: t('admin.users.columns.user'),
     key: 'username',
     minWidth: 200,
     render: row => h('div', { class: 'flex items-center gap-2' }, [
@@ -104,28 +102,28 @@ const columns: DataTableColumns<ApiUser> = [
       ]),
     ]),
   },
-  { title: '電子郵件', key: 'email', minWidth: 180 },
-  { title: '角色', key: 'role', width: 100, render: row => roleLabels[row.role] ?? row.role },
+  { title: t('auth.email'), key: 'email', minWidth: 180 },
+  { title: t('admin.users.columns.role'), key: 'role', width: 100, render: row => roleLabel(row.role) },
   {
-    title: '狀態',
+    title: t('admin.columns.status'),
     key: 'status',
     width: 90,
-    render: row => h(NTag, { size: 'small', type: row.status === 'banned' ? 'error' : 'success' }, () => row.status === 'banned' ? '已停權' : '正常'),
+    render: row => h(NTag, { size: 'small', type: row.status === 'banned' ? 'error' : 'success' }, () => row.status === 'banned' ? t('admin.users.status.banned') : t('admin.users.status.active')),
   },
-  { title: '註冊時間', key: 'created_at', width: 170, render: row => adminDateTime(row.created_at) },
-  { title: '最後登入', key: 'last_login_at', width: 170, render: row => adminDateTime(row.last_login_at) },
+  { title: t('admin.users.columns.registered'), key: 'created_at', width: 170, render: row => dateTime(row.created_at) },
+  { title: t('admin.users.columns.lastLogin'), key: 'last_login_at', width: 170, render: row => dateTime(row.last_login_at) },
   {
-    title: '操作',
+    title: t('admin.columns.actions'),
     key: 'actions',
     width: 110,
     render: (row) => {
-      if (row.id === authStore.user?.id) return h('span', { class: 'text-xs text-gray-400' }, '目前帳號')
+      if (row.id === authStore.user?.id) return h('span', { class: 'text-xs text-gray-400' }, t('admin.users.currentAccount'))
       return row.status === 'banned'
-        ? h(NButton, { size: 'small', onClick: () => setStatus(row, 'active') }, () => '解除停權')
-        : h(NButton, { size: 'small', type: 'error', onClick: () => setStatus(row, 'banned') }, () => '停權')
+        ? h(NButton, { size: 'small', onClick: () => setStatus(row, 'active') }, () => t('admin.users.unban'))
+        : h(NButton, { size: 'small', type: 'error', onClick: () => setStatus(row, 'banned') }, () => t('admin.users.banShort'))
     },
   },
-]
+])
 
 onMounted(() => load(1))
 </script>

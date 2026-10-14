@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@css-render/vue3-ssr": "^0.15.14",
+    "@nuxtjs/i18n": "10.2.3",
     "@pinia/nuxt": "^0.11.3",
     "@vicons/ionicons5": "^0.13.0",
     "@vueuse/core": "^10.9.0",
@@ -37,11 +38,18 @@
     "@nuxt/test-utils": "^3.12.1",
     "@playwright/test": "^1.44.0",
     "@unocss/nuxt": "^66.11.0",
+    "@vite-pwa/nuxt": "^1.1.1",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^9.3.0",
     "openapi-typescript": "^7.0.0",
     "typescript": "^5.4.5",
     "vitest": "^3.2.0",
-    "vue-tsc": "3.3.11"
+    "vue-tsc": "3.3.11",
+    "workbox-cacheable-response": "^7.4.1",
+    "workbox-core": "^7.4.1",
+    "workbox-expiration": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1"
   }
 }

@@ -1,8 +1,8 @@
 <template>
   <div class="max-w-3xl mx-auto space-y-4">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold">我的書籤</h1>
-      <n-button text @click="navigateTo('/profile')">返回個人中心</n-button>
+      <h1 class="text-xl font-bold">{{ $t('header.user.bookmarks') }}</h1>
+      <n-button text @click="navigateTo('/profile')">{{ $t('profile.backToProfile') }}</n-button>
     </div>
 
     <n-spin :show="loading">
@@ -12,7 +12,7 @@
         </NuxtLink>
         <BookmarkList :bookmarks="group.bookmarks" @open="open" @remove="remove" />
       </div>
-      <n-empty v-if="!loading && groups.length === 0" description="還沒有書籤，閱讀時點擊書籤按鈕即可加入" class="py-12" />
+      <n-empty v-if="!loading && groups.length === 0" :description="$t('profile.bookmarks.empty')" class="py-12" />
     </n-spin>
   </div>
 </template>
@@ -22,7 +22,9 @@ import { NButton, NSpin, NEmpty, useMessage } from 'naive-ui'
 import type { LocalBookmark } from '~/utils/localDb'
 
 definePageMeta({ middleware: 'auth' })
-useHead({ title: '我的書籤 — Palimpsest' })
+
+const { t } = useI18n()
+useHead({ title: () => t('header.user.bookmarks') })
 
 const message = useMessage()
 const { list, remove: removeBookmark, refresh } = useBookmarks()
@@ -38,7 +40,7 @@ const groups = computed(() => {
   }
   return [...map.entries()].map(([novelId, list]) => ({
     novelId,
-    title: titles.value[novelId] || '小說',
+    title: titles.value[novelId] || t('profile.bookmarks.novelFallback'),
     bookmarks: list,
   }))
 })
@@ -62,7 +64,7 @@ async function load() {
     void loadTitles()
   }
   catch (e) {
-    message.error(describeError(e, {}, '無法載入書籤'))
+    message.error(describeError(t, e, {}, t('profile.bookmarks.loadFailed')))
   }
   finally {
     loading.value = false
@@ -77,10 +79,10 @@ async function remove(b: LocalBookmark) {
   try {
     await removeBookmark(b.id)
     bookmarks.value = bookmarks.value.filter(x => x.id !== b.id)
-    message.success('已刪除書籤')
+    message.success(t('reader.bookmarks.deleted'))
   }
   catch (e) {
-    message.error(describeError(e, {}, '刪除失敗'))
+    message.error(describeError(t, e, {}, t('common.deleteFailed')))
   }
 }
 

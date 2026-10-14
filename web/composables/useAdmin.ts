@@ -1,58 +1,54 @@
 // Helpers shared by the admin console pages.
 import { useMessage } from 'naive-ui'
 import { apiFetch, describeError, statusOf, type ApiResponse, type Paginated, type Pagination } from '~/utils/api'
+import { LOCALE_NAMES, intlLocale } from '~/i18n/constants'
 
-export const NOVEL_STATUS_OPTIONS = [
-  { label: '連載中', value: 'ongoing' },
-  { label: '已完結', value: 'completed' },
-  { label: '暫停', value: 'hiatus' },
-]
+export const NOVEL_STATUSES = ['ongoing', 'completed', 'hiatus'] as const
 
-export const LANGUAGE_OPTIONS = [
-  { label: '繁體中文', value: 'zh-TW' },
-  { label: '简体中文', value: 'zh-CN' },
-  { label: 'English', value: 'en' },
-]
+/** A novel's content language (not the UI language); each shown in its own script. */
+export const LANGUAGE_OPTIONS = (['zh-TW', 'zh-CN', 'en'] as const).map(value => ({ label: LOCALE_NAMES[value], value }))
 
-export const MODERATION_LABELS: Record<string, string> = {
-  approved: '已通過',
-  rejected: '已拒絕',
-  hidden: '已隱藏',
+export const MODERATION_STATUSES = ['approved', 'rejected', 'hidden'] as const
+export const REPORT_STATUSES = ['pending', 'resolved', 'dismissed'] as const
+export const REPORT_TARGETS = ['review', 'comment', 'novel', 'chapter', 'user'] as const
+
+/** The translation of `${prefix}.${value}` for known values, else the raw value. */
+function keyedLabel(t: (key: string) => string, prefix: string, known: readonly string[], value: string | undefined): string {
+  if (!value) return ''
+  return known.includes(value) ? t(`${prefix}.${value}`) : value
 }
 
-export const REPORT_STATUS_LABELS: Record<string, string> = {
-  pending: '待處理',
-  resolved: '已處理',
-  dismissed: '已駁回',
-}
-
-export const REPORT_TARGET_LABELS: Record<string, string> = {
-  review: '書評',
-  comment: '留言',
-  novel: '小說',
-  chapter: '章節',
-  user: '用戶',
-}
-
-export function labelOf(options: { label: string, value: string }[], value: string | undefined): string {
-  return options.find(o => o.value === value)?.label ?? value ?? ''
+/** Labels and options for admin enums in the UI language. */
+export function useAdminLabels() {
+  const { t, locale } = useI18n()
+  const options = (prefix: string, values: readonly string[]) => computed(() => values.map(value => ({ label: t(`${prefix}.${value}`), value })))
+  return {
+    novelStatusOptions: options('novel.status', NOVEL_STATUSES),
+    moderationOptions: options('admin.moderation', MODERATION_STATUSES),
+    reportStatusOptions: options('admin.reports.status', REPORT_STATUSES),
+    novelStatusLabel: (v?: string) => keyedLabel(t, 'novel.status', NOVEL_STATUSES, v),
+    moderationLabel: (v?: string) => keyedLabel(t, 'admin.moderation', MODERATION_STATUSES, v),
+    reportStatusLabel: (v?: string) => keyedLabel(t, 'admin.reports.status', REPORT_STATUSES, v),
+    reportTargetLabel: (v?: string) => keyedLabel(t, 'admin.reports.targets', REPORT_TARGETS, v),
+    dateTime: (v: string | undefined | null) => adminDateTime(v, locale.value),
+  }
 }
 
 /** Message for a failed image upload, with the storage/size/type cases spelled out. */
-export function uploadErrorMessage(error: unknown): string {
+export function uploadErrorMessage(t: (key: string) => string, error: unknown): string {
   switch (statusOf(error)) {
-    case 503: return '檔案儲存服務尚未設定，暫時無法上傳'
-    case 413: return '檔案太大'
-    case 415: return describeError(error, {}, '不支援的檔案格式，請上傳 JPEG、PNG、WebP 或 GIF')
-    default: return describeError(error, {}, '上傳失敗')
+    case 503: return t('admin.image.storageUnavailable')
+    case 413: return t('admin.image.fileTooLarge')
+    case 415: return describeError(t, error, {}, t('admin.image.unsupportedType'))
+    default: return describeError(t, error, {}, t('admin.image.uploadFailed'))
   }
 }
 
 /** Formats an ISO timestamp for tables. */
-export function adminDateTime(value: string | undefined | null): string {
+export function adminDateTime(value: string | undefined | null, locale = 'zh-TW'): string {
   if (!value) return '—'
   const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('zh-TW', { hour12: false })
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(intlLocale(locale), { hour12: false })
 }
 
 /**
@@ -65,6 +61,7 @@ export function useAdminList<T, F extends Record<string, unknown>>(path: string,
   const filters = reactive({ ...initialFilters }) as F
   const pagination = reactive<Pagination>({ page: 1, page_size: pageSize, total: 0, total_pages: 0 })
   const message = useMessage()
+  const { t } = useI18n()
 
   async function load(page = pagination.page) {
     loading.value = true
@@ -79,7 +76,7 @@ export function useAdminList<T, F extends Record<string, unknown>>(path: string,
       pagination.page = res.data.pagination.page || page
     }
     catch (error) {
-      message.error(describeError(error, {}, '載入失敗'))
+      message.error(describeError(t, error, {}, t('common.loadFailed')))
     }
     finally {
       loading.value = false

@@ -4,6 +4,9 @@ import type { ApiReadingSettings } from '~/types/models'
 
 export type ReaderTheme = 'white' | 'sepia' | 'green' | 'dark' | 'black'
 export type ReadingMode = 'scroll' | 'page'
+/** How page mode turns pages. The web reader has no animation UI; it only round-trips the value. */
+export type PageAnimation = 'none' | 'slide' | 'cover' | 'curl'
+export const PAGE_ANIMATIONS: readonly PageAnimation[] = ['none', 'slide', 'cover', 'curl']
 
 export interface ReaderSettings {
   fontSize: number
@@ -13,6 +16,7 @@ export interface ReaderSettings {
   fontFamily: string
   theme: ReaderTheme
   readingMode: ReadingMode
+  pageAnimation: PageAnimation
   brightness: number
   keepScreenOn: boolean
   autoChapter: boolean
@@ -26,6 +30,7 @@ export const DEFAULT_READER_SETTINGS: Readonly<ReaderSettings> = Object.freeze({
   fontFamily: 'system',
   theme: 'white',
   readingMode: 'scroll',
+  pageAnimation: 'slide',
   brightness: 100,
   keepScreenOn: true,
   autoChapter: true,
@@ -39,19 +44,21 @@ export const SETTING_LIMITS = {
   brightness: { min: 10, max: 100, step: 5 },
 } as const
 
-export const READER_THEMES: Record<ReaderTheme, { label: string, bg: string, text: string }> = {
-  white: { label: '白色', bg: '#ffffff', text: '#333333' },
-  sepia: { label: '米黃', bg: '#f5f0e0', text: '#4a4a4a' },
-  green: { label: '護眼綠', bg: '#e0f0e0', text: '#3a4a3a' },
-  dark: { label: '暗色', bg: '#2c2c2c', text: '#c0c0c0' },
-  black: { label: '黑色', bg: '#000000', text: '#808080' },
+// Labels: i18n keys `reader.settings.themes.<key>` and `reader.settings.fonts.<key>`.
+export const READER_THEMES: Record<ReaderTheme, { bg: string, text: string }> = {
+  white: { bg: '#ffffff', text: '#333333' },
+  sepia: { bg: '#f5f0e0', text: '#4a4a4a' },
+  green: { bg: '#e0f0e0', text: '#3a4a3a' },
+  dark: { bg: '#2c2c2c', text: '#c0c0c0' },
+  black: { bg: '#000000', text: '#808080' },
 }
 
-export const FONT_FAMILIES: Record<string, { label: string, css: string }> = {
-  system: { label: '系統字體', css: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
-  song: { label: '宋體', css: '"SimSun", "宋体", "Noto Serif TC", serif' },
-  kai: { label: '楷體', css: '"KaiTi", "楷体", "DFKai-SB", serif' },
-  serif: { label: '襯線', css: '"Noto Serif TC", "Noto Serif SC", serif' },
+// CSS font stacks (font names are not UI copy).
+export const FONT_FAMILIES: Record<string, { css: string }> = {
+  system: { css: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
+  song: { css: '"SimSun", "宋体", "Noto Serif TC", serif' },
+  kai: { css: '"KaiTi", "楷体", "DFKai-SB", serif' },
+  serif: { css: '"Noto Serif TC", "Noto Serif SC", serif' },
 }
 
 function clamp(value: unknown, min: number, max: number, fallback: number, decimals = 0): number {
@@ -79,6 +86,7 @@ export function normalizeSettings(input: Partial<Record<keyof ReaderSettings, un
     fontFamily,
     theme: typeof rawTheme === 'string' && rawTheme in READER_THEMES ? rawTheme as ReaderTheme : d.theme,
     readingMode: s.readingMode === 'page' ? 'page' : 'scroll',
+    pageAnimation: PAGE_ANIMATIONS.includes(s.pageAnimation as PageAnimation) ? s.pageAnimation as PageAnimation : d.pageAnimation,
     brightness: clamp(s.brightness, L.brightness.min, L.brightness.max, d.brightness),
     keepScreenOn: typeof s.keepScreenOn === 'boolean' ? s.keepScreenOn : d.keepScreenOn,
     autoChapter: typeof s.autoChapter === 'boolean' ? s.autoChapter : d.autoChapter,
@@ -96,6 +104,7 @@ export function toServerSettings(settings: ReaderSettings): ApiReadingSettings {
     font_family: s.fontFamily,
     theme: s.theme,
     reading_mode: s.readingMode,
+    page_animation: s.pageAnimation,
     brightness: s.brightness,
     keep_screen_on: s.keepScreenOn,
     auto_chapter: s.autoChapter,
@@ -111,6 +120,7 @@ export function fromServerSettings(server: ApiReadingSettings): ReaderSettings {
     fontFamily: server.font_family,
     theme: server.theme,
     readingMode: server.reading_mode,
+    pageAnimation: server.page_animation,
     brightness: server.brightness,
     keepScreenOn: server.keep_screen_on,
     autoChapter: server.auto_chapter,

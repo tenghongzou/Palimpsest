@@ -1,9 +1,9 @@
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold">章節列表</h1>
+      <h1 class="text-xl font-bold">{{ $t('novel.chapterList') }}</h1>
       <n-button text @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'">
-        {{ sortOrder === 'asc' ? '正序' : '倒序' }}
+        {{ sortOrder === 'asc' ? $t('novel.sortAsc') : $t('novel.sortDesc') }}
       </n-button>
     </div>
     <n-spin :show="loading">
@@ -15,7 +15,7 @@
           class="px-4 py-3 rounded border hover:bg-gray-50 flex items-center justify-between"
         >
           <span class="truncate">{{ chapterLabel(ch.chapter_number, ch.title) }}</span>
-          <span class="text-xs text-gray-400 flex-shrink-0 ml-2">{{ ch.word_count }}字</span>
+          <span class="text-xs text-gray-400 flex-shrink-0 ml-2">{{ formatWordCount(ch.word_count ?? 0) }}</span>
         </NuxtLink>
       </div>
     </n-spin>
@@ -25,6 +25,8 @@
 <script setup lang="ts">
 import { NSpin, NButton } from 'naive-ui'
 
+const { t, chapterLabel, formatWordCount } = useFormat()
+useHead({ title: () => t('novel.chapterList') })
 const route = useRoute()
 const novelId = route.params.id as string
 const { chapters, loading } = useNovel(novelId)

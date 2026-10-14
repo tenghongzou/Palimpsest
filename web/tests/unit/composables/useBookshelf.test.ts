@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { bookshelfGroups, groupLabel } from '~/composables/useBookshelf'
 import { applyLike, normalizeRating } from '~/composables/useCommunity'
+import { makeT } from '../i18n'
+
+const t = makeT('zh-TW')
 
 describe('bookshelf groups', () => {
   it('lists distinct groups with the default group first', () => {
@@ -9,9 +12,10 @@ describe('bookshelf groups', () => {
   })
 
   it('labels the default group', () => {
-    expect(groupLabel('default')).toBe('預設')
-    expect(groupLabel(undefined)).toBe('預設')
-    expect(groupLabel('追更')).toBe('追更')
+    expect(groupLabel('default', t)).toBe('預設')
+    expect(groupLabel(undefined, t)).toBe('預設')
+    expect(groupLabel(undefined, makeT('en'))).toBe('Default')
+    expect(groupLabel('追更', t)).toBe('追更')
   })
 })
 

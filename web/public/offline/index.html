@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1890FF">
+  <title>Palimpsest</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Noto Sans SC", sans-serif; background: #f5f7fa; color: #333; }
+    main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; text-align: center; }
+    img { width: 72px; height: 72px; margin-bottom: 16px; }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    p { margin: 0 0 20px; color: #666; max-width: 420px; line-height: 1.6; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    a, button { font: inherit; font-size: 14px; padding: 8px 18px; border-radius: 4px; cursor: pointer; text-decoration: none; }
+    button { background: #1890FF; color: #fff; border: 1px solid #1890FF; }
+    a { background: #fff; color: #1890FF; border: 1px solid #1890FF; }
+  </style>
+</head>
+<body>
+  <!-- Served by the service worker when a page cannot load offline. It cannot
+       use the app's i18n, so it carries its own copy in the three UI languages. -->
+  <main data-testid="offline-page">
+    <img src="/icon-192.png" alt="">
+    <h1 id="title">目前處於離線狀態</h1>
+    <p id="body">這個頁面需要網路連線。已下載的章節仍可在書架中離線閱讀。</p>
+    <div class="actions">
+      <button id="retry" type="button" onclick="location.reload()">重新整理</button>
+      <a id="shelf" href="/bookshelf">前往書架</a>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var copy = {
+        'zh-TW': ['目前處於離線狀態', '這個頁面需要網路連線。已下載的章節仍可在書架中離線閱讀。', '重新整理', '前往書架'],
+        'zh-CN': ['当前处于离线状态', '这个页面需要网络连接。已下载的章节仍可在书架中离线阅读。', '刷新', '前往书架'],
+        'en': ['You are offline', 'This page needs a network connection. Downloaded chapters can still be read offline from your bookshelf.', 'Try again', 'Go to bookshelf']
+      }
+      var m = document.cookie.match(/(?:^|;\s*)palimpsest_locale=([^;]+)/)
+      var locale = m ? decodeURIComponent(m[1]) : ''
+      if (!copy[locale]) {
+        var nav = (navigator.language || '').toLowerCase()
+        locale = nav.indexOf('zh') === 0 ? (/cn|sg|hans/.test(nav) ? 'zh-CN' : 'zh-TW') : (nav ? 'en' : 'zh-TW')
+      }
+      var t = copy[locale]
+      document.documentElement.lang = locale
+      document.getElementById('title').textContent = t[0]
+      document.getElementById('body').textContent = t[1]
+      document.getElementById('retry').textContent = t[2]
+      document.getElementById('shelf').textContent = t[3]
+      window.addEventListener('online', function () { location.reload() })
+    })()
+  </script>
+</body>
+</html>

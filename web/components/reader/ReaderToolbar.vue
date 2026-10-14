@@ -5,29 +5,29 @@
         <div class="flex items-center justify-between">
           <n-button text :disabled="!hasPrev" @click="emit('prev')">
             <template #icon><n-icon :component="ChevronBack" /></template>
-            上一章
+            {{ $t('reader.prevChapter') }}
           </n-button>
 
           <div class="flex items-center gap-3">
-            <n-button text circle title="目錄" aria-label="目錄" data-testid="toolbar-toc" @click="emit('openChapterList')">
+            <n-button text circle :title="$t('reader.toolbar.toc')" :aria-label="$t('reader.toolbar.toc')" data-testid="toolbar-toc" @click="emit('openChapterList')">
               <template #icon><n-icon :component="ListOutline" /></template>
             </n-button>
-            <n-button text circle title="閱讀設定" aria-label="閱讀設定" data-testid="toolbar-settings" @click="emit('openSettings')">
+            <n-button text circle :title="$t('reader.toolbar.settings')" :aria-label="$t('reader.toolbar.settings')" data-testid="toolbar-settings" @click="emit('openSettings')">
               <template #icon><n-icon :component="SettingsOutline" /></template>
             </n-button>
-            <n-button text circle title="書籤" aria-label="書籤" data-testid="toolbar-bookmarks" @click="emit('openBookmarks')">
+            <n-button text circle :title="$t('reader.toolbar.bookmarks')" :aria-label="$t('reader.toolbar.bookmarks')" data-testid="toolbar-bookmarks" @click="emit('openBookmarks')">
               <template #icon><n-icon :component="bookmarked ? Bookmark : BookmarkOutline" /></template>
             </n-button>
-            <n-button text circle title="留言" aria-label="留言" data-testid="toolbar-comments" @click="emit('openComments')">
+            <n-button text circle :title="$t('reader.toolbar.comments')" :aria-label="$t('reader.toolbar.comments')" data-testid="toolbar-comments" @click="emit('openComments')">
               <template #icon><n-icon :component="ChatbubbleEllipsesOutline" /></template>
             </n-button>
-            <n-button text circle title="翻譯" aria-label="翻譯" data-testid="toolbar-translate" @click="emit('translate')">
+            <n-button text circle :title="$t('reader.toolbar.translate')" :aria-label="$t('reader.toolbar.translate')" data-testid="toolbar-translate" @click="emit('translate')">
               <template #icon><n-icon :component="LanguageOutline" /></template>
             </n-button>
           </div>
 
           <n-button text :disabled="!hasNext" @click="emit('next')">
-            下一章
+            {{ $t('reader.nextChapter') }}
             <template #icon><n-icon :component="ChevronForward" /></template>
           </n-button>
         </div>

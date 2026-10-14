@@ -18,6 +18,7 @@ describe('reader settings', () => {
       font_family: 'system',
       theme: 'white',
       reading_mode: 'scroll',
+      page_animation: 'slide',
       brightness: 100,
       keep_screen_on: true,
       auto_chapter: true,
@@ -49,6 +50,13 @@ describe('reader settings', () => {
     expect(fromServerSettings(toServerSettings(local))).toEqual(local)
     expect(sameSettings(local, fromServerSettings(toServerSettings(local)))).toBe(true)
     expect(sameSettings(local, { ...local, fontSize: 23 })).toBe(false)
+  })
+
+  it('round-trips page_animation (no web UI) and falls back to slide', () => {
+    const base = toServerSettings({ ...DEFAULT_READER_SETTINGS })
+    expect(fromServerSettings({ ...base, page_animation: 'curl' }).pageAnimation).toBe('curl')
+    expect(toServerSettings(fromServerSettings({ ...base, page_animation: 'none' })).page_animation).toBe('none')
+    expect(normalizeSettings({ pageAnimation: 'spin' }).pageAnimation).toBe('slide')
   })
 
   it('detects settings the user never saved', () => {

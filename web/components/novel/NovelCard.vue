@@ -21,18 +21,12 @@
 <script setup lang="ts">
 import { NCard, NTag, NRate } from 'naive-ui'
 import type { Novel } from '~/types/novel'
-import { formatWordCount } from '~/utils/format'
 
 const props = defineProps<{
   novel: Pick<Novel, 'id' | 'title' | 'author_name' | 'status'> & Partial<Novel>
 }>()
 
-const statusMap: Record<string, { label: string, type: 'success' | 'warning' | 'info' }> = {
-  ongoing: { label: '連載中', type: 'success' },
-  completed: { label: '已完結', type: 'info' },
-  hiatus: { label: '暫停', type: 'warning' },
-}
-
-const statusLabel = computed(() => statusMap[props.novel.status]?.label || props.novel.status)
-const statusType = computed(() => statusMap[props.novel.status]?.type || 'info')
+const { formatWordCount, novelStatus } = useFormat()
+const statusLabel = computed(() => novelStatus(props.novel.status)?.label || props.novel.status)
+const statusType = computed(() => novelStatus(props.novel.status)?.type || 'info')
 </script>

@@ -3,6 +3,7 @@ import type { ApiResponse } from '~/utils/api'
 import type { ApiDevice, ApiDeviceInput } from '~/types/models'
 import {
   deviceNameFromUserAgent,
+  type DeviceNameLabels,
   getDeviceId,
   markRegisteredThisSession,
   readDeviceRecord,
@@ -13,11 +14,18 @@ import {
 /** How long logout waits for the device to be removed before going on. */
 const UNREGISTER_TIMEOUT_MS = 3000
 
+let deviceLabels: DeviceNameLabels | undefined
+
+/** Sets the fallback device names to the UI language (called by plugins/locale.client.ts). */
+export function setDeviceNameLabels(labels: DeviceNameLabels) {
+  deviceLabels = labels
+}
+
 export function thisDeviceInput(): ApiDeviceInput {
   return {
     device_id: getDeviceId(),
     device_type: 'web',
-    device_name: deviceNameFromUserAgent(typeof navigator === 'undefined' ? '' : navigator.userAgent),
+    device_name: deviceNameFromUserAgent(typeof navigator === 'undefined' ? '' : navigator.userAgent, deviceLabels),
   }
 }
 

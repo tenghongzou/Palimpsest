@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-8">
     <n-spin :show="pending">
-      <n-alert v-if="error" type="error" title="無法載入首頁" class="mb-4">
-        請稍後再試。
+      <n-alert v-if="error" type="error" :title="$t('home.loadFailed')" class="mb-4">
+        {{ $t('home.tryLater') }}
       </n-alert>
 
       <section v-if="home?.banners?.length" class="mb-8">
@@ -29,7 +29,7 @@
         <section v-if="section.items.length" class="mb-8" :data-testid="`home-section-${section.key}`">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-bold">{{ section.title }}</h2>
-            <NuxtLink v-if="section.more" :to="section.more" class="text-primary text-sm">查看更多</NuxtLink>
+            <NuxtLink v-if="section.more" :to="section.more" class="text-primary text-sm">{{ $t('home.more') }}</NuxtLink>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <NovelCard v-for="novel in section.items" :key="novel.id" :novel="novel" />
@@ -37,7 +37,7 @@
         </section>
       </template>
 
-      <n-empty v-if="!pending && !error && sections.every(s => !s.items.length)" description="目前還沒有小說" />
+      <n-empty v-if="!pending && !error && sections.every(s => !s.items.length)" :description="$t('home.empty')" />
     </n-spin>
   </div>
 </template>
@@ -48,7 +48,8 @@ import type { ApiResponse } from '~/utils/api'
 import type { ApiBanner, ApiHomePage } from '~/types/models'
 import type { Novel } from '~/types/novel'
 
-useHead({ title: 'Palimpsest — 小說閱讀' })
+// No page title: app.vue's title template renders "Palimpsest — <tagline>".
+const { t } = useI18n()
 
 const { data: home, pending, error } = await useAsyncData('home', async () => {
   const res = await apiFetch<ApiResponse<ApiHomePage>>('/home')
@@ -59,11 +60,11 @@ const sections = computed(() => {
   const h = home.value
   const list = (items?: unknown[]) => (items ?? []) as Novel[]
   return [
-    { key: 'featured', title: '編輯推薦', items: list(h?.featured), more: '' },
-    { key: 'popular', title: '熱門推薦', items: list(h?.popular), more: '/ranking/views' },
-    { key: 'latest', title: '最新更新', items: list(h?.latest_updates), more: '/ranking/latest' },
-    { key: 'new', title: '新書上架', items: list(h?.new_arrivals), more: '' },
-    { key: 'completed', title: '完結精選', items: list(h?.completed), more: '/ranking/completed' },
+    { key: 'featured', title: t('home.sections.featured'), items: list(h?.featured), more: '' },
+    { key: 'popular', title: t('home.sections.popular'), items: list(h?.popular), more: '/ranking/views' },
+    { key: 'latest', title: t('home.sections.latest'), items: list(h?.latest_updates), more: '/ranking/latest' },
+    { key: 'new', title: t('home.sections.new'), items: list(h?.new_arrivals), more: '' },
+    { key: 'completed', title: t('home.sections.completed'), items: list(h?.completed), more: '/ranking/completed' },
   ]
 })
 

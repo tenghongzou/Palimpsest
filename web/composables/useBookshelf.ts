@@ -6,9 +6,9 @@ export type BookshelfSort = 'recent' | 'added' | 'title'
 
 export const DEFAULT_GROUP = 'default'
 
-/** Display name of a bookshelf group. */
-export function groupLabel(name: string | null | undefined): string {
-  return !name || name === DEFAULT_GROUP ? '預設' : name
+/** Display name of a bookshelf group: the default group's name follows the UI language. */
+export function groupLabel(name: string | null | undefined, t: (key: string) => string): string {
+  return !name || name === DEFAULT_GROUP ? t('bookshelf.defaultGroup') : name
 }
 
 /** Distinct group names, the default group first, the rest alphabetically. */

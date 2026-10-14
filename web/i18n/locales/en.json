@@ -1,0 +1,931 @@
+{
+  "meta": {
+    "siteName": "Palimpsest",
+    "tagline": "Read Chinese novels",
+    "description": "Palimpsest is a Chinese novel reading platform with serialized novels you can read in Traditional Chinese, Simplified Chinese or English."
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "OK",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading…",
+    "loadMore": "Load more",
+    "retry": "Retry",
+    "search": "Search",
+    "submit": "Submit",
+    "back": "Back",
+    "all": "All",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No",
+    "unknown": "Unknown",
+    "login": "Log in",
+    "logout": "Log out",
+    "register": "Sign up",
+    "loadFailed": "Failed to load",
+    "saveFailed": "Failed to save",
+    "deleteFailed": "Failed to delete",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "operationFailed": "Something went wrong"
+  },
+  "errors": {
+    "rateLimited": "Too many requests. Please try again later.",
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "forbidden": "You don't have permission to do that.",
+    "network": "Can't reach the server. Please check your connection."
+  },
+  "format": {
+    "justNow": "just now",
+    "tenThousand": "{n} × 10,000",
+    "hundredMillion": "{n} × 100,000,000",
+    "tenThousandWords": "{n} × 10,000 words",
+    "words": "{n} word | {n} words",
+    "minutes": "{m} min",
+    "hours": "{h} hr",
+    "hoursMinutes": "{h} hr {m} min",
+    "chapter": "Chapter {n}",
+    "chapterWithTitle": "Chapter {n}: {title}",
+    "parenthesized": "({text})"
+  },
+  "novel": {
+    "status": {
+      "ongoing": "Ongoing",
+      "completed": "Completed",
+      "hiatus": "On hiatus"
+    },
+    "notFound": "Novel not found",
+    "sort": {
+      "latest": "Recently updated",
+      "popular": "Popular",
+      "rating": "Rating",
+      "words": "Word count",
+      "favorites": "Favorites",
+      "new": "Newly added"
+    },
+    "notFoundHint": "It may have been taken down, or the link is wrong.",
+    "backHome": "Back to home",
+    "reviewCount": "({n} review) | ({n} reviews)",
+    "latestChapter": "Latest chapter: {title}",
+    "continueReading": "Continue reading",
+    "startReading": "Start reading",
+    "readFromStart": "Read from the beginning",
+    "inBookshelf": "On your bookshelf",
+    "addToBookshelf": "Add to bookshelf",
+    "lastRead": "Last read: {title}",
+    "synopsis": "Synopsis",
+    "noSynopsis": "No synopsis yet",
+    "chapterList": "Chapters",
+    "sortAsc": "Oldest first",
+    "sortDesc": "Newest first",
+    "noChapters": "No chapters yet",
+    "addedToBookshelf": "Added to your bookshelf",
+    "alreadyInBookshelf": "This book is already on your bookshelf",
+    "addToBookshelfFailed": "Couldn't add to your bookshelf"
+  },
+  "language": {
+    "label": "Language",
+    "switchTo": "Change language",
+    "savedToAccount": "Language changed",
+    "notSavedToAccount": "Language changed, but it couldn't be saved to your account and may revert next time you log in."
+  },
+  "pwa": {
+    "updateAvailable": "A new version is available",
+    "reload": "Reload",
+    "offlineReady": "Ready to work offline"
+  },
+  "layout": {
+    "auth": {
+      "subtitle": "Chinese Novel Reading Platform"
+    }
+  },
+  "footer": {
+    "about": "About",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy"
+  },
+  "header": {
+    "searchPlaceholder": "Search novels...",
+    "nav": {
+      "home": "Home",
+      "categories": "Categories",
+      "rankings": "Rankings",
+      "bookshelf": "Bookshelf"
+    },
+    "user": {
+      "profile": "My profile",
+      "bookshelf": "My bookshelf",
+      "history": "Reading history",
+      "bookmarks": "My bookmarks",
+      "notifications": "Notifications",
+      "settings": "Account settings",
+      "admin": "Admin console"
+    }
+  },
+  "admin": {
+    "layout": {
+      "brand": "Admin",
+      "title": "Palimpsest Admin",
+      "backToSite": "Back to site"
+    },
+    "menu": {
+      "dashboard": "Overview",
+      "novels": "Novels",
+      "users": "Users",
+      "reviews": "Review moderation",
+      "reports": "Reports",
+      "categories": "Categories",
+      "banners": "Banners",
+      "announcements": "Announcements"
+    },
+    "image": {
+      "urlPlaceholder": "Image URL",
+      "upload": "Upload image",
+      "preview": "Preview",
+      "tooLarge": "Images must be {mb} MB or smaller",
+      "uploaded": "Image uploaded",
+      "storageUnavailable": "File storage isn't configured, so uploads are unavailable",
+      "fileTooLarge": "The file is too large",
+      "unsupportedType": "Unsupported file type. Please upload a JPEG, PNG, WebP or GIF.",
+      "uploadFailed": "Upload failed"
+    },
+    "moderation": {
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "hidden": "Hidden"
+    },
+    "reports": {
+      "status": {
+        "pending": "Pending",
+        "resolved": "Resolved",
+        "dismissed": "Dismissed"
+      },
+      "targets": {
+        "review": "Review",
+        "comment": "Comment",
+        "novel": "Novel",
+        "chapter": "Chapter",
+        "user": "User"
+      },
+      "resolveTitle": "Handle report",
+      "colon": ": ",
+      "noPreview": "(no preview)",
+      "alsoHide": "Also hide the reported {target}",
+      "dismiss": "Dismiss",
+      "markResolved": "Mark as resolved",
+      "deletedOrNoPreview": "(deleted or no preview)",
+      "handle": "Handle",
+      "columns": {
+        "type": "Type",
+        "target": "Reported content",
+        "description": "Details",
+        "reporter": "Reporter"
+      }
+    },
+    "import": {
+      "errors": {
+        "noContent": "\"{title}\" has no content",
+        "noHeadings": "No chapter headings found (e.g. \"第一章 Title\" or \"Chapter 1\")",
+        "invalidJson": "Invalid JSON",
+        "notArray": "The JSON must be an array of chapters",
+        "missingTitle": "Item {n} is missing a title",
+        "missingContent": "Item {n} is missing content",
+        "noChapters": "No chapters found",
+        "empty": "Please paste the chapter text",
+        "invalidNumber": "Chapter numbers must be greater than 0: {title}",
+        "duplicateNumber": "Duplicate chapter number: {n}",
+        "tooMany": "You can import at most {max} chapters at once ({count} given)"
+      },
+      "title": "Batch import chapters",
+      "help": "Paste the full text, split into chapters by headings such as \"第一章 Title\", \"第12章\" or \"Chapter 3\"; or paste a JSON array {example}. Up to {max} chapters at a time.",
+      "placeholder": "Paste the chapters here",
+      "startNumber": "JSON chapters without a number start at {n}",
+      "moreProblems": "…and {n} more problems",
+      "preview": "Preview: {n} chapter | Preview: {n} chapters",
+      "submit": "Import {n} chapter | Import {n} chapters",
+      "existingNumbers": "These chapter numbers already exist: {list}",
+      "listSeparator": ", ",
+      "done": "Imported {n} chapter | Imported {n} chapters",
+      "failed": "Import failed"
+    },
+    "refresh": "Refresh",
+    "optional": "Optional",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "confirmDeleteNamed": "Delete \"{name}\"?",
+    "columns": {
+      "status": "Status",
+      "actions": "Actions",
+      "time": "Time",
+      "content": "Content",
+      "name": "Name",
+      "slug": "Slug",
+      "sortOrder": "Order",
+      "title": "Title",
+      "image": "Image",
+      "updatedAt": "Updated"
+    },
+    "dashboard": {
+      "handle": "Review now",
+      "loadFailed": "Couldn't load statistics",
+      "stats": {
+        "users": "Total users",
+        "new_users_today": "New users today",
+        "active_readers_7d": "Active readers (7 days)",
+        "reads_today": "Chapters read today",
+        "novels": "Total novels",
+        "published_novels": "Published novels",
+        "chapters": "Total chapters",
+        "reviews": "Reviews",
+        "comments": "Comments",
+        "pending_reports": "Pending reports"
+      }
+    },
+    "users": {
+      "searchPlaceholder": "Search username, email or nickname",
+      "status": {
+        "active": "Active",
+        "banned": "Banned"
+      },
+      "roles": {
+        "reader": "Reader",
+        "author": "Author",
+        "admin": "Admin",
+        "super_admin": "Super admin"
+      },
+      "ban": "Ban user",
+      "banShort": "Ban",
+      "unban": "Unban",
+      "confirmBan": "Ban \"{name}\"? They won't be able to log in.",
+      "confirmUnban": "Restore \"{name}\"'s account?",
+      "banned": "User banned",
+      "unbanned": "User unbanned",
+      "currentAccount": "You",
+      "columns": {
+        "user": "User",
+        "role": "Role",
+        "registered": "Registered",
+        "lastLogin": "Last login"
+      }
+    },
+    "reviews": {
+      "setTo": "Marked as \"{status}\"",
+      "actions": {
+        "approved": "Approve",
+        "rejected": "Reject",
+        "hidden": "Hide"
+      }
+    },
+    "categories": {
+      "create": "New category",
+      "edit": "Edit category",
+      "parent": "Parent",
+      "noParent": "None (top level)",
+      "namePlaceholder": "Category name",
+      "slugPlaceholder": "Slug, e.g. xuanhuan",
+      "iconUrl": "Icon URL",
+      "save": "Save category",
+      "loadFailed": "Couldn't load categories",
+      "required": "Please fill in the name and slug",
+      "saved": "Category saved",
+      "slugTaken": "That slug is already used by another category",
+      "hasChildren": "Delete or move its subcategories first",
+      "delete": "Delete category",
+      "deleteHasChildren": "This category still has subcategories and can't be deleted",
+      "createChild": "New subcategory"
+    },
+    "banners": {
+      "create": "New banner",
+      "edit": "Edit banner",
+      "titlePlaceholder": "Banner title",
+      "linkType": "Link type",
+      "noLink": "No link",
+      "linkTarget": "Link target",
+      "startAt": "Starts",
+      "endAt": "Ends",
+      "immediately": "Immediately",
+      "noLimit": "No limit",
+      "save": "Save banner",
+      "linkTypes": {
+        "novel": "Novel",
+        "category": "Category",
+        "url": "URL"
+      },
+      "linkPlaceholders": {
+        "novel": "Novel ID",
+        "category": "Category slug",
+        "url": "https://…"
+      },
+      "loadFailed": "Couldn't load banners",
+      "required": "Please enter a title and upload an image",
+      "endBeforeStart": "The end time must be after the start time",
+      "saved": "Banner saved",
+      "delete": "Delete banner",
+      "schedule": "{start} – {end}",
+      "link": "Link",
+      "linkValue": "{type}: {value}",
+      "scheduleColumn": "Schedule"
+    },
+    "broadcast": {
+      "cardTitle": "Send an announcement",
+      "hint": "Every active user gets it as an \"Announcement\" notification",
+      "titlePlaceholder": "e.g. Scheduled maintenance",
+      "body": "Details (optional)",
+      "bodyPlaceholder": "The full announcement",
+      "submit": "Send announcement",
+      "sentTitle": "Announcement sent",
+      "sentText": "\"{title}\" was sent to {n} user ({time}). | \"{title}\" was sent to {n} users ({time}).",
+      "titleRequired": "Please enter a title",
+      "titleMax": "Titles can be at most {max} characters",
+      "bodyMax": "Details can be at most {max} characters",
+      "confirmTitle": "Send announcement?",
+      "confirmText": "Send \"{title}\" to all users? This can't be undone.",
+      "send": "Send",
+      "sentToast": "Announcement sent to {n} user | Announcement sent to {n} users",
+      "invalid": "Invalid title or details (title up to 200 characters, details up to 2,000)",
+      "failed": "Couldn't send. Please try again later."
+    },
+    "novels": {
+      "create": "New novel",
+      "edit": "Edit novel",
+      "searchPlaceholder": "Search title or author",
+      "publishState": "Published?",
+      "published": "Published",
+      "unpublished": "Unpublished",
+      "unpublishedToast": "Unpublished",
+      "delete": "Delete novel",
+      "confirmDelete": "Delete \"{name}\"? Its chapters will be hidden too.",
+      "title": "Title",
+      "author": "Author",
+      "authorPlaceholder": "Author name",
+      "publishColumn": "Published",
+      "featured": "Featured",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "backToList": "← Back to list",
+      "manageChapters": "Manage chapters",
+      "synopsisPlaceholder": "Novel synopsis",
+      "serialStatus": "Status",
+      "language": "Language",
+      "featuredOnHome": "Feature on home",
+      "cover": "Cover",
+      "categoriesPlaceholder": "Choose categories",
+      "tags": "Tags",
+      "titleRequired": "Please enter a title",
+      "authorRequired": "Please enter an author",
+      "disabledCategory": "{name} (disabled)",
+      "created": "Novel created"
+    },
+    "chapters": {
+      "title": "Chapters",
+      "backToNovel": "← Back to novel",
+      "batchImport": "Batch import",
+      "create": "New chapter",
+      "edit": "Edit chapter",
+      "number": "Chapter number",
+      "titlePlaceholder": "Chapter title",
+      "contentPlaceholder": "Chapter text, with paragraphs separated by line breaks",
+      "publish": "Published",
+      "free": "Free",
+      "draft": "Draft",
+      "save": "Save chapter",
+      "numberTaken": "That chapter number already exists. Please use another.",
+      "loadFailed": "Couldn't load chapters",
+      "loadContentFailed": "Couldn't load the chapter text",
+      "required": "Please fill in the chapter number, title and text",
+      "saved": "Chapter saved",
+      "created": "Chapter added",
+      "saveFailed": "Couldn't save the chapter",
+      "updateFailed": "Couldn't update",
+      "delete": "Delete chapter",
+      "confirmDelete": "Delete chapter {n}, \"{title}\"?"
+    }
+  },
+  "auth": {
+    "loginFirst": "Please log in first",
+    "username": "Username",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "Display name",
+    "nicknameRequired": "Please enter a nickname",
+    "email": "Email",
+    "emailRequired": "Please enter your email",
+    "emailInvalid": "Please enter a valid email address",
+    "password": "Password",
+    "passwordPlaceholder": "At least 8 characters",
+    "passwordRequired": "Please enter your password",
+    "passwordLength": "Passwords must be 8–72 characters",
+    "passwordMismatch": "The passwords don't match",
+    "newPassword": "New password",
+    "newPasswordRequired": "Please enter a new password",
+    "confirmNewPassword": "Confirm new password",
+    "confirmNewPasswordPlaceholder": "Enter the new password again",
+    "confirmNewPasswordRequired": "Please enter the new password again",
+    "backToLogin": "Back to log in",
+    "login": {
+      "loginLabel": "Username / email",
+      "loginPlaceholder": "Enter your username or email",
+      "loginRequired": "Please enter your username or email",
+      "passwordPlaceholder": "Enter your password",
+      "forgot": "Forgot password?",
+      "noAccount": "Don't have an account?",
+      "registerNow": "Sign up",
+      "success": "Logged in",
+      "missing": "Please enter your username and password",
+      "invalid": "Incorrect username or password",
+      "banned": "This account has been suspended",
+      "failed": "Couldn't log in. Please try again later."
+    },
+    "register": {
+      "usernamePlaceholder": "4–20 characters",
+      "usernameRequired": "Please enter a username",
+      "usernameLength": "Usernames must be 4–20 characters",
+      "passwordMin": "Passwords must be at least 8 characters",
+      "confirmPassword": "Confirm password",
+      "confirmPlaceholder": "Enter the password again",
+      "confirmRequired": "Please enter the password again",
+      "haveAccount": "Already have an account?",
+      "loginNow": "Log in",
+      "success": "Account created",
+      "invalid": "Some of the details are invalid",
+      "taken": "That username or email is already in use",
+      "failed": "Couldn't sign up. Please try again later."
+    },
+    "forgot": {
+      "title": "Forgot password",
+      "intro": "Enter the email you signed up with and we'll send you a link to reset your password.",
+      "submit": "Send reset link",
+      "sentTitle": "Check your inbox",
+      "sentText": "If this email is registered, a password reset link will arrive within a few minutes. The link expires after a while.",
+      "failed": "Couldn't send the email. Please try again later."
+    },
+    "reset": {
+      "title": "Reset password",
+      "incomplete": "This reset link is incomplete. Please request a new one.",
+      "doneTitle": "Password reset",
+      "doneText": "Please log in with your new password.",
+      "goLogin": "Go to log in",
+      "requestAgain": "Request a new link",
+      "invalidLink": "This reset link is invalid or has expired.",
+      "failed": "Couldn't reset the password. Please try again later."
+    }
+  },
+  "reader": {
+    "prevChapter": "Previous",
+    "nextChapter": "Next",
+    "chapterNotFound": "Chapter not found",
+    "toolbar": {
+      "toc": "Contents",
+      "settings": "Reading settings",
+      "bookmarks": "Bookmarks",
+      "comments": "Comments",
+      "translate": "Translate"
+    },
+    "settings": {
+      "fontSize": "Font size",
+      "lineHeight": "Line height",
+      "letterSpacing": "Letter spacing",
+      "margin": "Margins",
+      "brightness": "Brightness",
+      "theme": "Theme",
+      "font": "Font",
+      "readingMode": "Reading mode",
+      "modeScroll": "Scroll",
+      "modePage": "Pages",
+      "autoChapter": "Continue to next chapter",
+      "keepScreenOn": "Keep screen on",
+      "reset": "Reset to defaults",
+      "themes": {
+        "white": "White",
+        "sepia": "Sepia",
+        "green": "Eye-care green",
+        "dark": "Dark",
+        "black": "Black"
+      },
+      "fonts": {
+        "system": "System font",
+        "song": "Song (serif)",
+        "kai": "Kai (brush)",
+        "serif": "Serif"
+      }
+    },
+    "paragraph": {
+      "label": "Para. {n}",
+      "countAria": "Paragraph {n} has {count} comments. Open paragraph comments",
+      "countTitle": "{count} paragraph comment | {count} paragraph comments",
+      "addAria": "Comment on paragraph {n}",
+      "addTitle": "Comment on this paragraph",
+      "commentsOf": "Comments on paragraph {n}",
+      "comments": "Paragraph comments"
+    },
+    "bookmarks": {
+      "chapterFallback": "Chapter",
+      "notSynced": "Not synced yet",
+      "confirmDelete": "Delete this bookmark?",
+      "deleted": "Bookmark deleted",
+      "notePlaceholder": "Note (optional)",
+      "addHere": "Bookmark the current paragraph (para. {n})",
+      "loginToUse": "{login} to use bookmarks",
+      "emptyNovel": "No bookmarks in this novel yet",
+      "added": "Bookmark added",
+      "addFailed": "Couldn't add the bookmark"
+    },
+    "backToNovel": "Back to novel",
+    "offlineNotice": "Offline: showing the copy of this chapter saved on this device",
+    "lastChapter": "Last chapter",
+    "chapterList": "Contents",
+    "chapterComments": "Chapter comments",
+    "commentsOffline": "Comments aren't available offline.",
+    "loadingTitle": "Reading...",
+    "commentGone": "This comment couldn't be found. It may have been deleted.",
+    "commentLoadFailed": "Couldn't load this comment",
+    "notFound": "This chapter couldn't be found. It may have been taken down.",
+    "loadFailedNoCache": "Couldn't load the chapter, and it isn't saved for offline reading.",
+    "translate": {
+      "showing": "Showing the translation",
+      "showOriginal": "Show original",
+      "submit": "Translate this chapter",
+      "langs": {
+        "zh-CN": "Simplified Chinese",
+        "zh-TW": "Traditional Chinese",
+        "en": "English"
+      },
+      "loginRequired": "Please log in to use translation.",
+      "unsupported": "This chapter can't be translated into that language.",
+      "notFound": "Chapter not found.",
+      "englishUnavailable": "English translation isn't available right now. Please try again later, or choose Traditional or Simplified Chinese.",
+      "unavailable": "The translation service is temporarily unavailable. Please try again later.",
+      "failed": "Translation failed. Please try again later."
+    }
+  },
+  "comments": {
+    "total": "{n} comment | {n} comments",
+    "totalParagraph": "{n} paragraph comment | {n} paragraph comments",
+    "sortLatest": "Latest",
+    "sortPopular": "Popular",
+    "anonymous": "Reader",
+    "replyingTo": "Replying to {name}",
+    "attachParagraph": "About the current paragraph (para. {n})",
+    "reply": "Reply",
+    "post": "Post comment",
+    "postParagraph": "Post paragraph comment",
+    "loginToComment": "{login} to comment",
+    "loadFailed": "Couldn't load comments",
+    "empty": "No comments yet. Be the first!",
+    "emptyParagraph": "No comments on this paragraph yet. Share your thoughts!",
+    "placeholderReply": "Write a reply…",
+    "placeholderParagraph": "Say something about this paragraph…",
+    "placeholderChapter": "Share your thoughts on this chapter…",
+    "replyPosted": "Reply posted",
+    "posted": "Comment posted",
+    "invalid": "Invalid comment (2,000 characters max)",
+    "postFailed": "Couldn't post. Please try again later.",
+    "deleted": "Comment deleted",
+    "confirmDeleteReply": "Delete this comment?",
+    "confirmDeleteThread": "Delete this comment and its replies?"
+  },
+  "community": {
+    "like": "Like",
+    "liked": "Liked",
+    "report": {
+      "action": "Report",
+      "title": "Report content",
+      "reason": "Reason",
+      "description": "Details (optional)",
+      "descriptionPlaceholder": "Describe the problem to help moderators decide",
+      "submit": "Submit report",
+      "submitted": "Report submitted. Thanks for letting us know.",
+      "notFound": "This content no longer exists",
+      "failed": "Couldn't submit the report. Please try again later.",
+      "reasons": {
+        "spam": "Spam",
+        "abuse": "Harassment",
+        "spoiler": "Spoiler",
+        "copyright": "Copyright infringement",
+        "inappropriate": "Inappropriate content",
+        "other": "Other"
+      }
+    }
+  },
+  "reviews": {
+    "title": "Reviews",
+    "total": "{n} review | {n} reviews",
+    "loginToWrite": "{login} to write a review",
+    "write": "Write a review",
+    "rating": "Rating",
+    "titlePlaceholder": "Title",
+    "contentPlaceholder": "What did you think of this book?",
+    "update": "Update review",
+    "publish": "Post review",
+    "mine": "My review",
+    "confirmDelete": "Delete your review?",
+    "empty": "No reviews yet",
+    "updated": "Review updated",
+    "published": "Review posted",
+    "alreadyReviewed": "You've already reviewed this book. You can edit your review instead.",
+    "invalid": "Please fill in the rating, title and review",
+    "publishFailed": "Couldn't post. Please try again later.",
+    "deleted": "Review deleted"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "bellAria": "Notifications ({n} unread)",
+    "bellTitle": "{n} unread notification | {n} unread notifications",
+    "types": {
+      "chapter_update": "New chapter",
+      "comment_reply": "Reply",
+      "system": "Announcement"
+    },
+    "unread": "Unread",
+    "unreadWithCount": "Unread ({n})",
+    "markAllRead": "Mark all as read",
+    "unreadAria": "Unread: {title}",
+    "readAria": "Read: {title}",
+    "markRead": "Mark as read",
+    "confirmDelete": "Delete this notification?",
+    "emptyUnread": "No unread notifications",
+    "empty": "No notifications yet",
+    "noMore": "No more notifications",
+    "loadFailed": "Couldn't load notifications. Please try again later.",
+    "loadMoreFailed": "Couldn't load more notifications",
+    "gone": "This notification no longer exists",
+    "markReadFailed": "Couldn't mark as read",
+    "markedAllRead": "Marked {n} notification as read | Marked {n} notifications as read",
+    "allRead": "All notifications are already read",
+    "actionFailed": "Something went wrong. Please try again later.",
+    "deleted": "Notification deleted"
+  },
+  "devices": {
+    "loadFailed": "Couldn't load signed-in devices",
+    "unknown": "Unknown device",
+    "current": "This device",
+    "lastActive": "Last active {time}",
+    "remove": "Remove",
+    "confirmRemoveCurrent": "Remove this device? It will be registered again the next time you open the site.",
+    "confirmRemove": "Remove this device?",
+    "empty": "No signed-in devices",
+    "removed": "Device removed",
+    "alreadyRemoved": "This device was already removed",
+    "removeFailed": "Couldn't remove the device",
+    "browserOn": "Browser on {os}",
+    "webBrowser": "Web browser",
+    "types": {
+      "web": "Web",
+      "android": "Android",
+      "ios": "iOS",
+      "windows": "Windows",
+      "macos": "macOS",
+      "linux": "Linux"
+    }
+  },
+  "bookshelf": {
+    "defaultGroup": "Default",
+    "heading": "My bookshelf",
+    "done": "Done",
+    "manage": "Manage",
+    "groupTab": "{name} ({n})",
+    "selectAll": "Select all",
+    "selectedCount": "{n} book selected | {n} books selected",
+    "moveToGroup": "Move to group",
+    "removeSelected": "Remove selected",
+    "confirmRemoveMany": "Remove {n} book from your bookshelf? | Remove {n} books from your bookshelf?",
+    "hasUpdate": "New",
+    "progress": "Reading: {label}",
+    "notStarted": "Not started yet",
+    "group": "Group",
+    "notifyOnTitle": "You'll be notified about new chapters. Click to turn off.",
+    "notifyOffTitle": "You won't be notified about new chapters. Click to turn on.",
+    "notifyOn": "Update alerts: on",
+    "notifyOff": "Update alerts: off",
+    "confirmRemove": "Remove from your bookshelf?",
+    "empty": "Your bookshelf is empty. Go find something to read!",
+    "browse": "Browse",
+    "groupPlaceholder": "Choose a group or type a new name",
+    "groupHint": "Type a new name to create a group ({max} characters max).",
+    "move": "Move",
+    "sort": {
+      "recent": "Recently read",
+      "added": "Date added",
+      "title": "Title"
+    },
+    "notifyEnabled": "Update alerts turned on",
+    "notifyDisabled": "Update alerts turned off",
+    "notOnShelf": "This book is no longer on your bookshelf",
+    "notifyFailed": "Couldn't change update alerts",
+    "removed": "Removed from your bookshelf",
+    "removeFailed": "Couldn't remove",
+    "removedMany": "Removed {n} book | Removed {n} books",
+    "groupTooLong": "Group names can be at most {max} characters",
+    "moved": "Moved to \"{name}\"",
+    "groupInvalid": "Invalid group name",
+    "moveFailed": "Couldn't move",
+    "loadFailed": "Couldn't load your bookshelf"
+  },
+  "ranking": {
+    "types": {
+      "views": "Most read",
+      "favorites": "Most favorited",
+      "rating": "Top rated",
+      "latest": "Recently updated",
+      "completed": "Completed"
+    },
+    "title": "Rankings",
+    "periods": {
+      "daily": "Today",
+      "weekly": "This week",
+      "monthly": "This month",
+      "all": "All time"
+    },
+    "notFound": "This ranking doesn't exist.",
+    "empty": "No ranking data yet",
+    "metrics": {
+      "views": "{n} read | {n} reads",
+      "favorites": "{n} favorite | {n} favorites",
+      "rating": "{n} / 5",
+      "chapters": "{n} chapter | {n} chapters"
+    }
+  },
+  "home": {
+    "loadFailed": "Couldn't load the home page",
+    "tryLater": "Please try again later.",
+    "more": "See more",
+    "empty": "No novels yet",
+    "sections": {
+      "featured": "Editors' picks",
+      "popular": "Popular",
+      "latest": "Recently updated",
+      "new": "New arrivals",
+      "completed": "Completed favorites"
+    }
+  },
+  "about": {
+    "title": "About",
+    "heading": "About Palimpsest",
+    "intro": "Palimpsest is a Chinese novel reading platform. Browse and search the library, find books by category and ranking, read in a reader with adjustable fonts, spacing and themes, and keep your bookshelf, reading progress and bookmarks in sync between the web and the app.",
+    "featuresTitle": "Features",
+    "features": {
+      "conversion": "Instant Traditional/Simplified Chinese conversion, plus English translation (when the translation service is enabled)",
+      "offline": "Offline reading: chapters you've read are kept on your device, so you can keep reading without a connection; progress and bookmarks sync when you're back online",
+      "community": "Reviews, chapter comments and likes to share your thoughts with other readers"
+    },
+    "seeLegal": "Please read the {terms} and {privacy} before using the service."
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "draftNotice": "This page is a draft based on the data the system currently collects and processes. It must be reviewed by legal counsel and completed with the operator's details and contact information before launch.",
+    "collected": {
+      "title": "Data we store",
+      "account": {
+        "label": "Account data: ",
+        "text": "your username, email address, nickname, bio, avatar and a hashed password (we can't see your actual password)."
+      },
+      "reading": {
+        "label": "Reading data: ",
+        "text": "your bookshelf, reading progress, reading history and time, bookmarks and reading settings, used for syncing across devices and reading statistics."
+      },
+      "community": {
+        "label": "Community content: ",
+        "text": "the reviews, comments, likes and reports you post. Reviews and comments publicly show your username, nickname and avatar, but never your email address."
+      },
+      "technical": {
+        "label": "Technical data: ",
+        "text": "to enforce rate limits, the system briefly records request counts per IP address and account (they expire after about a minute). Server logs may contain IP addresses and request paths."
+      }
+    },
+    "device": {
+      "title": "Data stored on your device",
+      "text": "The website uses cookies to keep you signed in and remember your interface language, and stores chapters you've read, your progress and bookmarks in the browser (IndexedDB) for offline reading. It also uses a service worker to cache the app's files and public pages so they open offline. The app stores this data in a local database on your device. Signing out deletes the local data that belongs to your account."
+    },
+    "thirdParty": {
+      "title": "Third-party services",
+      "text": "When you use English translation, the chapter or selected text is sent to Google Cloud Translation. When you reset your password, we send the reset link through an email service."
+    },
+    "rights": {
+      "title": "Your rights",
+      "text": "You can change your profile and reading settings and delete your bookmarks, reviews and comments at any time in Settings. To delete your account or get a copy of your data, please contact us."
+    }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "draftNotice": "This page is a draft. It must be reviewed by legal counsel and completed with the operator's details, contact information and governing law before launch.",
+    "account": {
+      "title": "Your account",
+      "text": "Please provide a valid email address when you sign up and keep your password safe. Anything done through your account is considered your own action."
+    },
+    "userContent": {
+      "title": "User content",
+      "text": "You are responsible for what you post in reviews and comments. Do not post illegal, harassing or hateful content, spam, or anything that infringes the rights of others (including copyright), and please mark spoilers.",
+      "moderation": "Other readers can report content. Moderators may hide or delete content, or suspend accounts that break these terms."
+    },
+    "copyright": {
+      "title": "Copyright",
+      "text": "Works on the platform belong to their authors or rights holders and are for personal reading only. Do not copy or distribute them without permission. Chapters downloaded for offline reading can only be read within this service."
+    },
+    "translation": {
+      "title": "Translation",
+      "text": "Traditional/Simplified conversion and machine translation are provided for reference only and may differ from the original text."
+    },
+    "limits": {
+      "title": "Usage limits",
+      "text": "To keep the service stable, the number of requests per minute is limited. Please don't use automated tools to scrape content."
+    }
+  },
+  "search": {
+    "placeholder": "Search by title or author...",
+    "hot": "Trending searches",
+    "resultCount": "{n} result | {n} results",
+    "empty": "No matching novels"
+  },
+  "category": {
+    "title": "Categories",
+    "heading": "Novel categories",
+    "empty": "No categories yet",
+    "subcategories": "Subcategories:",
+    "noNovels": "No novels yet",
+    "allStatuses": "All statuses"
+  },
+  "profile": {
+    "noBio": "No bio yet.",
+    "editProfile": "Edit profile",
+    "accountAndReading": "Account and reading settings",
+    "stats": {
+      "title": "Reading stats",
+      "last7Days": "Last 7 days",
+      "last8Weeks": "Last 8 weeks",
+      "last12Months": "Last 12 months",
+      "barTitle": "{period}: {chapters}, {words}, {time}",
+      "legend": "Bar height shows words read; the number above shows chapters read.",
+      "period": "Period",
+      "chapters": "Chapters",
+      "words": "Words",
+      "time": "Time",
+      "empty": "No reading history yet",
+      "weekOf": "Week of {date}",
+      "loadFailed": "Couldn't load reading stats"
+    },
+    "totals": {
+      "words": "Words read",
+      "time": "Reading time",
+      "chapters": "Chapters read",
+      "novels": "Novels read",
+      "bookshelf": "On bookshelf",
+      "bookmarks": "Bookmarks",
+      "reviews": "Reviews"
+    },
+    "backToProfile": "Back to profile",
+    "history": {
+      "removedNovel": "(Novel no longer available)",
+      "readFor": "Read for {time}",
+      "loadFailed": "Couldn't load your reading history"
+    },
+    "bookmarks": {
+      "empty": "No bookmarks yet. Tap the bookmark button while reading to add one.",
+      "novelFallback": "Novel",
+      "loadFailed": "Couldn't load bookmarks"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "avatar": {
+      "title": "Avatar",
+      "change": "Change avatar",
+      "hint": "JPEG, PNG, WebP or GIF, up to 2 MB",
+      "tooLarge": "The image is larger than {mb} MB. Please choose a smaller file.",
+      "updated": "Avatar updated",
+      "unreadable": "This image file couldn't be read",
+      "unsupported": "Only JPEG, PNG, WebP or GIF images are supported",
+      "storageUnavailable": "Image storage is temporarily unavailable. Please try again later.",
+      "uploadFailed": "Upload failed. Please try again later."
+    },
+    "profile": {
+      "title": "Profile",
+      "bio": "Bio",
+      "bioPlaceholder": "Tell us about yourself",
+      "language": "Interface language",
+      "save": "Save profile",
+      "nicknameMax": "Nicknames can be at most {max} characters",
+      "bioMax": "Bios can be at most {max} characters",
+      "saved": "Profile saved",
+      "invalid": "Some of the details are invalid",
+      "saveFailed": "Couldn't save. Please try again later."
+    },
+    "reading": {
+      "hint": "Changes sync to your account automatically"
+    },
+    "devices": {
+      "title": "Signed-in devices",
+      "hint": "Browsers and apps that have signed in to your account"
+    },
+    "password": {
+      "title": "Change password",
+      "current": "Current password",
+      "currentPlaceholder": "Your current password",
+      "currentRequired": "Please enter your current password",
+      "changed": "Password changed. Please log in with your new password.",
+      "wrongCurrent": "Your current password is incorrect",
+      "failed": "Couldn't change the password. Please try again later."
+    }
+  }
+}

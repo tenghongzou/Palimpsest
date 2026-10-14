@@ -1,11 +1,8 @@
 // Pure helpers for the notification center (labels, badge text, navigation).
 import type { ApiNotification, NotificationType } from '~/types/models'
 
-export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
-  chapter_update: '章節更新',
-  comment_reply: '留言回覆',
-  system: '系統公告',
-}
+/** Known types; labels are the i18n keys `notifications.types.<type>`. */
+export const NOTIFICATION_TYPES: readonly NotificationType[] = ['chapter_update', 'comment_reply', 'system']
 
 /** Minimum time between unread-count requests that are not forced. */
 export const UNREAD_REFRESH_MIN_MS = 15_000

@@ -1,7 +1,41 @@
-import { expect, type Page } from '@playwright/test'
+import { test as base, expect, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+/**
+ * Waits until the Nuxt app has hydrated (plugins/hydrated.client.ts). The UI
+ * locale's messages load first, so inputs filled right after `load` could be
+ * lost. Pages that are not the Nuxt app (e.g. the static offline page) pass.
+ */
+export async function waitForHydration(page: Page) {
+  await page.waitForFunction(() => !document.getElementById('__nuxt') || document.documentElement.dataset.hydrated === 'true')
+}
+
+/** Makes page.goto/reload also wait for hydration. */
+export function hydrateOnNavigate(page: Page): Page {
+  const goto = page.goto.bind(page)
+  page.goto = async (...args) => {
+    const response = await goto(...args)
+    await waitForHydration(page)
+    return response
+  }
+  const reload = page.reload.bind(page)
+  page.reload = async (...args) => {
+    const response = await reload(...args)
+    await waitForHydration(page)
+    return response
+  }
+  return page
+}
+
+/** Playwright's test with a page whose navigations wait for hydration. */
+export const test = base.extend({
+  page: async ({ page }, use) => {
+    await use(hydrateOnNavigate(page))
+  },
+})
+export { expect }
 
 export const AUTH_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '.auth')
 export const ADMIN_STATE = path.join(AUTH_DIR, 'admin.json')
@@ -30,6 +64,7 @@ export function uniqueSuffix(): string {
 /** Fills the login form and waits until the app has left /login. */
 export async function loginViaUi(page: Page, login: string, password: string) {
   await page.goto('/login')
+  await waitForHydration(page)
   await page.getByPlaceholder('輸入帳號或電子郵件').fill(login)
   await page.getByPlaceholder('輸入密碼').fill(password)
   await page.getByRole('button', { name: '登入' }).click()
