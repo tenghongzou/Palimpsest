@@ -135,15 +135,15 @@ async function loadProgress() {
   if (local) progress.value = local
   if (!authStore.isLoggedIn) return
   try {
-    const res = await apiFetch<ApiResponse<ApiReadingProgress>>(`/reading-progress/${novelId}`)
+    const res = await apiFetch<ApiResponse<ApiReadingProgress | null>>(`/reading-progress/${novelId}`)
     const server = res.data
-    // Last read wins, as on the server.
-    if (!local || (server.read_at && new Date(server.read_at) > new Date(local.read_at))) {
+    // null: never read this novel. Last read wins, as on the server.
+    if (server && (!local || (server.read_at && new Date(server.read_at) > new Date(local.read_at)))) {
       progress.value = server
     }
   }
   catch {
-    // 404: never read this novel.
+    // Older servers answer 404 for a novel never read; other errors keep the local copy.
   }
 }
 

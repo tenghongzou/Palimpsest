@@ -54,6 +54,36 @@ export function notificationTarget(n: Pick<ApiNotification, 'type' | 'chapter_id
   }
 }
 
+export interface NotificationText {
+  title: string
+  body: string
+}
+
+/**
+ * A notification's title and body in the UI language, built from its
+ * `params`. The server's zh-TW `title`/`body` are used when params are
+ * missing (system announcements, notifications from older servers).
+ */
+export function notificationText(
+  n: Pick<ApiNotification, 'type' | 'title' | 'body' | 'params'>,
+  { t, chapterLabel }: { t: (key: string, params?: Record<string, unknown>) => string, chapterLabel: (number: number, title: string) => string },
+): NotificationText {
+  const p = n.params ?? {}
+  const fallback = { title: n.title, body: n.body ?? '' }
+  if (n.type === 'chapter_update' && p.novel) {
+    const number = Number(p.chapter_number)
+    const chapter = p.chapter && Number.isFinite(number) && number > 0 ? chapterLabel(number, p.chapter) : p.chapter
+    return {
+      title: t('notifications.text.chapterUpdateTitle', { novel: p.novel }),
+      body: chapter ? t('notifications.text.chapterUpdateBody', { chapter }) : fallback.body,
+    }
+  }
+  if (n.type === 'comment_reply' && p.actor) {
+    return { title: t('notifications.text.replyTitle', { name: p.actor }), body: fallback.body }
+  }
+  return fallback
+}
+
 /** Merges a fetched page into a list, skipping items already shown (pages shift after deletes). */
 export function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
   const seen = new Set(current.map(i => i.id))

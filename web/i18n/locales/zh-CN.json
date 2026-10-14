@@ -630,6 +630,11 @@
     "deleted": "书评已删除"
   },
   "notifications": {
+    "text": {
+      "chapterUpdateTitle": "《{novel}》有新章节",
+      "chapterUpdateBody": "更新至：{chapter}",
+      "replyTitle": "{name} 回复了你的留言"
+    },
     "title": "通知",
     "bellAria": "通知（{n} 条未读）",
     "bellTitle": "{n} 条未读通知",
