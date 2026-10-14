@@ -72,6 +72,7 @@ Map<String, dynamic> notificationJson(
   String? commentId,
   bool read = false,
   DateTime? createdAt,
+  Map<String, String>? params,
 }) =>
     {
       'id': id,
@@ -83,6 +84,7 @@ Map<String, dynamic> notificationJson(
       if (commentId != null) 'comment_id': commentId,
       'read_at': read ? '2026-10-13T08:00:00Z' : null,
       'created_at': (createdAt ?? DateTime.now().toUtc()).toIso8601String(),
+      if (params != null) 'params': params,
     };
 
 /// A top-level comment (optionally on a paragraph) with [replies].
@@ -222,7 +224,8 @@ class FakeBackend {
         comments.add(comment);
         return FakeResponse.ok(comment, status: 201);
       })
-      ..on('GET', '/reading-progress/:id', (_) => FakeResponse.error(404, 40404, 'no progress'))
+      // Unread novel: 200 with data null (older servers answered 404).
+      ..on('GET', '/reading-progress/:id', (_) => const FakeResponse(200, {'code': 0, 'message': 'success', 'data': null}))
       ..on('PUT', '/reading-progress/:id', (r) {
         progressUpdates.add({'novel_id': r.params['id'], ...r.json});
         return FakeResponse.ok({'novel_id': r.params['id'], ...r.json});

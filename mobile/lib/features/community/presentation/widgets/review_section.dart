@@ -257,6 +257,10 @@ class _ReviewEditor extends StatefulWidget {
 
 class _ReviewEditorState extends State<_ReviewEditor> {
   final _formKey = GlobalKey<FormState>();
+
+  /// Set by the first submit: from then on, field errors update as the
+  /// user types instead of lingering until the next submit.
+  bool _submitted = false;
   late final _title = TextEditingController(text: widget.existing?.title ?? '');
   late final _content = TextEditingController(text: widget.existing?.content ?? '');
   late double _rating = widget.existing?.rating ?? 5;
@@ -274,6 +278,7 @@ class _ReviewEditorState extends State<_ReviewEditor> {
       padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
       child: Form(
         key: _formKey,
+        autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -314,6 +319,7 @@ class _ReviewEditorState extends State<_ReviewEditor> {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: () {
+                if (!_submitted) setState(() => _submitted = true);
                 if (_formKey.currentState?.validate() != true) return;
                 Navigator.pop(context, _ReviewInput(_title.text.trim(), _content.text.trim(), _rating));
               },

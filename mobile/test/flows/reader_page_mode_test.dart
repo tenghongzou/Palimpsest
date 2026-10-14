@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:palimpsest/app.dart';
 import 'package:palimpsest/features/reader/presentation/providers/reader_provider.dart';
+import 'package:palimpsest/features/reader/presentation/widgets/toc_sheet.dart';
 
 import '../support/fake_backend.dart';
 import '../support/test_app.dart';
@@ -67,5 +68,59 @@ void main() {
     expect(find.byTooltip('目錄'), findsOneWidget);
     expect(find.text(chapterTitles[0]), findsWidgets);
     await env.finish(tester);
+  });
+
+  group('toolbars follow the reading theme', () {
+    double luminance(Color? c) => c!.computeLuminance();
+
+    Color toolbarColor(WidgetTester tester, String key) => tester.widget<Material>(find.byKey(ValueKey(key))).color!;
+
+    Color iconColor(WidgetTester tester, IconData icon) => IconTheme.of(tester.element(find.byIcon(icon))).color!;
+
+    Color textColor(WidgetTester tester, Finder text) => DefaultTextStyle.of(tester.element(text)).style.color!;
+
+    for (final theme in ['dark', 'black']) {
+      testWidgets('$theme: dark toolbars with light foreground, and dark sheets', (tester) async {
+        await env.pumpApp(tester);
+        settings(tester).updateTheme(theme);
+        await env.push(tester, '/read/${chapterIds[0]}');
+        await showReaderToolbar(tester);
+
+        for (final key in ['reader-top-toolbar', 'reader-bottom-toolbar']) {
+          expect(luminance(toolbarColor(tester, key)), lessThan(0.1), reason: key);
+        }
+        expect(luminance(iconColor(tester, Icons.arrow_back)), greaterThan(0.4));
+        expect(luminance(iconColor(tester, Icons.list)), greaterThan(0.4));
+        final title = find.descendant(
+            of: find.byKey(const ValueKey('reader-top-toolbar')), matching: find.text(chapterTitles[0]));
+        expect(luminance(textColor(tester, title)), greaterThan(0.4));
+
+        // The in-toolbar settings panel is dark too.
+        await tester.tap(find.byTooltip('閱讀設定'));
+        await tester.pumpAndSettle();
+        expect(Theme.of(tester.element(find.text('字體大小'))).brightness, Brightness.dark);
+        await tester.tap(find.byTooltip('閱讀設定'));
+        await tester.pumpAndSettle();
+
+        // So are the sheets opened from the reader.
+        await tester.tap(find.byTooltip('目錄'));
+        await tester.pumpAndSettle();
+        expect(Theme.of(tester.element(find.byType(TocSheet))).brightness, Brightness.dark);
+        expect(tester.widget<BottomSheet>(find.byType(BottomSheet)).backgroundColor!.computeLuminance(), lessThan(0.1));
+        await env.finish(tester);
+      });
+    }
+
+    testWidgets('light themes keep light toolbars', (tester) async {
+      await env.pumpApp(tester);
+      settings(tester).updateTheme('sepia');
+      await env.push(tester, '/read/${chapterIds[0]}');
+      await showReaderToolbar(tester);
+      for (final key in ['reader-top-toolbar', 'reader-bottom-toolbar']) {
+        expect(luminance(toolbarColor(tester, key)), greaterThan(0.7), reason: key);
+      }
+      expect(luminance(iconColor(tester, Icons.list)), lessThan(0.3));
+      await env.finish(tester);
+    });
   });
 }

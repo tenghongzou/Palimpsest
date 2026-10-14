@@ -14,6 +14,10 @@ class ForgotPasswordPage extends ConsumerStatefulWidget {
 
 class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
+
+  /// Set by the first submit: from then on, field errors update as the
+  /// user types instead of lingering until the next submit.
+  bool _submitted = false;
   final _emailController = TextEditingController();
   bool _sending = false;
   bool _sent = false;
@@ -25,6 +29,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   }
 
   Future<void> _submit() async {
+    if (!_submitted) setState(() => _submitted = true);
     if (_formKey.currentState?.validate() != true) return;
     setState(() => _sending = true);
     try {
@@ -63,6 +68,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
               )
             : Form(
                 key: _formKey,
+                autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

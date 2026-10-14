@@ -63,11 +63,14 @@ class UserRepository {
     return Paginated.fromJson(response.data['data'] as Map<String, dynamic>, ReadingHistoryEntry.fromJson);
   }
 
-  /// The saved position in a novel, or null if never read.
+  /// The saved position in a novel, or null if never read. The server
+  /// answers `data: null` for an unread novel; older servers answered 404.
   Future<RemoteProgress?> getProgress(String novelId) async {
     try {
       final response = await _api.dio.get('/reading-progress/$novelId');
-      final data = response.data['data'] as Map<String, dynamic>;
+      final body = response.data;
+      final data = body is Map ? body['data'] : null;
+      if (data is! Map<String, dynamic>) return null;
       return RemoteProgress(
         chapterId: data['chapter_id'] as String,
         paragraphIndex: data['paragraph_index'] as int? ?? 0,

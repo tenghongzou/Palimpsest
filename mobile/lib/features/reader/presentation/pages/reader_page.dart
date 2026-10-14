@@ -431,11 +431,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   }
 
   Future<void> _showBookmarks(Chapter chapter) async {
+    final dark = _darkTheme;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (sheetContext) => FractionallySizedBox(
+      backgroundColor: dark ? AppTheme.dark.colorScheme.surfaceContainerLow : null,
+      builder: (_) => Theme(
+        data: dark ? AppTheme.dark : Theme.of(context),
+        child: Builder(builder: (sheetContext) => _bookmarksSheet(chapter, sheetContext)),
+      ),
+    );
+  }
+
+  Widget _bookmarksSheet(Chapter chapter, BuildContext sheetContext) => FractionallySizedBox(
         heightFactor: 0.7,
         child: Column(
           children: [
@@ -463,17 +472,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
 
   Future<void> _showToc(Chapter chapter) async {
-    final id = await showTocSheet(context, novelId: chapter.novelId, currentChapterId: chapter.id);
+    final id = await showTocSheet(context, novelId: chapter.novelId, currentChapterId: chapter.id, dark: _darkTheme);
     if (id != null && id != chapter.id && mounted) _openChapter(id);
   }
 
   Future<void> _showTranslate(Chapter chapter) async {
-    final translation = await showTranslateSheet(context, chapter);
+    final translation = await showTranslateSheet(context, chapter, dark: _darkTheme);
     if (translation != null && mounted) setState(() => _translation = translation);
   }
 
@@ -512,7 +519,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
 
             if (dim > 0)
               IgnorePointer(child: Container(color: Colors.black.withValues(alpha: dim))),
-            if (_showToolbar) ..._buildToolbars(chapter),
+            if (_showToolbar) ..._buildToolbars(chapter, theme),
           ],
         ),
       ),
@@ -980,28 +987,35 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     }
   }
 
-  List<Widget> _buildToolbars(Chapter chapter) {
-    final surface = Theme.of(context).colorScheme.surface;
+  /// The top and bottom toolbars, themed to match the reading theme: dark
+  /// with light foreground on the dark and black themes, light otherwise.
+  List<Widget> _buildToolbars(Chapter chapter, ReaderTheme readerTheme) {
+    final toolbarTheme = AppTheme.forReader(readerTheme);
+    final surface = toolbarTheme.colorScheme.surface;
     return [
       Positioned(
         top: 0,
         left: 0,
         right: 0,
-        child: Material(
-          color: surface,
-          elevation: 2,
-          child: SafeArea(
-            bottom: false,
-            child: Row(
-              children: [
-                IconButton(tooltip: context.l10n.commonBack, icon: const Icon(Icons.arrow_back), onPressed: () => _close(chapter)),
-                Expanded(child: Text(chapter.title, overflow: TextOverflow.ellipsis)),
-                IconButton(
-                  tooltip: context.l10n.readerAddBookmark,
-                  icon: const Icon(Icons.bookmark_add_outlined),
-                  onPressed: () => _addBookmark(chapter),
-                ),
-              ],
+        child: Theme(
+          data: toolbarTheme,
+          child: Material(
+            key: const ValueKey('reader-top-toolbar'),
+            color: surface,
+            elevation: 2,
+            child: SafeArea(
+              bottom: false,
+              child: Row(
+                children: [
+                  IconButton(tooltip: context.l10n.commonBack, icon: const Icon(Icons.arrow_back), onPressed: () => _close(chapter)),
+                  Expanded(child: Text(chapter.title, overflow: TextOverflow.ellipsis)),
+                  IconButton(
+                    tooltip: context.l10n.readerAddBookmark,
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    onPressed: () => _addBookmark(chapter),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1010,51 +1024,55 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         bottom: 0,
         left: 0,
         right: 0,
-        child: Material(
-          color: surface,
-          elevation: 8,
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: chapter.prevChapter == null ? null : () => _openChapter(chapter.prevChapter!.id),
-                      child: Text(context.l10n.readerPrevChapter),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: chapter.nextChapter == null ? null : () => _openChapter(chapter.nextChapter!.id),
-                      child: Text(context.l10n.readerNextChapter),
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(tooltip: context.l10n.readerToc, icon: const Icon(Icons.list), onPressed: () => _showToc(chapter)),
-                    IconButton(tooltip: context.l10n.bookmarks, icon: const Icon(Icons.bookmarks_outlined), onPressed: () => _showBookmarks(chapter)),
-                    IconButton(
-                      tooltip: context.l10n.readerComments,
-                      icon: const Icon(Icons.chat_bubble_outline),
-                      onPressed: () => _showComments(chapter),
-                    ),
-                    IconButton(tooltip: context.l10n.readerTranslate, icon: const Icon(Icons.translate), onPressed: () => _showTranslate(chapter)),
-                    IconButton(
-                      tooltip: context.l10n.readingSettings,
-                      icon: const Icon(Icons.settings),
-                      onPressed: () => setState(() => _showSettings = !_showSettings),
-                    ),
-                  ],
-                ),
-                if (_showSettings)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: ReadingSettingsPanel(compact: true),
+        child: Theme(
+          data: toolbarTheme,
+          child: Material(
+            key: const ValueKey('reader-bottom-toolbar'),
+            color: surface,
+            elevation: 8,
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: chapter.prevChapter == null ? null : () => _openChapter(chapter.prevChapter!.id),
+                        child: Text(context.l10n.readerPrevChapter),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: chapter.nextChapter == null ? null : () => _openChapter(chapter.nextChapter!.id),
+                        child: Text(context.l10n.readerNextChapter),
+                      ),
+                    ],
                   ),
-              ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(tooltip: context.l10n.readerToc, icon: const Icon(Icons.list), onPressed: () => _showToc(chapter)),
+                      IconButton(tooltip: context.l10n.bookmarks, icon: const Icon(Icons.bookmarks_outlined), onPressed: () => _showBookmarks(chapter)),
+                      IconButton(
+                        tooltip: context.l10n.readerComments,
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        onPressed: () => _showComments(chapter),
+                      ),
+                      IconButton(tooltip: context.l10n.readerTranslate, icon: const Icon(Icons.translate), onPressed: () => _showTranslate(chapter)),
+                      IconButton(
+                        tooltip: context.l10n.readingSettings,
+                        icon: const Icon(Icons.settings),
+                        onPressed: () => setState(() => _showSettings = !_showSettings),
+                      ),
+                    ],
+                  ),
+                  if (_showSettings)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: ReadingSettingsPanel(compact: true),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

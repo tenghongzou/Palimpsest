@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/utils/formatters.dart';
@@ -6,15 +7,19 @@ import '../providers/chapter_provider.dart';
 import '../../../../core/l10n/l10n.dart';
 
 /// Shows the table of contents; resolves to the chosen chapter id.
-Future<String?> showTocSheet(BuildContext context, {required String novelId, required String currentChapterId}) {
+/// [dark] follows the reader theme, so the sheet is not white at night.
+Future<String?> showTocSheet(BuildContext context,
+    {required String novelId, required String currentChapterId, bool dark = false}) {
+  Widget sheet(BuildContext _) => FractionallySizedBox(
+        heightFactor: 0.8,
+        child: TocSheet(novelId: novelId, currentChapterId: currentChapterId),
+      );
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => FractionallySizedBox(
-      heightFactor: 0.8,
-      child: TocSheet(novelId: novelId, currentChapterId: currentChapterId),
-    ),
+    backgroundColor: dark ? AppTheme.dark.colorScheme.surfaceContainerLow : null,
+    builder: dark ? (c) => Theme(data: AppTheme.dark, child: Builder(builder: sheet)) : sheet,
   );
 }
 

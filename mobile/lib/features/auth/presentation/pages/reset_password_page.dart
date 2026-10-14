@@ -17,6 +17,10 @@ class ResetPasswordPage extends ConsumerStatefulWidget {
 
 class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
   final _formKey = GlobalKey<FormState>();
+
+  /// Set by the first submit: from then on, field errors update as the
+  /// user types instead of lingering until the next submit.
+  bool _submitted = false;
   late final _tokenController = TextEditingController(text: widget.token ?? '');
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -31,6 +35,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
   }
 
   Future<void> _submit() async {
+    if (!_submitted) setState(() => _submitted = true);
     if (_formKey.currentState?.validate() != true) return;
     setState(() => _submitting = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -58,6 +63,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
+          autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

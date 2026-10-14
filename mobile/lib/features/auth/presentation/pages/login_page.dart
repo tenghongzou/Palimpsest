@@ -14,6 +14,10 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
+
+  /// Set by the first submit: from then on, field errors update as the
+  /// user types instead of lingering until the next submit.
+  bool _submitted = false;
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -59,6 +63,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 const SizedBox(height: 48),
                 Form(
                   key: _formKey,
+                  autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
                   child: Column(
                     children: [
                       TextFormField(
@@ -119,6 +124,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   void _handleLogin() {
+    if (!_submitted) setState(() => _submitted = true);
     if (_formKey.currentState?.validate() != true) return;
     ref.read(authStateProvider.notifier).login(
       _loginController.text,

@@ -8,6 +8,7 @@ import '../../../../core/widgets/common_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/notification_repository.dart';
 import '../../domain/entities/app_notification.dart';
+import '../notification_text.dart';
 import '../providers/notification_providers.dart';
 import '../../../../core/l10n/l10n.dart';
 
@@ -62,8 +63,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(n.title),
-        content: SingleChildScrollView(child: Text(n.body ?? '', style: const TextStyle(height: 1.6))),
+        title: Text(n.localizedTitle(context.l10n)),
+        content: SingleChildScrollView(child: Text(n.localizedBody(context.l10n) ?? '', style: const TextStyle(height: 1.6))),
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonClose))],
       ),
     );
@@ -165,6 +166,8 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = notification;
+    final title = n.localizedTitle(context.l10n);
+    final body = n.localizedBody(context.l10n);
     final scheme = Theme.of(context).colorScheme;
     final unread = !n.isRead;
     return Material(
@@ -183,15 +186,15 @@ class _NotificationTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      n.title,
+                      title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontWeight: unread ? FontWeight.bold : FontWeight.normal),
                     ),
-                    if (n.body != null) ...[
+                    if (body != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        n.body!,
+                        body,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 13, color: Colors.grey.shade700),

@@ -221,6 +221,27 @@ void main() {
 
       expect(await repo.getProgress(novelId), isNull);
     });
+
+    test('getProgress: data null means never read; 404 from older servers too', () async {
+      final repo = UserRepository(api);
+      backend.api.on('GET', '/reading-progress/:id', (_) => const FakeResponse(200, {'code': 0, 'message': 'success', 'data': null}));
+      expect(await repo.getProgress(novelId), isNull);
+
+      backend.api.on('GET', '/reading-progress/:id', (_) => FakeResponse.error(404, 40404, 'no progress'));
+      expect(await repo.getProgress(novelId), isNull);
+
+      backend.api.on('GET', '/reading-progress/:id', (_) => FakeResponse.ok({
+            'chapter_id': chapterIds[1],
+            'paragraph_index': 4,
+            'scroll_offset': 0.5,
+            'read_at': '2026-10-13T00:00:00Z',
+          }));
+      final p = await repo.getProgress(novelId);
+      expect(p?.chapterId, chapterIds[1]);
+      expect(p?.paragraphIndex, 4);
+      expect(p?.scrollOffset, 0.5);
+      expect(p?.readAt, DateTime.utc(2026, 10, 13));
+    });
   });
 
   group('ReadingSettings', () {

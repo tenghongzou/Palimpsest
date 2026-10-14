@@ -194,6 +194,10 @@ void main() {
       await env.push(tester, '/profile');
       expect(find.text('讀者一號'), findsOneWidget);
       expect(find.text('1 小時'), findsOneWidget);
+      // The chart's title does not repeat the period the dropdown shows.
+      expect(find.text('閱讀時間'), findsNWidgets(2));
+      expect(find.textContaining('閱讀時間 ·'), findsNothing);
+      expect(find.text('近 7 天'), findsOneWidget);
 
       await tester.ensureVisible(find.text('閱讀記錄'));
       await tester.pumpAndSettle();
@@ -211,6 +215,65 @@ void main() {
       await tester.tap(find.text('閱讀設定'));
       await tester.pumpAndSettle();
       expect(find.text('字體大小'), findsOneWidget);
+      await env.finish(tester);
+    });
+
+    testWidgets('login: field errors clear as the user types after a failed submit', (tester) async {
+      await start(tester, signedIn: false);
+      await env.push(tester, '/login');
+      final submit = find.widgetWithText(FilledButton, '登入');
+      await tester.tap(submit);
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入帳號或電子郵件'), findsOneWidget);
+      expect(find.text('請輸入密碼'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField).at(1), 'secret-123');
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入密碼'), findsNothing);
+      expect(find.text('請輸入帳號或電子郵件'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField).at(0), 'reader1');
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入帳號或電子郵件'), findsNothing);
+
+      // Clearing a field again brings its error back.
+      await tester.enterText(find.byType(TextFormField).at(1), '');
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入密碼'), findsOneWidget);
+      expect(env.backend.api.calls('POST', '/auth/login'), isEmpty);
+      await env.finish(tester);
+    });
+
+    testWidgets('login: no errors while typing before the first submit', (tester) async {
+      await start(tester, signedIn: false);
+      await env.push(tester, '/login');
+      await tester.enterText(find.byType(TextFormField).at(1), 'x');
+      await tester.enterText(find.byType(TextFormField).at(1), '');
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入密碼'), findsNothing);
+      await env.finish(tester);
+    });
+
+    testWidgets('register: field errors update as the user types after a failed submit', (tester) async {
+      await start(tester, signedIn: false);
+      await env.push(tester, '/register');
+      final submit = find.widgetWithText(FilledButton, '註冊');
+      await tester.ensureVisible(submit);
+      await tester.tap(submit);
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入帳號'), findsOneWidget);
+      expect(find.text('請輸入暱稱'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '讀者');
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入暱稱'), findsNothing);
+      await tester.enterText(find.byType(TextFormField).at(0), 'ab');
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入帳號'), findsNothing);
+      expect(find.text('帳號需 4-20 個字元'), findsOneWidget);
+      await tester.enterText(find.byType(TextFormField).at(0), 'abcd');
+      await tester.pumpAndSettle();
+      expect(find.text('帳號需 4-20 個字元'), findsNothing);
       await env.finish(tester);
     });
 
