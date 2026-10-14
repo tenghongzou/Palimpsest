@@ -392,7 +392,7 @@ func TestUserSettingsPasswordAndStats(t *testing.T) {
 
 	_, chapters := testutil.Novel(t, db, 1)
 	db.Create(&model.ReadingHistory{UserID: user.ID, NovelID: chapters[0].NovelID, ChapterID: chapters[0].ID, ReadAt: time.Now(), Duration: 30})
-	stats, err := svc.ReadingStats(user.ID, "daily")
+	stats, err := svc.ReadingStats(user.ID, "daily", 0)
 	if err != nil {
 		t.Fatalf("ReadingStats: %v", err)
 	}
@@ -402,8 +402,21 @@ func TestUserSettingsPasswordAndStats(t *testing.T) {
 	if b := stats.Buckets[6]; b.Chapters != 1 || b.Seconds != 30 || b.Words != int64(chapters[0].WordCount) {
 		t.Errorf("today's bucket = %+v", b)
 	}
-	if monthly, _ := svc.ReadingStats(user.ID, "monthly"); len(monthly.Buckets) != 12 {
+	if monthly, _ := svc.ReadingStats(user.ID, "monthly", 0); len(monthly.Buckets) != 12 {
 		t.Errorf("monthly buckets = %d", len(monthly.Buckets))
+	}
+
+	// Days follow the client's offset: 00:30 in UTC+8 is the previous UTC day.
+	taipei := time.FixedZone("UTC+8", 8*3600)
+	local := time.Now().In(taipei)
+	midnight := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, taipei)
+	db.Create(&model.ReadingHistory{UserID: user.ID, NovelID: chapters[0].NovelID, ChapterID: chapters[0].ID, ReadAt: midnight.Add(30 * time.Minute), Duration: 10})
+	stats, err = svc.ReadingStats(user.ID, "daily", 8*60)
+	if err != nil {
+		t.Fatalf("ReadingStats UTC+8: %v", err)
+	}
+	if b := stats.Buckets[6]; !b.Start.Equal(midnight) || b.Chapters != 2 || b.Seconds != 40 {
+		t.Errorf("UTC+8 today's bucket = %+v, want start %v with 2 chapters", b, midnight)
 	}
 }
 

@@ -23,6 +23,7 @@ import {
   type SqlDatabase,
 } from '~/utils/localDb'
 import { SQLITE_MIGRATIONS } from '~/utils/sqliteMigrations'
+import { localBookshelf } from '~/composables/useBookshelf'
 
 describe.each(SQL_BUILDS)('localDb with sql.js $name', (build) => {
   let SQL: Awaited<ReturnType<SqlBuild['open']>>
@@ -141,6 +142,26 @@ describe.each(SQL_BUILDS)('localDb with sql.js $name', (build) => {
       const items = listBookshelf(db)
       expect(items).toHaveLength(1)
       expect(items[0]).toMatchObject({ group_name: 'fav', novel: { title: '鬥破蒼穹' } })
+    })
+
+    it('shows the offline bookshelf with the last chapter read on this device', () => {
+      const novel = { id: 'n1', title: '鬥破蒼穹', author_name: '天蠶土豆' }
+      replaceBookshelf(db, [
+        { novel_id: 'n1', group_name: 'fav', added_at: '2026-10-01T00:00:00Z', novel },
+        { novel_id: 'n2', group_name: 'default', added_at: '2026-10-02T00:00:00Z', novel: { id: 'n2', title: '凡人修仙傳', author_name: '忘語' } },
+      ])
+      saveChapter(db, { ...chapter('c3'), chapter_number: 3 })
+      saveProgress(db, { novel_id: 'n1', chapter_id: 'c3', paragraph_index: 0, scroll_offset: 0, read_at: '2026-10-03T00:00:00Z' }, true)
+
+      const items = localBookshelf(db)
+      const n1 = items.find(i => i.novel_id === 'n1')
+      expect(n1).toMatchObject({
+        group_name: 'fav',
+        has_update: false,
+        novel: { title: '鬥破蒼穹' },
+        reading_progress: { chapter_id: 'c3', chapter_title: '第c3章', chapter_number: 3 },
+      })
+      expect(items.find(i => i.novel_id === 'n2')?.reading_progress).toBeNull()
     })
   })
 })

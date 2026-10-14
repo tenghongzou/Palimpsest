@@ -16,6 +16,17 @@
   --reader-text-black: #808080;
 }
 
+/* No CSS reset is loaded, so links would keep the browser's default blue
+   underline. Classes such as text-gray-500 still override the colour. */
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
   -webkit-font-smoothing: antialiased;

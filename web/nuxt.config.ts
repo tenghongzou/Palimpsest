@@ -35,6 +35,13 @@ export default defineNuxtConfig({
     },
   },
 
+  // Persisted stores (auth, reader settings) live in cookies. Without maxAge
+  // they would be session cookies and closing the browser would sign the
+  // user out; 30 days matches the refresh token's lifetime.
+  piniaPluginPersistedstate: {
+    cookieOptions: { maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' },
+  },
+
   css: ['~/assets/css/main.css'],
 
   // `text-primary` etc. follow the brand color from main.css.

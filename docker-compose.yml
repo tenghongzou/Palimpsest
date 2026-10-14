@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: palimpsest
       POSTGRES_DB: palimpsest
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -17,7 +17,7 @@ services:
     image: redis:7-alpine
     container_name: palimpsest-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
 
@@ -27,7 +27,7 @@ services:
     environment:
       MEILI_ENV: development
     ports:
-      - "7700:7700"
+      - "${MEILI_PORT:-7700}:7700"
     volumes:
       - meili_data:/meili_data
 
@@ -41,8 +41,8 @@ services:
       RUSTFS_ACCESS_KEY: minioadmin
       RUSTFS_SECRET_KEY: minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
 

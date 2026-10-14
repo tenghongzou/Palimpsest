@@ -9,6 +9,9 @@
         </n-button>
       </div>
     </div>
+    <n-alert v-if="offline" type="info" :show-icon="false" data-testid="bookshelf-offline">
+      {{ $t('bookshelf.offlineNotice') }}
+    </n-alert>
 
     <n-tabs v-if="groups.length > 1" v-model:value="activeGroup" type="line" size="small">
       <n-tab name="__all" :tab="$t('bookshelf.groupTab', { name: $t('common.all'), n: items.length })" />
@@ -64,6 +67,7 @@
                   {{ $t('bookshelf.progress', { label: chapterLabel(item.reading_progress.chapter_number ?? 0, item.reading_progress.chapter_title ?? '') }) }}
                 </div>
                 <n-progress
+                  v-if="item.reading_progress.percentage != null"
                   type="line"
                   :percentage="Math.round(item.reading_progress.percentage ?? 0)"
                   :height="6"
@@ -134,7 +138,7 @@
 
 <script setup lang="ts">
 import {
-  NSpin, NCard, NButton, NSelect, NEmpty, NTabs, NTab, NCheckbox, NPopconfirm, NTag, NProgress, NModal, NIcon, useMessage,
+  NAlert, NSpin, NCard, NButton, NSelect, NEmpty, NTabs, NTab, NCheckbox, NPopconfirm, NTag, NProgress, NModal, NIcon, useMessage,
 } from 'naive-ui'
 import { NotificationsOutline, NotificationsOffOutline } from '@vicons/ionicons5'
 
@@ -145,7 +149,7 @@ useHead({ title: () => t('header.nav.bookshelf') })
 
 const message = useMessage()
 const router = useRouter()
-const { items, loading, fetchBookshelf, removeFromBookshelf, removeMany, moveToGroup, setNotified } = useBookshelf()
+const { items, loading, offline, fetchBookshelf, removeFromBookshelf, removeMany, moveToGroup, setNotified } = useBookshelf()
 const togglingNotify = ref(new Set<string>())
 const sortBy = ref<BookshelfSort>('recent')
 const activeGroup = ref('__all')

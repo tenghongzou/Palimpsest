@@ -1,4 +1,5 @@
-import type { ApiResponse } from '~/utils/api'
+import { statusOf, type ApiResponse } from '~/utils/api'
+import { getChapter, getProgress, listBookshelf, type SqlDatabase } from '~/utils/localDb'
 import type { ApiBookshelfEntry, ApiBookshelfItemUpdate } from '~/types/models'
 
 export type BookshelfEntry = ApiBookshelfEntry
@@ -38,9 +39,35 @@ export async function optimisticUpdate<T extends object, K extends keyof T>(item
   }
 }
 
+/**
+ * The bookshelf as mirrored in the local database (useSync keeps it current),
+ * with the last chapter read on this device when it is cached.
+ */
+export function localBookshelf(db: SqlDatabase): BookshelfEntry[] {
+  return listBookshelf(db).map((item) => {
+    const progress = getProgress(db, item.novel_id)
+    const chapter = progress ? getChapter(db, progress.chapter_id) : null
+    return {
+      id: item.novel_id,
+      user_id: '',
+      novel_id: item.novel_id,
+      group_name: item.group_name,
+      added_at: item.added_at,
+      novel: item.novel as BookshelfEntry['novel'],
+      reading_progress: progress
+        ? { chapter_id: progress.chapter_id, chapter_title: chapter?.title, chapter_number: chapter?.chapter_number, read_at: progress.read_at }
+        : null,
+      has_update: false,
+    }
+  })
+}
+
 export function useBookshelf() {
   const items = ref<BookshelfEntry[]>([])
   const loading = ref(true)
+  /** True while showing the local copy because the server is unreachable. */
+  const offline = ref(false)
+  const { readDb } = useLocalDb()
 
   async function fetchBookshelf(sortBy: BookshelfSort = 'recent') {
     loading.value = true
@@ -49,6 +76,15 @@ export function useBookshelf() {
         params: { sort_by: sortBy },
       })
       items.value = res.data
+      offline.value = false
+    }
+    catch (e) {
+      // Without a response (offline), fall back to the local mirror.
+      const status = statusOf(e)
+      const local = status === undefined || status === 0 ? await readDb(localBookshelf) : null
+      if (!local) throw e
+      items.value = local
+      offline.value = true
     }
     finally {
       loading.value = false
@@ -96,5 +132,5 @@ export function useBookshelf() {
     await optimisticUpdate(item, 'is_notified', on, save)
   }
 
-  return { items, loading, fetchBookshelf, addToBookshelf, removeFromBookshelf, removeMany, moveToGroup, setNotified }
+  return { items, loading, offline, fetchBookshelf, addToBookshelf, removeFromBookshelf, removeMany, moveToGroup, setNotified }
 }

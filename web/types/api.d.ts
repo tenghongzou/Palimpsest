@@ -3372,6 +3372,12 @@ export interface operations {
             query?: {
                 /** @description daily = last 7 days, weekly = last 8 weeks, monthly = last 12 months */
                 period?: "daily" | "weekly" | "monthly";
+                /**
+                 * @description The client's UTC offset in minutes east of UTC (480 for UTC+8).
+                 *     Buckets follow the client's local days, and each `start` is the
+                 *     instant that local day, week or month began. Defaults to UTC.
+                 */
+                utc_offset?: number;
             };
             header?: never;
             path?: never;

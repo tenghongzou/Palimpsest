@@ -136,7 +136,7 @@ function bucketLabel(start: string) {
 async function loadStats() {
   loadingStats.value = true
   try {
-    const res = await apiFetch<ApiResponse<ApiReadingStats>>('/users/me/reading-stats', { params: { period: period.value } })
+    const res = await apiFetch<ApiResponse<ApiReadingStats>>('/users/me/reading-stats', { params: { period: period.value, utc_offset: -new Date().getTimezoneOffset() } })
     stats.value = res.data
   }
   catch (e) {

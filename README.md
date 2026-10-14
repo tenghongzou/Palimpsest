@@ -164,13 +164,20 @@ Palimpsest/
 | Docker / Docker Compose | 最新穩定版 |
 | Go | 1.27.1+（見 `backend/go.mod`） |
 | Node.js | 22+（pnpm 12 的最低需求） |
-| pnpm | 12.4.1（見 `web/package.json` 的 `packageManager`，可用 `corepack enable` 自動切換） |
+| pnpm | 12.4.1（見 `web/package.json` 的 `packageManager`，可用 `corepack enable` 自動切換；若 corepack 回報找不到 `bin/pnpm.cjs`，改用 `npx pnpm@12.4.1`） |
 | Flutter | 3.x（CI 使用 3.47.2） |
 
 ### 1. 啟動基礎服務
 
 ```bash
 docker-compose up -d
+```
+
+主機上的埠已被其他服務占用時，可用環境變數改對外埠（容器內不變），後端再以對應的 `DB_PORT`、`REDIS_PORT` 等連線：
+
+```bash
+POSTGRES_PORT=55432 docker compose up -d   # 另有 REDIS_PORT、MEILI_PORT、MINIO_PORT、MINIO_CONSOLE_PORT
+cd backend && DB_PORT=55432 go run ./cmd/server
 ```
 
 | 服務 | 位址 | 預設帳密 |
@@ -199,8 +206,10 @@ cd backend
 SEED_ADMIN_PASSWORD=<至少 8 碼> go run ./cmd/seed   # 管理員帳號預設為 admin
 ```
 
+搜尋索引在伺服器啟動時重建，所以第一次填入種子資料後要重新啟動 API 伺服器，範例小說才搜尋得到。
+
 > [!TIP]
-> `backend/migrations/` 是早期規劃的完整 PostgreSQL Schema，目前程式不會套用。實際使用的資料表以 Go Model 為準；`user_devices`、`translation_cache`、`search_keywords`、`admin_logs` 等尚未使用的表不會被建立。
+> `backend/migrations/` 是早期規劃的完整 PostgreSQL Schema，目前程式不會套用。實際使用的資料表以 Go Model 為準；`translation_cache`、`search_keywords`、`admin_logs` 等尚未使用的表不會被建立。
 
 Redis 或物件儲存連線失敗時，伺服器只會印出警告並繼續執行（此時沒有快取，上傳頭像與封面會回傳 503）；PostgreSQL 連線失敗則會直接結束。
 
