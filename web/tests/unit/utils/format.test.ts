@@ -65,8 +65,10 @@ describe('locale-aware formatting', () => {
     expect(novelStatus('completed', zhCN)?.label).toBe('已完结')
     expect(novelStatus('hiatus', en)?.label).toBe('On hiatus')
     expect(novelStatus('unknown', en)).toBeNull()
-    expect(formatDateTime('2026-01-05T10:03:00', 'zh-TW')).toBe('2026/01/05 10:03')
-    expect(formatDateTime('2026-01-05T10:03:00', 'en')).toBe('01/05/2026, 10:03')
+    // ICU versions differ in spacing characters and direction marks.
+    const plain = (s: string) => s.replace(/[‎‏]/g, '').replace(/\s/g, ' ')
+    expect(plain(formatDateTime('2026-01-05T10:03:00', 'zh-TW'))).toBe('2026/01/05 10:03')
+    expect(plain(formatDateTime('2026-01-05T10:03:00', 'en'))).toBe('01/05/2026, 10:03')
     expect(formatDateTime(null, 'en')).toBe('')
   })
 })
