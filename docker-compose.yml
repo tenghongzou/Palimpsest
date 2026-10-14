@@ -31,13 +31,15 @@ services:
     volumes:
       - meili_data:/meili_data
 
+  # S3-compatible object storage for avatars and covers. MinIO no longer
+  # publishes container images, so development uses RustFS, which speaks the
+  # same API; the backend still talks to it through the MinIO client.
   minio:
-    image: minio/minio:latest
+    image: rustfs/rustfs:1.0.0
     container_name: palimpsest-minio
-    command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
     ports:
       - "9000:9000"
       - "9001:9001"
