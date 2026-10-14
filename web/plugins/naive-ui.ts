@@ -10,8 +10,9 @@ export default defineNuxtPlugin((nuxtApp) => {
           .filter(Boolean)
           .map((block) => {
             const id = block.match(/cssr-id="([^"]*)"/)
+            // `children` is the CSS only; head renders the <style> tag itself.
             return {
-              'children': block + '</style>',
+              'children': block.replace(/^\s*<style[^>]*>/, ''),
               'cssr-id': id?.[1],
             }
           }),
