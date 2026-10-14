@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -10,6 +11,7 @@ import '../../../../core/network/api_error.dart';
 import '../../../../core/sync/sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/common_widgets.dart';
+import '../../../community/domain/entities/community.dart';
 import '../../../community/presentation/widgets/comments_sheet.dart';
 import '../../data/bookmark_repository.dart';
 import '../../domain/entities/chapter.dart';
@@ -27,7 +29,11 @@ class ReaderPage extends ConsumerStatefulWidget {
   /// Paragraph to open at (e.g. from a bookmark or saved progress).
   final int? initialParagraph;
 
-  const ReaderPage({super.key, required this.chapterId, this.initialParagraph});
+  /// A comment to show on open, in the chapter's comments (e.g. from a reply
+  /// notification).
+  final String? focusCommentId;
+
+  const ReaderPage({super.key, required this.chapterId, this.initialParagraph, this.focusCommentId});
 
   @override
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
@@ -57,6 +63,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   /// already sent so it cannot overwrite the next chapter's position.
   bool _leaving = false;
   Timer? _idleTimer;
+
+  /// Whether [ReaderPage.focusCommentId] was already shown.
+  bool _focusShown = false;
 
   @override
   void initState() {
@@ -123,6 +132,54 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     if (target != null && target > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToParagraph(target));
     }
+    final focus = widget.focusCommentId;
+    if (focus != null && !_focusShown) {
+      _focusShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showFocusedThread(chapter, focus);
+      });
+    }
+  }
+
+  /// Opens the comments holding [commentId] with its thread pinned: the
+  /// paragraph's comments when it is a paragraph comment, else the chapter's.
+  /// When the thread is gone or unreachable, the chapter's comments open and
+  /// say so.
+  Future<void> _showFocusedThread(Chapter chapter, String commentId) async {
+    final provider = commentThreadProvider(commentId);
+    // Keeps the fetched thread for the sheet, which shows it pinned.
+    final keepAlive = ref.listenManual(provider, (_, __) {});
+    try {
+      Comment? thread;
+      try {
+        thread = await ref.read(provider.future);
+      } catch (_) {}
+      if (!mounted) return;
+      final paragraphs = chapter.paragraphs;
+      final index = thread?.paragraphIndex;
+      if (thread != null && thread.chapterId == chapter.id && index != null && index < paragraphs.length) {
+        await showCommentsSheet(context, chapter.id,
+            paragraphIndex: index, paragraphText: paragraphs[index], focusCommentId: commentId, dark: _darkTheme);
+      } else {
+        await _showComments(chapter, focusCommentId: commentId);
+      }
+    } finally {
+      keepAlive.close();
+    }
+  }
+
+  bool get _darkTheme {
+    final settings = ref.read(readerSettingsProvider);
+    return (AppTheme.readerThemes[settings.theme] ?? AppTheme.readerThemes['white']!).isDark;
+  }
+
+  Future<void> _showComments(Chapter chapter, {String? focusCommentId}) =>
+      showCommentsSheet(context, chapter.id, focusCommentId: focusCommentId, dark: _darkTheme);
+
+  /// Comments on one paragraph (long-press on it, or its count bubble).
+  Future<void> _showParagraphComments(Chapter chapter, int index, String text) {
+    HapticFeedback.selectionClick().ignore();
+    return showCommentsSheet(context, chapter.id, paragraphIndex: index, paragraphText: text, dark: _darkTheme);
   }
 
   // ------------------------------------------------------- taps, page mode
@@ -397,6 +454,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         : translation.content.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
     final title = translation?.title ?? chapter.title;
     final subtle = TextStyle(fontSize: 12, color: theme.text.withValues(alpha: 0.6));
+    final textStyle = TextStyle(fontSize: fontSize, height: lineHeight, letterSpacing: letterSpacing, color: theme.text);
+    // Paragraph comments use the original's paragraph indexes; a translation
+    // with a different paragraph count cannot be matched up, and a chapter
+    // served from the offline cache means the server is unreachable.
+    final paragraphComments =
+        !chapter.fromCache && (translation == null || paragraphs.length == chapter.paragraphs.length);
+    final counts = paragraphComments
+        ? ref.watch(paragraphCountsProvider(chapter.id)).valueOrNull ?? const <int, int>{}
+        : const <int, int>{};
 
     return SingleChildScrollView(
       controller: _scroll,
@@ -433,23 +499,49 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
             Padding(
               key: i < _paragraphKeys.length ? _paragraphKeys[i] : null,
               padding: const EdgeInsets.only(bottom: 16),
-              child: Text(
-                '　　${paragraphs[i]}',
-                style: TextStyle(fontSize: fontSize, height: lineHeight, letterSpacing: letterSpacing, color: theme.text),
-              ),
+              child: _buildParagraph(chapter, i, paragraphs[i], textStyle, theme,
+                  count: counts[i] ?? 0, commentable: paragraphComments),
             ),
           const SizedBox(height: 40),
           _buildChapterNav(chapter, theme.text),
           const SizedBox(height: 8),
           Center(
             child: TextButton.icon(
-              onPressed: () => showCommentsSheet(context, chapter.id),
+              onPressed: () => _showComments(chapter),
               icon: Icon(Icons.chat_bubble_outline, color: theme.text, size: 18),
               label: Text('本章留言', style: TextStyle(color: theme.text)),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// A paragraph; long-press opens its comments. Commented paragraphs end
+  /// with a small count bubble that opens them too. Plain taps fall through
+  /// to the page's tap handling (toolbar, page turns).
+  Widget _buildParagraph(Chapter chapter, int index, String text, TextStyle style, ReaderTheme theme,
+      {required int count, required bool commentable}) {
+    final content = Text.rich(
+      TextSpan(children: [
+        TextSpan(text: '　　$text'),
+        if (count > 0)
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: _ParagraphCommentBubble(
+              key: ValueKey('paragraph-comments-$index'),
+              count: count,
+              color: theme.text,
+              onTap: () => _showParagraphComments(chapter, index, text),
+            ),
+          ),
+      ]),
+      style: style,
+    );
+    if (!commentable) return content;
+    return GestureDetector(
+      onLongPress: () => _showParagraphComments(chapter, index, text),
+      child: content,
     );
   }
 
@@ -531,7 +623,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
                     IconButton(
                       tooltip: '留言',
                       icon: const Icon(Icons.chat_bubble_outline),
-                      onPressed: () => showCommentsSheet(context, chapter.id),
+                      onPressed: () => _showComments(chapter),
                     ),
                     IconButton(tooltip: '翻譯', icon: const Icon(Icons.translate), onPressed: () => _showTranslate(chapter)),
                     IconButton(
@@ -552,5 +644,49 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         ),
       ),
     ];
+  }
+}
+
+/// The comment count shown at the end of a commented paragraph.
+class _ParagraphCommentBubble extends StatelessWidget {
+  final int count;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ParagraphCommentBubble({super.key, required this.count, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = color.withValues(alpha: 0.5);
+    return Semantics(
+      button: true,
+      label: '本段有 $count 則留言',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          // A slightly larger target than the bubble itself.
+          padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.chat_bubble_outline, size: 11, color: tint),
+                const SizedBox(width: 2),
+                Text(
+                  count > 99 ? '99+' : '$count',
+                  style: TextStyle(fontSize: 11, height: 1.2, letterSpacing: 0, color: tint),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

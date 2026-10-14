@@ -1,22 +1,28 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/sync/sync_service.dart';
+import '../../../devices/data/device_registration.dart';
+import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../data/auth_repository.dart';
 import '../../domain/entities/user.dart';
 
 final authStateProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
-  return AuthNotifier(
-    ref.read(authRepositoryProvider),
-    beforeLogout: () async {
-      final sync = ref.read(syncServiceProvider);
-      // Last chance to upload changes made offline; logging out must not
-      // hang on a slow network, so give up after a few seconds.
-      try {
-        await sync.pushPending().timeout(const Duration(seconds: 5));
-      } catch (_) {}
-      await (await sync.store()).clearUserData();
-    },
-  );
+  return AuthNotifier(ref.read(authRepositoryProvider), beforeLogout: () => cleanUpBeforeLogout(ref));
 });
+
+/// Runs while still signed in: uploads changes made offline, removes this
+/// device's registration, then deletes the user's local data. Logging out
+/// must not hang on a slow network, so each request gives up after a few
+/// seconds.
+Future<void> cleanUpBeforeLogout(Ref ref) async {
+  final sync = ref.read(syncServiceProvider);
+  final devices = ref.read(deviceRegistrationProvider);
+  await Future.wait([
+    sync.pushPending().timeout(const Duration(seconds: 5)).catchError((_) => 0),
+    devices.unregister().timeout(const Duration(seconds: 5)).catchError((_) => devices.forget()),
+  ]);
+  ref.read(unreadCountProvider.notifier).reset();
+  await (await sync.store()).clearUserData();
+}
 
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   final AuthRepository _repo;

@@ -9,7 +9,9 @@ import '../../features/bookstore/presentation/pages/home_page.dart';
 import '../../features/bookstore/presentation/pages/novel_detail_page.dart';
 import '../../features/bookstore/presentation/pages/novel_list_page.dart';
 import '../../features/bookstore/presentation/pages/ranking_page.dart';
+import '../../features/devices/presentation/pages/devices_page.dart';
 import '../../features/downloads/presentation/pages/downloads_page.dart';
+import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile/presentation/pages/change_password_page.dart';
 import '../../features/profile/presentation/pages/reading_history_page.dart';
 import '../../features/profile/presentation/pages/reading_settings_page.dart';
@@ -82,6 +84,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ReaderPage(
           chapterId: state.pathParameters['chapterId']!,
           initialParagraph: int.tryParse(state.uri.queryParameters['p'] ?? ''),
+          focusCommentId: state.uri.queryParameters['comment'],
         ),
       ),
       GoRoute(
@@ -110,6 +113,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProfilePage(),
       ),
       GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        builder: (context, state) => const NotificationsPage(),
+      ),
+      GoRoute(
         path: '/history',
         name: 'history',
         builder: (context, state) => const ReadingHistoryPage(),
@@ -128,6 +136,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'reading',
             name: 'reading-settings',
             builder: (context, state) => const ReadingSettingsPage(),
+          ),
+          GoRoute(
+            path: 'devices',
+            name: 'devices',
+            builder: (context, state) => const DevicesPage(),
           ),
         ],
       ),

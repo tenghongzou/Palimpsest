@@ -66,4 +66,17 @@ void main() {
       expect(chapter.nextChapterId, 'c-006');
     });
   });
+
+  test('paragraph indexes: split on line breaks, trimmed, blank lines skipped', () {
+    // The rule shared by the reader, bookmarks, reading progress and
+    // paragraph comments (web: utils/text.ts splitParagraphs).
+    const chapter = Chapter(
+      id: 'c',
+      novelId: 'n',
+      title: 't',
+      content: '\n  第一段。  \r\n\r\n　　第二段。\n \n第三段。\n',
+      chapterNumber: 1,
+    );
+    expect(chapter.paragraphs, ['第一段。', '第二段。', '第三段。']);
+  });
 }

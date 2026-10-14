@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/pagination/paged_notifier.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -10,26 +11,82 @@ import '../../data/community_repository.dart';
 import '../../domain/entities/community.dart';
 import 'report_dialog.dart';
 
+/// Which comments a sheet lists: a chapter's, or one paragraph's.
+typedef CommentsQuery = ({String chapterId, int? paragraph});
+
 final commentsProvider = StateNotifierProvider.autoDispose
-    .family<PagedNotifier<Comment>, PagedState<Comment>, String>((ref, chapterId) {
+    .family<PagedNotifier<Comment>, PagedState<Comment>, CommentsQuery>((ref, query) {
   final repo = ref.read(communityRepositoryProvider);
-  return PagedNotifier((page) => repo.getComments(chapterId, page: page));
+  return PagedNotifier((page) => repo.getComments(query.chapterId, page: page, paragraphIndex: query.paragraph));
 });
 
-Future<void> showCommentsSheet(BuildContext context, String chapterId) {
+/// Top-level comment count per paragraph of a chapter. Failures (e.g.
+/// offline) give no counts, so the reader simply shows no bubbles.
+final paragraphCountsProvider = FutureProvider.autoDispose.family<Map<int, int>, String>((ref, chapterId) async {
+  try {
+    return await ref.read(communityRepositoryProvider).getParagraphCounts(chapterId);
+  } catch (_) {
+    return const {};
+  }
+});
+
+/// The thread holding a comment id, or null when it no longer exists (404).
+/// Other failures (e.g. offline) are errors.
+final commentThreadProvider = FutureProvider.autoDispose.family<Comment?, String>((ref, commentId) async {
+  try {
+    return await ref.read(communityRepositoryProvider).getCommentThread(commentId);
+  } catch (e) {
+    if (httpStatus(e) == 404) return null;
+    rethrow;
+  }
+});
+
+/// Opens the comments of a chapter or, with [paragraphIndex], of one of its
+/// paragraphs. [focusCommentId] (a thread or reply) is pinned at the top,
+/// e.g. when opened from a reply notification. [dark] follows the reader theme.
+Future<void> showCommentsSheet(
+  BuildContext context,
+  String chapterId, {
+  int? paragraphIndex,
+  String? paragraphText,
+  String? focusCommentId,
+  bool dark = false,
+}) {
+  Widget sheet(BuildContext _) => FractionallySizedBox(
+        heightFactor: paragraphIndex == null ? 0.85 : 0.7,
+        child: CommentsSheet(
+          chapterId: chapterId,
+          paragraphIndex: paragraphIndex,
+          paragraphText: paragraphText,
+          focusCommentId: focusCommentId,
+        ),
+      );
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => FractionallySizedBox(heightFactor: 0.85, child: CommentsSheet(chapterId: chapterId)),
+    backgroundColor: dark ? AppTheme.dark.colorScheme.surfaceContainerLow : null,
+    builder: dark ? (c) => Theme(data: AppTheme.dark, child: Builder(builder: sheet)) : sheet,
   );
 }
 
-/// Chapter comments: list with replies, post, reply, like, delete and report.
+/// Chapter or paragraph comments: list with replies, post, reply, like,
+/// delete and report.
 class CommentsSheet extends ConsumerStatefulWidget {
   final String chapterId;
 
-  const CommentsSheet({super.key, required this.chapterId});
+  /// Only this paragraph's comments; new comments are posted on it.
+  final int? paragraphIndex;
+  final String? paragraphText;
+  final String? focusCommentId;
+
+  const CommentsSheet({
+    super.key,
+    required this.chapterId,
+    this.paragraphIndex,
+    this.paragraphText,
+    this.focusCommentId,
+  });
 
   @override
   ConsumerState<CommentsSheet> createState() => _CommentsSheetState();
@@ -39,6 +96,8 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   final _input = TextEditingController();
   Comment? _replyTo;
   bool _posting = false;
+
+  CommentsQuery get _query => (chapterId: widget.chapterId, paragraph: widget.paragraphIndex);
 
   @override
   void dispose() {
@@ -54,15 +113,32 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     return false;
   }
 
+  /// Paragraph bubbles count top-level comments, so refresh them after a change.
+  void _countsChanged() => ref.invalidate(paragraphCountsProvider(widget.chapterId));
+
+  /// Re-reads the pinned thread after a change to it.
+  void _threadChanged() {
+    final id = widget.focusCommentId;
+    if (id != null) ref.invalidate(commentThreadProvider(id));
+  }
+
   Future<void> _post() async {
     final text = _input.text.trim();
     if (text.isEmpty || !_requireLogin()) return;
     setState(() => _posting = true);
     try {
-      await ref.read(communityRepositoryProvider).createComment(widget.chapterId, text, parentId: _replyTo?.id);
+      final parent = _replyTo;
+      await ref.read(communityRepositoryProvider).createComment(
+            widget.chapterId,
+            text,
+            parentId: parent?.id,
+            paragraphIndex: parent == null ? widget.paragraphIndex : null,
+          );
       _input.clear();
-      setState(() => _replyTo = null);
-      await ref.read(commentsProvider(widget.chapterId).notifier).refresh();
+      if (mounted) setState(() => _replyTo = null);
+      if (parent == null) _countsChanged();
+      _threadChanged();
+      await ref.read(commentsProvider(_query).notifier).refresh();
     } catch (e) {
       if (mounted) showSnack(context, '留言失敗：${describeError(e)}');
     } finally {
@@ -77,7 +153,8 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       Comment apply(Comment x) => x.id == c.id
           ? x.copyWith(likedByMe: result.liked, likeCount: result.likeCount)
           : x.copyWith(replies: x.replies.map(apply).toList());
-      ref.read(commentsProvider(widget.chapterId).notifier).updateItems((items) => items.map(apply).toList());
+      ref.read(commentsProvider(_query).notifier).updateItems((items) => items.map(apply).toList());
+      _threadChanged();
     } catch (e) {
       if (mounted) showSnack(context, describeError(e));
     }
@@ -86,17 +163,79 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   Future<void> _delete(Comment c) async {
     try {
       await ref.read(communityRepositoryProvider).deleteComment(c.id);
-      await ref.read(commentsProvider(widget.chapterId).notifier).refresh();
+      if (c.parentId == null) _countsChanged();
+      _threadChanged();
+      await ref.read(commentsProvider(_query).notifier).refresh();
     } catch (e) {
       if (mounted) showSnack(context, describeError(e));
     }
   }
 
+  Widget _thread(Comment c, String? userId) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CommentTile(
+            comment: c,
+            isMine: c.userId == userId,
+            paragraphLabel: widget.paragraphIndex == null && c.paragraphIndex != null
+                ? '第 ${c.paragraphIndex! + 1} 段'
+                : null,
+            onLike: () => _toggleLike(c),
+            onReply: () => setState(() => _replyTo = c),
+            onDelete: () => _delete(c),
+            onReport: () => showReportDialog(context, ref, targetType: 'comment', targetId: c.id),
+          ),
+          ...c.replies.map((r) => Padding(
+                padding: const EdgeInsets.only(left: 40),
+                child: _CommentTile(
+                  comment: r,
+                  isMine: r.userId == userId,
+                  onLike: () => _toggleLike(r),
+                  onReply: () => setState(() => _replyTo = c),
+                  onDelete: () => _delete(r),
+                  onReport: () => showReportDialog(context, ref, targetType: 'comment', targetId: r.id),
+                ),
+              )),
+        ],
+      );
+
+  /// The focused thread (GET /comments/{id}) pinned above the list.
+  Widget? _focusHeader(String? userId) {
+    final id = widget.focusCommentId;
+    if (id == null) return null;
+    final result = ref.watch(commentThreadProvider(id));
+    final subtle = TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant);
+    // Still loading, or unreachable (the list below shows the error).
+    if (!result.hasValue) return null;
+    final thread = result.value;
+    if (thread == null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: Text('找不到這則留言，可能已被刪除', style: subtle),
+      );
+    }
+    return Container(
+      key: const ValueKey('focused-thread'),
+      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('你收到回覆的留言', style: subtle)),
+          _thread(thread, userId),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(commentsProvider(widget.chapterId));
-    final notifier = ref.read(commentsProvider(widget.chapterId).notifier);
+    final state = ref.watch(commentsProvider(_query));
+    final notifier = ref.read(commentsProvider(_query).notifier);
     final userId = ref.watch(authStateProvider).valueOrNull?.id;
+    final paragraph = widget.paragraphIndex;
+    final quote = widget.paragraphText;
+    final scheme = Theme.of(context).colorScheme;
 
     return Column(
       children: [
@@ -104,49 +243,43 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
           child: Row(
             children: [
-              Text('本章留言', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text(paragraph == null ? '本章留言' : '第 ${paragraph + 1} 段的留言',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const Spacer(),
-              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              IconButton(tooltip: '關閉', icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
             ],
           ),
         ),
+        if (paragraph != null && quote != null && quote.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.only(left: 10),
+            decoration: BoxDecoration(border: Border(left: BorderSide(color: scheme.outlineVariant, width: 3))),
+            child: Text(
+              quote,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            ),
+          ),
         const Divider(height: 1),
         Expanded(
           child: PagedListView<Comment>(
             state: state,
             onLoadMore: notifier.loadMore,
             onRefresh: notifier.refresh,
-            empty: const Text('還沒有留言，來搶頭香吧'),
+            header: _focusHeader(userId),
+            empty: Text(paragraph == null ? '還沒有留言，來搶頭香吧' : '這一段還沒有留言，寫下第一則吧'),
             itemBuilder: (context, c, _) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _CommentTile(
-                  comment: c,
-                  isMine: c.userId == userId,
-                  onLike: () => _toggleLike(c),
-                  onReply: () => setState(() => _replyTo = c),
-                  onDelete: () => _delete(c),
-                  onReport: () => showReportDialog(context, ref, targetType: 'comment', targetId: c.id),
-                ),
-                ...c.replies.map((r) => Padding(
-                      padding: const EdgeInsets.only(left: 40),
-                      child: _CommentTile(
-                        comment: r,
-                        isMine: r.userId == userId,
-                        onLike: () => _toggleLike(r),
-                        onReply: () => setState(() => _replyTo = c),
-                        onDelete: () => _delete(r),
-                        onReport: () => showReportDialog(context, ref, targetType: 'comment', targetId: r.id),
-                      ),
-                    )),
-                const Divider(height: 1),
-              ],
+              children: [_thread(c, userId), const Divider(height: 1)],
             ),
           ),
         ),
         if (_replyTo != null)
           Container(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            color: scheme.surfaceContainerHighest,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
@@ -167,10 +300,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                     maxLength: 2000,
                     minLines: 1,
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: '寫下你的想法…',
+                    decoration: InputDecoration(
+                      hintText: paragraph == null || _replyTo != null ? '寫下你的想法…' : '對這一段有什麼想法？',
                       counterText: '',
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
@@ -194,6 +327,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
 class _CommentTile extends StatelessWidget {
   final Comment comment;
   final bool isMine;
+
+  /// e.g. "第 3 段" for a paragraph comment shown among the chapter's.
+  final String? paragraphLabel;
   final VoidCallback onLike;
   final VoidCallback onReply;
   final VoidCallback onDelete;
@@ -202,6 +338,7 @@ class _CommentTile extends StatelessWidget {
   const _CommentTile({
     required this.comment,
     required this.isMine,
+    this.paragraphLabel,
     required this.onLike,
     required this.onReply,
     required this.onDelete,
@@ -223,7 +360,10 @@ class _CommentTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$name · ${formatRelative(comment.createdAt)}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(
+                  [name, formatRelative(comment.createdAt), if (paragraphLabel != null) paragraphLabel!].join(' · '),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
                 const SizedBox(height: 2),
                 Text(comment.content),
                 Row(

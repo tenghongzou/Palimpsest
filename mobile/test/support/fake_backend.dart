@@ -62,6 +62,53 @@ Map<String, dynamic> userJson() => {
       'total_read_seconds': 3600,
     };
 
+/// A `Notification` as the API returns it.
+Map<String, dynamic> notificationJson(
+  String id, {
+  String type = 'system',
+  String title = '系統公告',
+  String? body,
+  String? chapterId,
+  String? commentId,
+  bool read = false,
+  DateTime? createdAt,
+}) =>
+    {
+      'id': id,
+      'type': type,
+      'title': title,
+      if (body != null) 'body': body,
+      if (chapterId != null) 'novel_id': novelId,
+      if (chapterId != null) 'chapter_id': chapterId,
+      if (commentId != null) 'comment_id': commentId,
+      'read_at': read ? '2026-10-13T08:00:00Z' : null,
+      'created_at': (createdAt ?? DateTime.now().toUtc()).toIso8601String(),
+    };
+
+/// A top-level comment (optionally on a paragraph) with [replies].
+Map<String, dynamic> commentJson(
+  String id,
+  String content, {
+  String chapterId = '',
+  int? paragraphIndex,
+  String? parentId,
+  String user = userId,
+  List<Map<String, dynamic>> replies = const [],
+}) =>
+    {
+      'id': id,
+      'user_id': user,
+      'chapter_id': chapterId.isEmpty ? chapterIds[0] : chapterId,
+      if (parentId != null) 'parent_id': parentId,
+      'content': content,
+      if (paragraphIndex != null) 'paragraph_index': paragraphIndex,
+      'like_count': 0,
+      'liked_by_me': false,
+      'user': {'id': user, 'username': 'reader1', 'nickname': user == userId ? '讀者一號' : '路人'},
+      'replies': replies,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    };
+
 Map<String, dynamic> page(List<Object?> items, {int page = 1, int totalPages = 1}) => {
       'items': items,
       'pagination': {'page': page, 'page_size': 20, 'total': items.length, 'total_pages': totalPages},
@@ -75,8 +122,22 @@ class FakeBackend {
   final List<Map<String, dynamic>> progressUpdates = [];
   final Set<String> bookshelf = {};
 
+  /// Bookshelf novels with update notifications turned off.
+  final Set<String> bookshelfMuted = {};
+
+  /// Newest first, like the server.
+  final List<Map<String, dynamic>> notifications = [];
+
+  /// Registered devices by record id.
+  final Map<String, Map<String, dynamic>> devices = {};
+
   /// Set to make POST /bookshelf fail with this status.
   int? bookshelfFailure;
+
+  /// Set to make PATCH /bookshelf/{id} fail with this status.
+  int? bookshelfPatchFailure;
+
+  int _deviceSeq = 0;
 
   FakeBackend() {
     api
@@ -110,15 +171,42 @@ class FakeBackend {
           ]))
       ..on('GET', '/rankings/:type', (r) => FakeResponse.ok(page([novelJson()])))
       ..on('GET', '/novels/:id/reviews', (_) => FakeResponse.ok(page([])))
-      ..on('GET', '/chapters/:id/comments', (r) => FakeResponse.ok(page(
-            comments.where((c) => c['chapter_id'] == r.params['id']).toList(),
-          )))
+      ..on('GET', '/chapters/:id/comments', (r) {
+        final paragraph = r.query['paragraph_index'];
+        return FakeResponse.ok(page(comments
+            .where((c) => c['chapter_id'] == r.params['id'])
+            .where((c) => paragraph == null || c['paragraph_index'] == paragraph)
+            .toList()));
+      })
+      ..on('GET', '/chapters/:id/comments/paragraph-counts', (r) {
+        final counts = <int, int>{};
+        for (final c in comments) {
+          final i = c['paragraph_index'];
+          if (c['chapter_id'] == r.params['id'] && c['parent_id'] == null && i is int) {
+            counts[i] = (counts[i] ?? 0) + 1;
+          }
+        }
+        final keys = counts.keys.toList()..sort();
+        return FakeResponse.ok([
+          for (final k in keys) {'paragraph_index': k, 'count': counts[k]},
+        ]);
+      })
+      ..on('GET', '/comments/:id', (r) {
+        final id = r.params['id'];
+        for (final c in comments) {
+          final replies = (c['replies'] as List? ?? const []).cast<Map<String, dynamic>>();
+          if (c['id'] == id || replies.any((x) => x['id'] == id)) return FakeResponse.ok(c);
+        }
+        return FakeResponse.error(404, 40405, 'comment not found');
+      })
       ..on('POST', '/chapters/:id/comments', (r) {
         final comment = {
           'id': 'c0mment0-0000-4000-8000-00000000000${comments.length}',
           'user_id': userId,
           'chapter_id': r.params['id'],
           'content': r.json['content'],
+          if (r.json['paragraph_index'] != null) 'paragraph_index': r.json['paragraph_index'],
+          if (r.json['parent_id'] != null) 'parent_id': r.json['parent_id'],
           'like_count': 0,
           'liked_by_me': false,
           'user': {'id': userId, 'username': 'reader1', 'nickname': '讀者一號'},
@@ -154,6 +242,7 @@ class FakeBackend {
                 'id': 'shelf-$id',
                 'novel_id': id,
                 'group_name': 'default',
+                'is_notified': !bookshelfMuted.contains(id),
                 'novel': novelJson(),
                 'reading_progress': null,
                 'has_update': false,
@@ -165,6 +254,78 @@ class FakeBackend {
         bookshelf.add(r.json['novel_id'] as String);
         return FakeResponse.ok({'id': 'shelf', 'novel_id': r.json['novel_id']}, status: 201);
       })
+      ..on('PATCH', '/bookshelf/:id', (r) {
+        final failure = bookshelfPatchFailure;
+        if (failure != null) return FakeResponse.error(failure, 50001, 'boom');
+        final id = r.params['id']!;
+        if (!bookshelf.contains(id)) return FakeResponse.error(404, 40401, 'not on bookshelf');
+        final notified = r.json['is_notified'];
+        if (notified == true) bookshelfMuted.remove(id);
+        if (notified == false) bookshelfMuted.add(id);
+        return FakeResponse.ok(r.json);
+      })
+      ..on('GET', '/notifications', (r) {
+        final unreadOnly = r.query['unread_only'] == true || r.query['unread_only'] == 'true';
+        final size = r.query['page_size'] as int? ?? 20;
+        final number = r.query['page'] as int? ?? 1;
+        final all = notifications.where((n) => !unreadOnly || n['read_at'] == null).toList();
+        final pages = all.isEmpty ? 1 : (all.length + size - 1) ~/ size;
+        final items = all.skip((number - 1) * size).take(size).toList();
+        return FakeResponse.ok({
+          'items': items,
+          'pagination': {'page': number, 'page_size': size, 'total': all.length, 'total_pages': pages},
+        });
+      })
+      ..on('GET', '/notifications/unread-count', (_) =>
+          FakeResponse.ok({'count': notifications.where((n) => n['read_at'] == null).length}))
+      ..on('PUT', '/notifications/read-all', (_) {
+        var updated = 0;
+        for (final n in notifications) {
+          if (n['read_at'] == null) {
+            n['read_at'] = DateTime.now().toUtc().toIso8601String();
+            updated++;
+          }
+        }
+        return FakeResponse.ok({'updated': updated});
+      })
+      ..on('PUT', '/notifications/:id/read', (r) {
+        final n = notifications.where((n) => n['id'] == r.params['id']).firstOrNull;
+        if (n == null) return FakeResponse.error(404, 40410, 'notification not found');
+        n['read_at'] ??= DateTime.now().toUtc().toIso8601String();
+        return FakeResponse.ok(null);
+      })
+      ..on('DELETE', '/notifications/:id', (r) {
+        final before = notifications.length;
+        notifications.removeWhere((n) => n['id'] == r.params['id']);
+        return before == notifications.length
+            ? FakeResponse.error(404, 40410, 'notification not found')
+            : FakeResponse.ok(null);
+      })
+      ..on('GET', '/users/me/devices', (_) => FakeResponse.ok(devices.values.toList()))
+      ..on('POST', '/users/me/devices', (r) {
+        final existing = devices.values.where((d) => d['device_id'] == r.json['device_id']).firstOrNull;
+        final now = DateTime.now().toUtc().toIso8601String();
+        final device = {
+          'id': existing?['id'] ?? 'dev1ce00-0000-4000-8000-00000000000${_deviceSeq++}',
+          'device_id': r.json['device_id'],
+          'device_type': r.json['device_type'],
+          if (r.json['device_name'] != null) 'device_name': r.json['device_name'],
+          'last_active_at': now,
+          'created_at': existing?['created_at'] ?? now,
+        };
+        devices[device['id'] as String] = device;
+        return FakeResponse.ok(device);
+      })
+      ..on('DELETE', '/users/me/devices/:id', (r) => devices.remove(r.params['id']) == null
+          ? FakeResponse.error(404, 40411, 'device not found')
+          : FakeResponse.ok(null))
+      ..on('POST', '/auth/login', (r) => FakeResponse.ok({
+            'access_token': 'login-access',
+            'refresh_token': 'login-refresh',
+            'expires_in': 86400,
+            'user': userJson(),
+          }))
+      ..on('POST', '/auth/logout', (_) => FakeResponse.ok(null))
       ..on('POST', '/translation/chapter', (r) => r.json['target_lang'] == 'en'
           ? FakeResponse.error(503, 50301, 'machine translation is not available')
           : FakeResponse.ok({
