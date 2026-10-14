@@ -90,6 +90,7 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 	v1.GET("/chapters/:chapterId", h.Novel.GetChapter)
 	v1.GET("/chapters/:chapterId/comments", optionalAuth, h.Community.ListComments)
 	v1.GET("/chapters/:chapterId/comments/paragraph-counts", h.Community.ParagraphCounts)
+	v1.GET("/comments/:commentId", optionalAuth, h.Community.GetThread)
 	v1.GET("/categories", h.Novel.ListCategories)
 	v1.GET("/search/novels", searchLimit, h.Search.SearchNovels)
 	v1.GET("/search/suggestions", h.Search.Suggestions)

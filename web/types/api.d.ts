@@ -311,7 +311,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * The thread containing a comment
+         * @description Returns the thread's top-level comment with its replies, whether the id
+         *     is the top-level comment or one of the replies (e.g. `comment_id` of a
+         *     `comment_reply` notification). With a bearer token, `liked_by_me`
+         *     marks comments the caller liked.
+         */
+        get: operations["getCommentThread"];
         put?: never;
         post?: never;
         /** Delete your comment and its replies (admins may delete any) */
@@ -2585,6 +2592,32 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getCommentThread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thread */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Comment"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };

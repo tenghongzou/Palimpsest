@@ -81,6 +81,20 @@ func (h *CommunityHandler) DeleteReview(c *gin.Context) {
 
 // ----------------------------------------------------------------- comments
 
+// GetThread returns the comment thread containing a comment.
+func (h *CommunityHandler) GetThread(c *gin.Context) {
+	id, ok := pathUUID(c, "commentId")
+	if !ok {
+		return
+	}
+	thread, err := h.communitySvc.GetThread(id, viewer(c))
+	if err != nil {
+		serviceError(c, err, 40405, "comment not found")
+		return
+	}
+	c.JSON(http.StatusOK, model.SuccessResponse(thread))
+}
+
 // ParagraphCounts returns how many comments each paragraph of a chapter has.
 func (h *CommunityHandler) ParagraphCounts(c *gin.Context) {
 	chapterID, ok := pathUUID(c, "chapterId")

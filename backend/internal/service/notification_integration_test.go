@@ -44,6 +44,15 @@ func TestReplyNotificationsAndParagraphCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Any comment of a thread leads to the whole thread.
+	got, err := svc.GetThread(reply.ID, &alice.ID)
+	if err != nil || got.ID != thread.ID || len(got.Replies) != 2 || *got.ParagraphIndex != p2 {
+		t.Errorf("GetThread = %+v, %v", got, err)
+	}
+	if _, err := svc.GetThread(uuid.New(), nil); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetThread unknown: err = %v", err)
+	}
+
 	counts, err := svc.ParagraphCounts(ch)
 	if err != nil {
 		t.Fatalf("ParagraphCounts: %v", err)

@@ -241,16 +241,53 @@ func (s *CommunityService) ListComments(chapterID uuid.UUID, viewer *uuid.UUID, 
 	if sortBy == "popular" {
 		order = "like_count DESC, created_at DESC"
 	}
-	err := withAuthor(q).
-		Preload("Replies", func(db *gorm.DB) *gorm.DB {
-			return db.Where("status = ?", StatusApproved).Order("created_at ASC")
-		}).
-		Preload("Replies.User").
+	err := withReplies(withAuthor(q)).
 		Order(order).Offset(offset(page, pageSize)).Limit(pageSize).Find(&comments).Error
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := s.markLiked(viewer, comments); err != nil {
+		return nil, 0, err
+	}
+	return comments, total, nil
+}
 
+func withReplies(db *gorm.DB) *gorm.DB {
+	return db.Preload("Replies", func(db *gorm.DB) *gorm.DB {
+		return db.Where("status = ?", StatusApproved).Order("created_at ASC")
+	}).Preload("Replies.User")
+}
+
+// GetThread returns the thread a comment belongs to: its top-level comment
+// with all replies.
+func (s *CommunityService) GetThread(id uuid.UUID, viewer *uuid.UUID) (*model.Comment, error) {
+	var c model.Comment
+	err := s.db.Select("id", "parent_id").First(&c, "id = ? AND status = ?", id, StatusApproved).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	root := c.ID
+	if c.ParentID != nil {
+		root = *c.ParentID
+	}
+	threads := []model.Comment{}
+	if err := withReplies(withAuthor(s.db)).Where("id = ? AND status = ?", root, StatusApproved).Find(&threads).Error; err != nil {
+		return nil, err
+	}
+	if len(threads) == 0 {
+		return nil, ErrNotFound
+	}
+	if err := s.markLiked(viewer, threads); err != nil {
+		return nil, err
+	}
+	return &threads[0], nil
+}
+
+// markLiked fills liked_by_me on comments and their replies.
+func (s *CommunityService) markLiked(viewer *uuid.UUID, comments []model.Comment) error {
 	var ids []uuid.UUID
 	for _, c := range comments {
 		ids = append(ids, c.ID)
@@ -260,7 +297,7 @@ func (s *CommunityService) ListComments(chapterID uuid.UUID, viewer *uuid.UUID, 
 	}
 	liked, err := s.likedSet(viewer, model.LikeTargetComment, ids)
 	if err != nil {
-		return nil, 0, err
+		return err
 	}
 	for i := range comments {
 		comments[i].LikedByMe = liked[comments[i].ID]
@@ -268,7 +305,7 @@ func (s *CommunityService) ListComments(chapterID uuid.UUID, viewer *uuid.UUID, 
 			comments[i].Replies[j].LikedByMe = liked[comments[i].Replies[j].ID]
 		}
 	}
-	return comments, total, nil
+	return nil
 }
 
 // ParagraphCount is how many top-level comments a paragraph has.

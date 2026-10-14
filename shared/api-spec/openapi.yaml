@@ -518,6 +518,34 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /comments/{commentId}:
+    get:
+      tags: [community]
+      operationId: getCommentThread
+      summary: The thread containing a comment
+      description: |
+        Returns the thread's top-level comment with its replies, whether the id
+        is the top-level comment or one of the replies (e.g. `comment_id` of a
+        `comment_reply` notification). With a bearer token, `liked_by_me`
+        marks comments the caller liked.
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Thread
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Comment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [community]
       operationId: deleteComment
