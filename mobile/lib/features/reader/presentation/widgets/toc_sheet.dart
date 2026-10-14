@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_error.dart';
+import '../../../../core/utils/formatters.dart';
 import '../providers/chapter_provider.dart';
 
 /// Shows the table of contents; resolves to the chosen chapter id.
@@ -62,7 +63,7 @@ class TocSheet extends ConsumerWidget {
                   return ListTile(
                     dense: true,
                     selected: selected,
-                    title: Text('第${c.chapterNumber}章 ${c.title}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                    title: Text(chapterLabel(c.chapterNumber, c.title), maxLines: 1, overflow: TextOverflow.ellipsis),
                     trailing: c.isDownloaded ? const Icon(Icons.download_done, size: 16, color: Colors.green) : null,
                     onTap: () => Navigator.pop(context, c.id),
                   );

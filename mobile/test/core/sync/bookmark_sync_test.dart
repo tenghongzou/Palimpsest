@@ -5,6 +5,7 @@ import 'package:palimpsest/core/sync/sync_service.dart';
 import 'package:palimpsest/core/utils/uuid.dart';
 import 'package:palimpsest/features/reader/data/bookmark_repository.dart';
 import 'package:palimpsest/features/reader/domain/entities/bookmark.dart';
+import 'package:palimpsest/features/reader/domain/entities/chapter.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../support/fake_backend.dart';
@@ -173,5 +174,22 @@ void main() {
       expect(await sync.pushPending(), 1);
       expect(sent, 1);
     });
+  });
+
+  test('clearUserData removes personal data but keeps downloaded chapters', () async {
+    await store.saveChapter(
+      Chapter(id: chapterIds[0], novelId: novelId, title: 't', content: 'c', chapterNumber: 1, wordCount: 1),
+      downloaded: true,
+    );
+    await store.insertBookmark(bookmark('b1'));
+    await store.saveProgress(novelId: novelId, chapterId: chapterIds[0], scrollOffset: 0.5, readAt: DateTime.utc(2026, 10, 14));
+    await store.enqueue('update', 'progress', novelId, {'chapter_id': chapterIds[0]});
+
+    await store.clearUserData();
+
+    expect(await store.bookmarks(), isEmpty);
+    expect(await store.getProgress(novelId), isNull);
+    expect(await store.pendingQueue(), isEmpty);
+    expect(await store.getChapter(chapterIds[0]), isNotNull);
   });
 }

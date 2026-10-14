@@ -141,7 +141,8 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
                 runSpacing: 4,
                 children: [
                   ...novel.categories.map((c) => Chip(label: Text(c, style: const TextStyle(fontSize: 12)), padding: EdgeInsets.zero, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap)),
-                  ...novel.tags.map((t) => Chip(label: Text(t, style: const TextStyle(fontSize: 12)), padding: EdgeInsets.zero, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap)),
+                  // A tag named like one of the categories would only repeat it.
+                  ...novel.tags.where((t) => !novel.categories.contains(t)).map((t) => Chip(label: Text(t, style: const TextStyle(fontSize: 12)), padding: EdgeInsets.zero, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap)),
                 ],
               ),
             ],
@@ -232,7 +233,7 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
             return Column(
               children: [
                 ...shown.map((ch) => ListTile(
-                      title: Text('第${ch.chapterNumber}章 ${ch.title}', style: const TextStyle(fontSize: 14)),
+                      title: Text(chapterLabel(ch.chapterNumber, ch.title), style: const TextStyle(fontSize: 14)),
                       trailing: Text('${ch.wordCount}字', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                       dense: true,
                       onTap: () => _read('/read/${ch.id}'),

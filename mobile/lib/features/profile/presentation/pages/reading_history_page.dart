@@ -32,7 +32,7 @@ class ReadingHistoryPage extends ConsumerWidget {
                 empty: const Text('還沒有閱讀記錄'),
                 itemBuilder: (context, entry, _) {
                   final chapter = entry.chapterNumber != null
-                      ? '第${entry.chapterNumber}章 ${entry.chapterTitle ?? ''}'
+                      ? chapterLabel(entry.chapterNumber!, entry.chapterTitle ?? '')
                       : entry.chapterTitle ?? '';
                   return ListTile(
                     leading: NovelCover(url: entry.novel?.coverUrl, width: 40, height: 56),

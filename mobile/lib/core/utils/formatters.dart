@@ -39,3 +39,12 @@ String formatRelative(DateTime? time, {DateTime? now}) {
 }
 
 DateTime? parseDateTime(Object? value) => value is String ? DateTime.tryParse(value) : null;
+
+final _numberedTitle = RegExp(r'^\s*第\s*[0-9０-９零〇一二兩三四五六七八九十百千萬]+\s*[章回節卷]');
+
+/// A chapter's label in lists: "第3章 標題", unless the title already
+/// carries its own number (e.g. "第三章 沒有旗的船").
+String chapterLabel(int number, String title) {
+  if (_numberedTitle.hasMatch(title)) return title;
+  return title.isEmpty ? '第$number章' : '第$number章 $title';
+}
