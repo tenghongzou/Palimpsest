@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend
+  labels:
+    # Must match the Prometheus resource's serviceMonitorSelector;
+    # kube-prometheus-stack selects on its Helm release name by default.
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

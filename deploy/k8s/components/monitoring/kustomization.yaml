@@ -1,0 +1,10 @@
+# Scrape config and alerts for clusters running the Prometheus Operator
+# (e.g. kube-prometheus-stack). Add to an overlay with:
+#   components:
+#     - ../../components/monitoring
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - servicemonitor.yaml
+  - alerts.yaml

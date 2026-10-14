@@ -1,0 +1,61 @@
+# Nightly logical backup of the in-cluster PostgreSQL, keeping 7 days on a
+# volume. Restore with:
+#   pg_restore --clean --if-exists -h postgres -U palimpsest -d palimpsest <file>
+# Copy the files off the cluster (or point this at object storage) so a lost
+# node or volume does not take the backups with it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backups
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+spec:
+  schedule: "0 3 * * *"
+  timeZone: Asia/Taipei
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            # The postgres user of the alpine image.
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+            - name: pg-dump
+              image: postgres:16-alpine
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  file="/backups/palimpsest-$(date +%Y%m%d-%H%M%S).dump"
+                  pg_dump -h postgres -U palimpsest -d palimpsest -Fc -f "$file.partial"
+                  mv "$file.partial" "$file"
+                  find /backups -name 'palimpsest-*.dump' -mtime +7 -delete
+                  ls -lh /backups
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: palimpsest-secrets
+                      key: DB_PASSWORD
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: postgres-backups

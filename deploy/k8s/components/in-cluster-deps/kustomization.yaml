@@ -9,3 +9,4 @@ resources:
   - redis.yaml
   - meilisearch.yaml
   - object-storage.yaml
+  - backup.yaml

@@ -12,10 +12,10 @@ resources:
 images:
   - name: palimpsest-backend
     newName: ghcr.io/tenghongzou/palimpsest-backend
-    newTag: v0.1.0
+    newTag: 0.1.0
   - name: palimpsest-web
     newName: ghcr.io/tenghongzou/palimpsest-web
-    newTag: v0.1.0
+    newTag: 0.1.0
 
 patches:
   - target:
