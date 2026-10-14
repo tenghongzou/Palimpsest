@@ -26,6 +26,10 @@
         </template>
       </n-input>
 
+      <ClientOnly>
+        <NotificationBell v-if="isLoggedIn" />
+      </ClientOnly>
+
       <n-dropdown
         v-if="isLoggedIn"
         :options="userMenuOptions"
@@ -89,6 +93,7 @@ const userMenuOptions = computed<DropdownOption[]>(() => [
   { label: '我的書架', key: 'bookshelf' },
   { label: '閱讀紀錄', key: 'history' },
   { label: '我的書籤', key: 'bookmarks' },
+  { label: '通知', key: 'notifications' },
   { label: '帳號設定', key: 'settings' },
   ...(authStore.isAdmin ? [{ label: '管理後台', key: 'admin' }] : []),
   { type: 'divider', key: 'd1' },
@@ -118,6 +123,9 @@ async function handleUserMenuSelect(key: string) {
       break
     case 'bookmarks':
       router.push('/profile/bookmarks')
+      break
+    case 'notifications':
+      router.push('/notifications')
       break
     case 'settings':
       router.push('/profile/settings')

@@ -120,3 +120,31 @@ test('moderation pages load', async ({ page }) => {
   await page.goto('/admin/banners')
   await expect(page.getByRole('heading', { name: '橫幅管理' })).toBeVisible()
 })
+
+test('send a system announcement after confirming', async ({ page }) => {
+  // The request is stubbed so the run does not notify every user.
+  let sent: unknown = null
+  await page.route(/\/api\/v1\/admin\/notifications\/broadcast$/, async (route) => {
+    sent = route.request().postDataJSON()
+    await route.fulfill({ status: 201, json: { code: 0, message: 'success', data: { recipients: 42 } } })
+  })
+  const title = `E2E 公告 ${uniqueSuffix()}`
+
+  await page.goto('/admin/notifications')
+  await expect(page.getByRole('heading', { name: '系統公告', exact: true })).toBeVisible()
+  await expect(page.getByTestId('broadcast-submit')).toBeDisabled()
+  await page.getByTestId('broadcast-title').locator('input').fill(title)
+  await page.getByTestId('broadcast-body').locator('textarea').fill('維護時間：凌晨 2 點至 4 點')
+
+  // Cancelling sends nothing.
+  await page.getByTestId('broadcast-submit').click()
+  await confirmDialog(page, '取消')
+  expect(sent).toBeNull()
+
+  await page.getByTestId('broadcast-submit').click()
+  await expect(page.locator('.n-dialog')).toContainText(title)
+  await confirmDialog(page, '發送')
+  await expect(page.getByTestId('broadcast-result')).toContainText('42 位用戶')
+  expect(sent).toEqual({ title, body: '維護時間：凌晨 2 點至 4 點' })
+  await expect(page.getByTestId('broadcast-title').locator('input')).toHaveValue('')
+})

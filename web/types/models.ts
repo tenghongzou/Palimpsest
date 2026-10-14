@@ -33,6 +33,12 @@ export type ApiLikeResult = Schemas['LikeResult']
 export type ModerationStatus = Schemas['ModerationStatus']
 export type ReportReason = ApiReportInput['reason']
 export type ReportTargetType = ApiReportInput['target_type']
+export type ApiParagraphCount = Schemas['ParagraphCount']
+export type ApiNotification = Schemas['Notification']
+export type NotificationType = Schemas['NotificationType']
+export type ApiDevice = Schemas['Device']
+export type ApiDeviceInput = Schemas['DeviceInput']
+export type ApiBookshelfItemUpdate = Schemas['BookshelfItemUpdate']
 
 export const REPORT_REASONS: { label: string, value: ReportReason }[] = [
   { label: '垃圾訊息', value: 'spam' },

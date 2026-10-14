@@ -23,6 +23,11 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // `text-primary` etc. follow the brand color from main.css.
+  unocss: {
+    theme: { colors: { primary: 'var(--color-primary)' } },
+  },
+
   components: {
     dirs: [
       { path: '~/components', pathPrefix: false },
@@ -64,6 +69,7 @@ export default defineNuxtConfig({
     // CSR for private/interactive pages
     '/read/**': { ssr: false },
     '/bookshelf': { ssr: false },
+    '/notifications': { ssr: false },
     '/profile/**': { ssr: false },
     '/admin/**': { ssr: false },
   },

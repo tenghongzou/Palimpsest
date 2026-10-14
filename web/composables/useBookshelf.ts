@@ -1,5 +1,5 @@
 import type { ApiResponse } from '~/utils/api'
-import type { ApiBookshelfEntry } from '~/types/models'
+import type { ApiBookshelfEntry, ApiBookshelfItemUpdate } from '~/types/models'
 
 export type BookshelfEntry = ApiBookshelfEntry
 export type BookshelfSort = 'recent' | 'added' | 'title'
@@ -15,6 +15,27 @@ export function groupLabel(name: string | null | undefined): string {
 export function bookshelfGroups(items: Pick<BookshelfEntry, 'group_name'>[]): string[] {
   const names = new Set(items.map(i => i.group_name || DEFAULT_GROUP))
   return [...names].sort((a, b) => a === DEFAULT_GROUP ? -1 : b === DEFAULT_GROUP ? 1 : a.localeCompare(b, 'zh-Hant'))
+}
+
+/** Whether new chapters of a shelved novel send notifications (on unless turned off). */
+export function isNotified(item: Pick<BookshelfEntry, 'is_notified'>): boolean {
+  return item.is_notified !== false
+}
+
+/**
+ * Applies `value` to `item` right away, runs `save`, and restores the old
+ * value if it fails (the error is rethrown).
+ */
+export async function optimisticUpdate<T extends object, K extends keyof T>(item: T, key: K, value: T[K], save: () => Promise<unknown>): Promise<void> {
+  const previous = item[key]
+  item[key] = value
+  try {
+    await save()
+  }
+  catch (e) {
+    item[key] = previous
+    throw e
+  }
 }
 
 export function useBookshelf() {
@@ -63,5 +84,17 @@ export function useBookshelf() {
     if (item) item.group_name = res.data?.group_name ?? name
   }
 
-  return { items, loading, fetchBookshelf, addToBookshelf, removeFromBookshelf, removeMany, moveToGroup }
+  /** Turns update notifications for a shelved novel on or off (optimistic, rolled back on error). */
+  async function setNotified(novelId: string, on: boolean) {
+    const item = items.value.find(i => i.novel_id === novelId)
+    const body: ApiBookshelfItemUpdate = { is_notified: on }
+    const save = () => apiFetch(`/bookshelf/${novelId}`, { method: 'PATCH', body })
+    if (!item) {
+      await save()
+      return
+    }
+    await optimisticUpdate(item, 'is_notified', on, save)
+  }
+
+  return { items, loading, fetchBookshelf, addToBookshelf, removeFromBookshelf, removeMany, moveToGroup, setNotified }
 }

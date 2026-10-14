@@ -5,9 +5,9 @@
     </n-avatar>
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-2 text-xs text-gray-500">
-        <span class="font-medium text-gray-700">{{ name }}</span>
+        <span class="comment-author font-medium">{{ name }}</span>
         <span>{{ comment.created_at ? formatRelativeTime(comment.created_at) : '' }}</span>
-        <n-tag v-if="comment.paragraph_index != null" size="tiny" :bordered="false">第 {{ comment.paragraph_index + 1 }} 段</n-tag>
+        <n-tag v-if="comment.paragraph_index != null && !hideParagraph" size="tiny" :bordered="false">第 {{ comment.paragraph_index + 1 }} 段</n-tag>
       </div>
       <div class="text-sm mt-1 whitespace-pre-wrap break-words" data-testid="comment-content">{{ comment.content }}</div>
       <div class="flex items-center gap-3 mt-1">
@@ -36,6 +36,8 @@ const props = defineProps<{
   comment: ApiComment
   canDelete: boolean
   compact?: boolean
+  /** Hide the paragraph tag (when the list is already about one paragraph). */
+  hideParagraph?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -47,3 +49,11 @@ const emit = defineEmits<{
 
 const name = computed(() => props.comment.user?.nickname || props.comment.user?.username || '讀者')
 </script>
+
+<style scoped>
+/* Inherits the text color so it reads on light and dark reader themes. */
+.comment-author {
+  color: inherit;
+  opacity: 0.85;
+}
+</style>

@@ -58,11 +58,46 @@ test('edit profile, upload an avatar and sync reading settings', async ({ page }
     .toMatchObject({ font_size: 18, theme: 'white' })
 })
 
+interface Device { id: string, device_id: string, device_type: string, device_name?: string }
+
+async function thisDeviceId(page: import('@playwright/test').Page): Promise<string> {
+  return page.evaluate(() => localStorage.getItem('palimpsest.device_id') ?? '')
+}
+
+test('signed-in devices list this browser and can remove another device', async ({ page }) => {
+  await page.goto('/profile/settings')
+  const list = page.getByTestId('device-list')
+  const current = list.getByTestId('device-item').filter({ has: page.getByTestId('device-current') })
+  await expect(current).toHaveCount(1)
+  await expect(current.getByTestId('device-name')).toContainText(/ on |瀏覽器/)
+
+  const deviceId = await thisDeviceId(page)
+  expect(deviceId).toMatch(/^[0-9a-f-]{36}$/)
+  const devices = await api<Device[]>(page, 'GET', '/users/me/devices')
+  expect(devices.find(d => d.device_id === deviceId)?.device_type).toBe('web')
+
+  // Another device (registered via the API) can be removed from the list.
+  const name = `E2E 測試裝置 ${uniqueSuffix()}`
+  await api(page, 'POST', '/users/me/devices', { device_id: `e2e-${uniqueSuffix()}`, device_type: 'android', device_name: name })
+  await page.reload()
+  const other = list.getByTestId('device-item').filter({ hasText: name })
+  await expect(other).toBeVisible()
+  await expect(other.getByTestId('device-current')).toHaveCount(0)
+  await other.getByTestId('device-remove').click()
+  await page.locator('.n-popconfirm').getByRole('button', { name: '確定' }).click()
+  await expect(other).toHaveCount(0)
+  expect((await api<Device[]>(page, 'GET', '/users/me/devices')).some(d => d.device_name === name)).toBe(false)
+})
+
 test('change password and log in with the new one', async ({ page }) => {
   // Runs last: it ends the shared reader session.
   const user = readUserInfo()
   const next = `${user.password}-2`
   await page.goto('/profile/settings')
+  await expect(page.getByTestId('device-current')).toBeVisible()
+  const deviceId = await thisDeviceId(page)
+  const before = (await api<Device[]>(page, 'GET', '/users/me/devices')).find(d => d.device_id === deviceId)
+  expect(before).toBeTruthy()
   await page.getByPlaceholder('目前的密碼').fill('wrong-password')
   await page.getByPlaceholder('至少 8 個字元').fill(next)
   await page.getByPlaceholder('再次輸入新密碼').fill(next)
@@ -78,4 +113,11 @@ test('change password and log in with the new one', async ({ page }) => {
   await page.getByRole('button', { name: '登入' }).click()
   await expect(page).not.toHaveURL(/\/login/)
   fs.writeFileSync(USER_INFO, JSON.stringify({ ...user, password: next }))
+
+  // Logging out removed this browser's device record; signing in registered it again.
+  await expect.poll(async () => {
+    const devices = await api<Device[]>(page, 'GET', '/users/me/devices')
+    const now = devices.find(d => d.device_id === deviceId)
+    return now ? now.id !== before!.id : null
+  }, POLL).toBe(true)
 })

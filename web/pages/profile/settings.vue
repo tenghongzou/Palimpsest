@@ -53,6 +53,13 @@
       <ReaderSettingsForm />
     </n-card>
 
+    <n-card title="登入裝置">
+      <template #header-extra>
+        <span class="text-xs text-gray-400">登入過你帳號的瀏覽器與 App</span>
+      </template>
+      <DeviceList />
+    </n-card>
+
     <n-card title="變更密碼">
       <n-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-placement="left" label-width="96">
         <n-form-item label="目前密碼" path="current">

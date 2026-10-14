@@ -58,6 +58,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    // Best effort, bounded by a timeout: drop this browser from the device list.
+    await unregisterThisDevice()
     try {
       await $fetch('/api/v1/auth/logout', {
         method: 'POST',

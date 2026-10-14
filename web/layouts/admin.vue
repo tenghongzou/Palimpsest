@@ -57,6 +57,7 @@ const menuOptions: MenuOption[] = [
   { label: '檢舉處理', key: '/admin/reports' },
   { label: '分類管理', key: '/admin/categories' },
   { label: '橫幅管理', key: '/admin/banners' },
+  { label: '系統公告', key: '/admin/notifications' },
 ]
 
 // The longest menu key that prefixes the current path, so sub-pages such as
