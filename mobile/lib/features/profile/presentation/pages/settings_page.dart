@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -18,6 +19,16 @@ class SettingsPage extends ConsumerWidget {
         children: [
           if (user != null) ...[
             const _SectionTitle('個人資料'),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                child: user.avatarUrl == null ? const Icon(Icons.person_outline) : null,
+              ),
+              title: const Text('頭像'),
+              subtitle: const Text('從相簿選擇圖片'),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: () => _pickAvatar(context, ref),
+            ),
             ListTile(
               leading: const Icon(Icons.badge_outlined),
               title: const Text('暱稱'),
@@ -58,6 +69,26 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Picks a photo, scaled down so it stays well under the server's 2 MB limit.
+  Future<void> _pickAvatar(BuildContext context, WidgetRef ref) async {
+    final XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512, imageQuality: 85);
+    } catch (_) {
+      if (context.mounted) showSnack(context, '無法開啟相簿');
+      return;
+    }
+    if (picked == null) return;
+    try {
+      final bytes = await picked.readAsBytes();
+      final updated = await ref.read(userRepositoryProvider).uploadAvatar(bytes, picked.name);
+      ref.read(authStateProvider.notifier).updateUser(updated);
+      if (context.mounted) showSnack(context, '頭像已更新');
+    } catch (e) {
+      if (context.mounted) showSnack(context, describeError(e));
+    }
   }
 
   Future<void> _editField(

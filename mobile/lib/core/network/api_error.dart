@@ -29,11 +29,16 @@ String describeError(Object error) {
     case 401:
       return '請先登入';
     case 403:
-      return '沒有權限執行此操作';
+      final code = data is Map ? data['code'] : null;
+      return code == 40303 || code == 40301 && message == 'account is banned' ? '帳號已被停權' : '沒有權限執行此操作';
     case 404:
       return '找不到內容';
     case 409:
       return message == null ? '資料衝突' : '資料衝突：$message';
+    case 413:
+      return '檔案太大';
+    case 415:
+      return '不支援的檔案格式，請使用 JPEG、PNG、WebP 或 GIF';
     case 429:
       return '請求過於頻繁，請稍後再試';
     case 503:
