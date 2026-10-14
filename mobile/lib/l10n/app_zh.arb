@@ -1,0 +1,760 @@
+{
+  "@@locale": "zh",
+  "appTitle": "Palimpsest",
+  "appTagline": "小說閱讀平台",
+  "commonRetry": "重試",
+  "commonLoadFailed": "載入失敗：{error}",
+  "@commonLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "commonEmpty": "目前沒有內容",
+  "commonLoadMoreFailed": "載入失敗，點此重試",
+  "commonNoMore": "沒有更多了",
+  "commonCancel": "取消",
+  "commonConfirm": "確定",
+  "commonSave": "儲存",
+  "commonDelete": "刪除",
+  "commonClose": "關閉",
+  "commonBack": "返回",
+  "commonMore": "更多",
+  "navHome": "首頁",
+  "navBookshelf": "書架",
+  "navProfile": "我的",
+  "errorGeneric": "發生錯誤，請稍後再試",
+  "errorNetwork": "網路連線失敗，請檢查網路後再試",
+  "errorUnauthorized": "請先登入",
+  "errorBanned": "帳號已被停權",
+  "errorForbidden": "沒有權限執行此操作",
+  "errorNotFound": "找不到內容",
+  "errorConflict": "資料衝突",
+  "errorConflictDetail": "資料衝突：{message}",
+  "@errorConflictDetail": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorTooLarge": "檔案太大",
+  "errorUnsupportedImage": "不支援的檔案格式，請使用 JPEG、PNG、WebP 或 GIF",
+  "errorRateLimited": "請求過於頻繁，請稍後再試",
+  "errorUnavailable": "服務暫時無法使用，請稍後再試",
+  "errorServer": "伺服器錯誤，請稍後再試",
+  "errorRequestFailed": "請求失敗（{status}）",
+  "@errorRequestFailed": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeJustNow": "剛剛",
+  "relativeMinutesAgo": "{count} 分鐘前",
+  "@relativeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHoursAgo": "{count} 小時前",
+  "@relativeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeDaysAgo": "{count} 天前",
+  "@relativeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "durationHoursMinutes": "{hours} 小時 {minutes} 分",
+  "@durationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "durationHours": "{hours} 小時",
+  "@durationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "durationMinutes": "{minutes} 分鐘",
+  "@durationMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "durationSeconds": "{seconds} 秒",
+  "@durationSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "wordCount": "{count}字",
+  "@wordCount": {
+    "description": "A word count; count is already formatted (e.g. 1.2萬 / 12.3K).",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterNumber": "第{number}章",
+  "@chapterNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterNumberTitle": "第{number}章 {title}",
+  "@chapterNumberTitle": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "authLoginBadCredentials": "帳號或密碼錯誤",
+  "authLoginFailed": "登入失敗：{error}",
+  "@authLoginFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authLoginField": "帳號 / 電子郵件",
+  "authLoginRequired": "請輸入帳號或電子郵件",
+  "authPassword": "密碼",
+  "authPasswordRequired": "請輸入密碼",
+  "authForgotPasswordLink": "忘記密碼？",
+  "authLogin": "登入",
+  "authNoAccount": "還沒有帳號？立即註冊",
+  "authRegisterFailed": "註冊失敗：{error}",
+  "@authRegisterFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authRegister": "註冊",
+  "authUsername": "帳號",
+  "authUsernameHint": "4-20 個字元",
+  "authUsernameRequired": "請輸入帳號",
+  "authUsernameLength": "帳號需 4-20 個字元",
+  "authNickname": "暱稱",
+  "authNicknameRequired": "請輸入暱稱",
+  "authEmail": "電子郵件",
+  "authEmailRequired": "請輸入電子郵件",
+  "authEmailInvalid": "電子郵件格式不正確",
+  "authPasswordHint": "至少 8 個字元",
+  "authPasswordTooShort": "密碼至少 8 個字元",
+  "authPasswordTooLong": "密碼最多 72 個字元",
+  "authConfirmPassword": "確認密碼",
+  "authPasswordMismatch": "兩次輸入的密碼不一致",
+  "authHaveAccount": "已有帳號？立即登入",
+  "authForgotTitle": "忘記密碼",
+  "authResetSent": "若此電子郵件已註冊，我們已寄出重設密碼的連結，請至信箱查收。",
+  "authEnterResetCode": "輸入重設代碼",
+  "authBackToLogin": "返回登入",
+  "authForgotIntro": "請輸入註冊時使用的電子郵件，我們會寄送重設密碼的連結給您。",
+  "authSendResetLink": "寄送重設連結",
+  "authHaveResetCode": "已經有重設代碼？",
+  "authResetDone": "密碼已重設，請使用新密碼登入",
+  "authResetCodeInvalid": "重設代碼無效或已過期",
+  "authResetTitle": "重設密碼",
+  "authResetCode": "重設代碼",
+  "authResetCodeRequired": "請輸入信件中的重設代碼",
+  "authNewPassword": "新密碼",
+  "authNewPasswordRequired": "請輸入新密碼",
+  "authConfirmNewPassword": "確認新密碼",
+  "passwordChanged": "密碼已更新",
+  "passwordCurrentWrong": "目前密碼不正確",
+  "passwordChangeTitle": "修改密碼",
+  "passwordCurrent": "目前密碼",
+  "passwordCurrentRequired": "請輸入目前密碼",
+  "passwordUpdate": "更新密碼",
+  "search": "搜尋",
+  "homeFeatured": "編輯推薦",
+  "homePopular": "熱門推薦",
+  "homeLatest": "最新更新",
+  "homeNewArrivals": "新書上架",
+  "homeCompleted": "完本精選",
+  "rankings": "排行榜",
+  "categories": "分類",
+  "allNovels": "全部作品",
+  "homeCompletedShort": "完本",
+  "novelDetailTitle": "小說詳情",
+  "novelAddedToShelf": "已加入書架",
+  "novelAddToShelfFailed": "加入書架失敗：{error}",
+  "@novelAddToShelfFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "novelReport": "檢舉作品",
+  "novelSynopsis": "簡介",
+  "novelNoSynopsis": "暫無簡介",
+  "novelChaptersAndWords": "{chapters}章 · {words}",
+  "@novelChaptersAndWords": {
+    "placeholders": {
+      "chapters": {
+        "type": "int"
+      },
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+  "novelContinueReading": "繼續閱讀",
+  "novelStartReading": "開始閱讀",
+  "novelOnShelf": "已在書架",
+  "novelAdding": "加入中…",
+  "novelAddToShelf": "加入書架",
+  "downloadProgress": "下載中 {done}/{total} 章",
+  "@downloadProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadDone": "已下載全部章節",
+  "downloadFailedRetry": "下載失敗，點此重試",
+  "downloadAll": "下載全部章節（離線閱讀）",
+  "novelChapterList": "章節列表",
+  "novelChaptersLoadFailed": "載入章節失敗：{error}",
+  "@novelChaptersLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "novelShowAllChapters": "顯示全部 {count} 章",
+  "@novelShowAllChapters": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statusAll": "全部",
+  "statusOngoing": "連載中",
+  "statusCompleted": "已完結",
+  "statusHiatus": "暫停",
+  "novelListCategory": "分類作品",
+  "novelListEmpty": "沒有符合條件的作品",
+  "rankingEmpty": "這個榜單目前沒有作品",
+  "sortLatest": "最近更新",
+  "sortPopular": "人氣",
+  "sortRating": "評分",
+  "sortWords": "字數",
+  "sortFavorites": "收藏",
+  "sortNew": "新書",
+  "rankingViews": "人氣榜",
+  "rankingFavorites": "收藏榜",
+  "rankingRating": "評分榜",
+  "rankingLatest": "更新榜",
+  "rankingCompleted": "完本榜",
+  "periodDaily": "日榜",
+  "periodWeekly": "週榜",
+  "periodMonthly": "月榜",
+  "periodAll": "總榜",
+  "searchHint": "搜尋小說名稱、作者...",
+  "searchFailed": "搜尋失敗：{error}",
+  "@searchFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "searchNoResults": "沒有找到相關小說",
+  "searchRecent": "最近搜尋",
+  "searchClear": "清除",
+  "searchHot": "熱門搜尋",
+  "shelfSelected": "已選擇 {count} 本",
+  "@shelfSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shelfTitle": "我的書架",
+  "shelfRemove": "移出書架",
+  "shelfSort": "排序",
+  "shelfManage": "管理",
+  "shelfSignInPrompt": "登入後即可使用書架",
+  "shelfEmpty": "書架還是空的",
+  "shelfBrowse": "去逛逛",
+  "shelfReadingAt": "讀到 {chapter} · {percent}%",
+  "@shelfReadingAt": {
+    "placeholders": {
+      "chapter": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "shelfNotStarted": "尚未開始閱讀",
+  "shelfUpdated": "更新",
+  "shelfNotificationsOffLabel": "更新通知已關閉",
+  "shelfContinue": "繼續",
+  "shelfDefaultGroup": "預設",
+  "shelfRemovedCount": "已移出 {count} 本",
+  "@shelfRemovedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shelfNotifications": "更新通知",
+  "shelfNotificationsSubtitle": "有新章節時通知我",
+  "shelfMoveToGroup": "移動到分組",
+  "shelfRemoved": "已移出書架",
+  "shelfNotificationsOn": "已開啟更新通知",
+  "shelfNotificationsTurnedOff": "已關閉更新通知",
+  "shelfGroupHint": "分組名稱（留空為預設）",
+  "shelfSortRecent": "最近閱讀",
+  "shelfSortAdded": "加入時間",
+  "shelfSortTitle": "書名",
+  "downloadsTitle": "離線下載",
+  "downloadsLoadFailed": "讀取下載內容失敗：{error}",
+  "@downloadsLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsSummary": "已下載 {count} 本，共 {size}",
+  "@downloadsSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsCache": "閱讀快取 {size}",
+  "@downloadsCache": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsCacheCleared": "已清除閱讀快取",
+  "downloadsClearCache": "清除快取",
+  "downloadsEmpty": "尚未下載任何小說\n在小說詳情頁點選「下載」即可離線閱讀",
+  "downloadFailed": "下載失敗：{error}",
+  "@downloadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadNeedsNetwork": "需要網路連線才能下載",
+  "commonRemove": "移除",
+  "downloadsCancel": "取消下載",
+  "downloadsChapterCount": "{count} 章",
+  "@downloadsChapterCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsChapterCountOf": "{count}/{total} 章",
+  "@downloadsChapterCountOf": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsComplete": "已完整下載",
+  "downloadsDelete": "刪除下載",
+  "downloadsDeleteConfirm": "確定要刪除《{title}》的離線內容嗎？",
+  "@downloadsDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "unknownNovel": "未知作品",
+  "devicesTitle": "登入裝置",
+  "devicesOffline": "目前離線，連線後即可查看登入裝置",
+  "devicesIntro": "以下裝置目前登入你的帳號。移除後，該裝置不會再收到通知推播，直到它再次開啟 App。",
+  "devicesEmpty": "沒有登入裝置",
+  "devicesRemoveTitle": "移除裝置",
+  "devicesRemoveConfirm": "確定要移除「{name}」嗎？",
+  "@devicesRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "devicesRemoved": "已移除裝置",
+  "devicesThisDevice": "此裝置",
+  "devicesLastActive": "最後活動：{time}",
+  "@devicesLastActive": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "deviceAndroid": "Android 裝置",
+  "deviceIos": "iPhone / iPad",
+  "deviceWindows": "Windows 電腦",
+  "deviceMac": "Mac",
+  "deviceLinux": "Linux 電腦",
+  "deviceWeb": "網頁版",
+  "deviceUnknown": "未知裝置",
+  "commentPostFailed": "留言失敗：{error}",
+  "@commentPostFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "commentParagraphLabel": "第 {number} 段",
+  "@commentParagraphLabel": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "commentThreadGone": "找不到這則留言，可能已被刪除",
+  "commentRepliedThread": "你收到回覆的留言",
+  "chapterComments": "本章留言",
+  "paragraphComments": "第 {number} 段的留言",
+  "@paragraphComments": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "commentsEmpty": "還沒有留言，來搶頭香吧",
+  "commentsParagraphEmpty": "這一段還沒有留言，寫下第一則吧",
+  "commentReplyingTo": "回覆 {name}",
+  "@commentReplyingTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "commentHint": "寫下你的想法…",
+  "commentParagraphHint": "對這一段有什麼想法？",
+  "commentSend": "送出留言",
+  "anonymousReader": "讀者",
+  "commentReply": "回覆",
+  "report": "檢舉",
+  "reportSent": "已送出檢舉，感謝您的回報",
+  "reportFailed": "檢舉失敗：{error}",
+  "@reportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reportDetailsHint": "補充說明（選填）",
+  "commonSubmit": "送出",
+  "reportReasonSpam": "垃圾訊息",
+  "reportReasonAbuse": "人身攻擊或騷擾",
+  "reportReasonSpoiler": "劇透",
+  "reportReasonCopyright": "侵犯著作權",
+  "reportReasonInappropriate": "不當內容",
+  "reportReasonOther": "其他",
+  "reviews": "書評",
+  "reviewWrite": "撰寫書評",
+  "reviewEditMine": "編輯我的書評",
+  "reviewsLoadFailed": "書評載入失敗：{error}",
+  "@reviewsLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewsEmpty": "還沒有書評，成為第一個評論的讀者吧",
+  "commonLoading": "載入中…",
+  "reviewsLoadMore": "載入更多書評",
+  "reviewDeleted": "已刪除書評",
+  "reviewPublished": "已發表書評",
+  "reviewUpdated": "已更新書評",
+  "reviewAlreadyExists": "你已經評論過這本書，可以編輯原本的書評",
+  "submitFailed": "送出失敗：{error}",
+  "@submitFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "commonEdit": "編輯",
+  "reviewEdit": "編輯書評",
+  "reviewRating": "評分",
+  "reviewTitle": "標題",
+  "reviewTitleRequired": "請輸入標題",
+  "reviewContent": "內容",
+  "reviewContentRequired": "請輸入內容",
+  "notificationsMarkedAllRead": "已全部標為已讀",
+  "deleteFailed": "刪除失敗：{error}",
+  "@deleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "notifications": "通知",
+  "notificationsSignInPrompt": "登入後即可查看通知",
+  "notificationsOffline": "目前離線，連線後即可查看通知",
+  "notificationsEmpty": "目前沒有通知",
+  "notificationsMarkAllRead": "全部已讀",
+  "notificationUnread": "未讀",
+  "notificationsUnreadTooltip": "通知（{count} 則未讀）",
+  "@notificationsUnreadTooltip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logout": "登出",
+  "notSignedIn": "尚未登入",
+  "readingHistory": "閱讀記錄",
+  "myBookmarks": "我的書籤",
+  "settings": "設定",
+  "statsPeriodDaily": "近 7 天",
+  "statsPeriodWeekly": "近 8 週",
+  "statsPeriodMonthly": "近 12 個月",
+  "statsUnavailable": "閱讀統計暫時無法載入",
+  "statsWords": "閱讀字數",
+  "statsTime": "閱讀時間",
+  "statsChapters": "章節",
+  "statsNovels": "作品",
+  "statsTimeFor": "閱讀時間 · {period}",
+  "@statsTimeFor": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "statsBucket": "{date} · {duration}",
+  "@statsBucket": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "historySignInPrompt": "登入後即可查看閱讀記錄",
+  "historyEmpty": "還沒有閱讀記錄",
+  "historyReadFor": "讀了 {duration}",
+  "@historyReadFor": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsProfile": "個人資料",
+  "settingsAvatar": "頭像",
+  "settingsAvatarPick": "從相簿選擇圖片",
+  "settingsNotSet": "未設定",
+  "settingsEditNickname": "修改暱稱",
+  "settingsBio": "個人簡介",
+  "settingsEditBio": "修改個人簡介",
+  "settingsSecurity": "帳號安全",
+  "settingsDevicesSubtitle": "查看與移除已登入的裝置",
+  "settingsReading": "閱讀",
+  "readingSettings": "閱讀設定",
+  "settingsReadingSubtitle": "字體、行距、背景主題",
+  "settingsReadingSubtitleSynced": "字體、行距、背景主題（與雲端同步）",
+  "settingsStorage": "儲存空間",
+  "settingsDownloads": "離線下載與快取",
+  "settingsGalleryFailed": "無法開啟相簿",
+  "settingsAvatarUpdated": "頭像已更新",
+  "settingsNicknameEmpty": "暱稱不可為空白",
+  "settingsUpdated": "已更新",
+  "settingsGeneral": "一般",
+  "settingsLanguage": "語言",
+  "settingsLanguageSystem": "跟隨系統",
+  "settingsLanguageSaveFailed": "無法儲存語言設定：{error}",
+  "@settingsLanguageSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsLanguageSavedLater": "已套用，將在連線並登入後同步到帳號",
+  "readingSettingsReset": "恢復預設",
+  "readingSettingsPreview": "海霧終年不散的港口，燈塔看守人每晚都會收到一封沒有寄件人的信。",
+  "readerBookmarkAdded": "已加入書籤（第 {number} 段）",
+  "@readerBookmarkAdded": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "readerBookmarkFailed": "加入書籤失敗",
+  "bookmarks": "書籤",
+  "readerOfflineNotDownloaded": "目前離線，且此章節尚未下載",
+  "readerOfflineCopy": "離線模式：顯示的是本機快取的章節",
+  "readerShowingTranslation": "正在顯示譯文（{language}）",
+  "@readerShowingTranslation": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "readerShowOriginal": "顯示原文",
+  "readerFirstChapter": "已是第一章",
+  "readerPrevChapter": "上一章",
+  "readerLatestChapter": "已是最新章",
+  "readerNextChapter": "下一章",
+  "readerAddBookmark": "加入書籤",
+  "readerToc": "目錄",
+  "readerComments": "留言",
+  "readerTranslate": "翻譯",
+  "readerParagraphCommentCount": "本段有 {count} 則留言",
+  "@readerParagraphCommentCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "readerPageOf": "{page} / {total}",
+  "@readerPageOf": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksLoadFailed": "讀取書籤失敗：{error}",
+  "@bookmarksLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bookmarksEmpty": "還沒有書籤\n閱讀時點選書籤圖示即可加入",
+  "bookmarkChapterFallback": "章節",
+  "bookmarkNotSynced": "尚未同步",
+  "bookmarkOptions": "書籤選項",
+  "bookmarkEditNote": "編輯備註",
+  "bookmarkDeleted": "已刪除書籤",
+  "bookmarkNote": "書籤備註",
+  "themeWhite": "白",
+  "themeSepia": "米黃",
+  "themeGreen": "護眼綠",
+  "themeDark": "夜間",
+  "themeBlack": "純黑",
+  "settingFontSize": "字體大小",
+  "settingLineHeight": "行高",
+  "settingLetterSpacing": "字距",
+  "settingMargin": "邊距",
+  "settingReadingMode": "閱讀模式",
+  "settingModeScroll": "捲動",
+  "settingModePage": "翻頁",
+  "settingPageAnimation": "翻頁動畫",
+  "settingAnimationNone": "無",
+  "settingAnimationSlide": "滑動",
+  "settingAnimationCover": "覆蓋",
+  "settingBrightness": "亮度",
+  "settingThemeSample": "文",
+  "settingKeepScreenOn": "閱讀時保持螢幕開啟",
+  "settingAutoChapter": "翻頁模式翻到章節首尾時自動換章",
+  "tocOfflineNote": "（離線：僅顯示已存章節）",
+  "tocLoadFailed": "目錄載入失敗：{error}",
+  "@tocLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "translateEnglishUnavailable": "英文翻譯服務目前尚未開放，請稍後再試",
+  "translateUnavailable": "翻譯服務暫時無法使用，請稍後再試",
+  "translateSignIn": "請先登入才能使用翻譯",
+  "translateRateLimited": "翻譯請求過於頻繁（每分鐘最多 20 次），請稍後再試",
+  "translateNetwork": "網路連線失敗，無法翻譯",
+  "translateFailed": "翻譯失敗：{error}",
+  "@translateFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "translateTitle": "翻譯本章",
+  "translateShowInReader": "在閱讀器中顯示譯文",
+  "translatePickLanguage": "選擇要翻譯成的語言",
+  "translateCached": "（快取的譯文）"
+}

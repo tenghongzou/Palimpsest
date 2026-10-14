@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import '../l10n/l10n.dart';
+
 /// Error codes from the API envelope (see shared/api-spec/openapi.yaml).
 class ApiErrorCode {
   static const translationUnavailable = 50301;
@@ -18,32 +20,33 @@ int? httpStatus(Object error) => error is DioException ? error.response?.statusC
 /// True when the request never reached the server (offline, timeout...).
 bool isNetworkError(Object error) => error is DioException && error.response == null;
 
-/// A short Traditional Chinese message suitable for a snackbar.
-String describeError(Object error) {
-  if (error is! DioException) return '發生錯誤，請稍後再試';
-  if (error.response == null) return '網路連線失敗，請檢查網路後再試';
+/// A short message in the UI language, suitable for a snackbar.
+String describeError(Object error, AppLocalizations l) {
+  if (error is! DioException) return l.errorGeneric;
+  if (error.response == null) return l.errorNetwork;
   final status = error.response!.statusCode ?? 0;
   final data = error.response!.data;
   final message = data is Map ? data['message'] as String? : null;
   switch (status) {
     case 401:
-      return '請先登入';
+      return l.errorUnauthorized;
     case 403:
       final code = data is Map ? data['code'] : null;
-      return code == 40303 || code == 40301 && message == 'account is banned' ? '帳號已被停權' : '沒有權限執行此操作';
+      return code == 40303 || code == 40301 && message == 'account is banned' ? l.errorBanned : l.errorForbidden;
     case 404:
-      return '找不到內容';
+      return l.errorNotFound;
     case 409:
-      return message == null ? '資料衝突' : '資料衝突：$message';
+      return message == null ? l.errorConflict : l.errorConflictDetail(message);
     case 413:
-      return '檔案太大';
+      return l.errorTooLarge;
     case 415:
-      return '不支援的檔案格式，請使用 JPEG、PNG、WebP 或 GIF';
+      return l.errorUnsupportedImage;
     case 429:
-      return '請求過於頻繁，請稍後再試';
+      return l.errorRateLimited;
     case 503:
-      return '服務暫時無法使用，請稍後再試';
+      return l.errorUnavailable;
   }
-  if (status >= 500) return '伺服器錯誤，請稍後再試';
-  return message ?? '請求失敗（$status）';
+  if (status >= 500) return l.errorServer;
+  // The server's own (English) message says what was wrong with the request.
+  return message ?? l.errorRequestFailed(status);
 }

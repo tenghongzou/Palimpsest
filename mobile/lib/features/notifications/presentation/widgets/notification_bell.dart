@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/notification_providers.dart';
+import '../../../../core/l10n/l10n.dart';
 
 /// App bar bell with the unread count; hidden while signed out.
 class NotificationBell extends ConsumerWidget {
@@ -13,7 +14,7 @@ class NotificationBell extends ConsumerWidget {
     if (ref.watch(authStateProvider).valueOrNull == null) return const SizedBox.shrink();
     final count = ref.watch(unreadCountProvider);
     return IconButton(
-      tooltip: count > 0 ? '通知（$count 則未讀）' : '通知',
+      tooltip: count > 0 ? context.l10n.notificationsUnreadTooltip(count) : context.l10n.notifications,
       onPressed: () => context.push('/notifications'),
       icon: Badge(
         isLabelVisible: count > 0,

@@ -6,6 +6,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/reader_repository.dart';
 import '../../domain/entities/chapter.dart';
 import '../../domain/entities/chapter_translation.dart';
+import '../../../../core/l10n/l10n.dart';
 
 /// Shows the translation sheet; resolves to a translation the user chose to
 /// display in the reader.
@@ -19,15 +20,15 @@ Future<ChapterTranslation?> showTranslateSheet(BuildContext context, Chapter cha
 }
 
 /// Friendly message for a failed translation request.
-String translationErrorMessage(Object error, String targetLang) {
+String translationErrorMessage(Object error, String targetLang, AppLocalizations l) {
   final status = httpStatus(error);
   if (status == 503 || apiErrorCode(error) == ApiErrorCode.translationUnavailable) {
-    return targetLang == 'en' ? '英文翻譯服務目前尚未開放，請稍後再試' : '翻譯服務暫時無法使用，請稍後再試';
+    return targetLang == 'en' ? l.translateEnglishUnavailable : l.translateUnavailable;
   }
-  if (status == 401) return '請先登入才能使用翻譯';
-  if (status == 429) return '翻譯請求過於頻繁（每分鐘最多 20 次），請稍後再試';
-  if (isNetworkError(error)) return '網路連線失敗，無法翻譯';
-  return '翻譯失敗：${describeError(error)}';
+  if (status == 401) return l.translateSignIn;
+  if (status == 429) return l.translateRateLimited;
+  if (isNetworkError(error)) return l.translateNetwork;
+  return l.translateFailed(describeError(error, l));
 }
 
 class TranslateSheet extends ConsumerStatefulWidget {
@@ -58,7 +59,7 @@ class _TranslateSheetState extends ConsumerState<TranslateSheet> {
           .translateChapter(widget.chapter.id, lang, fallbackTitle: widget.chapter.title);
       if (mounted) setState(() => _result = result);
     } catch (e) {
-      if (mounted) setState(() => _error = translationErrorMessage(e, lang));
+      if (mounted) setState(() => _error = translationErrorMessage(e, lang, context.l10n));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -74,7 +75,7 @@ class _TranslateSheetState extends ConsumerState<TranslateSheet> {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
           child: Row(
             children: [
-              Text('翻譯本章', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text(context.l10n.translateTitle, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const Spacer(),
               IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
             ],
@@ -102,7 +103,7 @@ class _TranslateSheetState extends ConsumerState<TranslateSheet> {
               padding: const EdgeInsets.all(12),
               child: FilledButton(
                 onPressed: () => Navigator.pop(context, _result),
-                child: const Text('在閱讀器中顯示譯文'),
+                child: Text(context.l10n.translateShowInReader),
               ),
             ),
           ),
@@ -114,14 +115,14 @@ class _TranslateSheetState extends ConsumerState<TranslateSheet> {
     if (!signedIn) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('請先登入才能使用翻譯'),
+          Text(context.l10n.translateSignIn),
           const SizedBox(height: 8),
           FilledButton(
             onPressed: () {
               Navigator.pop(context);
               context.push('/login');
             },
-            child: const Text('登入'),
+            child: Text(context.l10n.authLogin),
           ),
         ]),
       );
@@ -140,15 +141,15 @@ class _TranslateSheetState extends ConsumerState<TranslateSheet> {
       );
     }
     final result = _result;
-    if (result == null) return const Center(child: Text('選擇要翻譯成的語言'));
+    if (result == null) return Center(child: Text(context.l10n.translatePickLanguage));
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       children: [
         Text(result.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         if (result.isCached)
-          const Padding(
-            padding: EdgeInsets.only(top: 4),
-            child: Text('（快取的譯文）', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(context.l10n.translateCached, style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ),
         const SizedBox(height: 12),
         Text(result.content, style: const TextStyle(height: 1.7)),

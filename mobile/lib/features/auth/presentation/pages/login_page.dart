@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/network/api_error.dart';
 import '../providers/auth_provider.dart';
 
@@ -27,6 +28,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final l = context.l10n;
 
     ref.listen(authStateProvider, (prev, next) {
       next.whenData((user) {
@@ -34,7 +36,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       });
       if (next.hasError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(httpStatus(next.error!) == 401 ? '帳號或密碼錯誤' : '登入失敗：${describeError(next.error!)}')),
+          SnackBar(
+            content: Text(httpStatus(next.error!) == 401
+                ? l.authLoginBadCredentials
+                : l.authLoginFailed(describeError(next.error!, l))),
+          ),
         );
       }
     });
@@ -47,9 +53,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Palimpsest', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold)),
+                Text(l.appTitle, style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text('小說閱讀平台', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                Text(l.appTagline, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
                 const SizedBox(height: 48),
                 Form(
                   key: _formKey,
@@ -57,19 +63,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     children: [
                       TextFormField(
                         controller: _loginController,
-                        decoration: const InputDecoration(
-                          labelText: '帳號 / 電子郵件',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.person_outline),
+                        decoration: InputDecoration(
+                          labelText: l.authLoginField,
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.person_outline),
                         ),
-                        validator: (v) => v == null || v.isEmpty ? '請輸入帳號或電子郵件' : null,
+                        validator: (v) => v == null || v.isEmpty ? l.authLoginRequired : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         decoration: InputDecoration(
-                          labelText: '密碼',
+                          labelText: l.authPassword,
                           border: const OutlineInputBorder(),
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
@@ -77,13 +83,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
                         ),
-                        validator: (v) => v == null || v.isEmpty ? '請輸入密碼' : null,
+                        validator: (v) => v == null || v.isEmpty ? l.authPasswordRequired : null,
                       ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () => context.push('/forgot-password'),
-                          child: const Text('忘記密碼？'),
+                          child: Text(l.authForgotPasswordLink),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -93,7 +99,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           onPressed: authState.isLoading ? null : _handleLogin,
                           child: authState.isLoading
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Text('登入'),
+                              : Text(l.authLogin),
                         ),
                       ),
                     ],
@@ -102,7 +108,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => context.go('/register'),
-                  child: const Text('還沒有帳號？立即註冊'),
+                  child: Text(l.authNoAccount),
                 ),
               ],
             ),

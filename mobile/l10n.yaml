@@ -1,0 +1,10 @@
+# Flutter gen-l10n (runs on `flutter pub get` / build because pubspec has
+# `generate: true`). app_zh.arb is the template and holds Traditional Chinese
+# (zh-TW), the default UI language and the fallback for any `zh` locale;
+# app_zh_CN.arb is Simplified Chinese and app_en.arb English.
+arb-dir: lib/l10n
+template-arb-file: app_zh.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+required-resource-attributes: false

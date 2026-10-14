@@ -98,7 +98,7 @@ void main() {
     manager.download(novel);
     final task = await finished();
     expect(task.status, DownloadStatus.failed);
-    expect(task.error, isNotEmpty);
+    expect(task.error, isNotNull);
   });
 
   test('reading cache is evictable but downloads are not', () async {

@@ -1,4 +1,6 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:palimpsest/core/l10n/l10n.dart';
 import 'package:palimpsest/features/devices/data/device_registration.dart';
 import 'package:palimpsest/features/devices/domain/entities/user_device.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,14 +18,17 @@ void main() {
       });
       expect(d.id, 'rec');
       expect(d.deviceId, 'install');
-      expect(d.label, 'Android 裝置');
+      expect(d.label(lookupAppLocalizations(const Locale('en'))), 'Android 裝置');
       expect(d.lastActiveAt, DateTime.utc(2026, 10, 14, 8));
     });
 
     test('falls back to the platform label without a name', () {
       final d = UserDevice.fromJson({'id': 'r', 'device_id': 'i', 'device_type': 'macos', 'device_name': ''});
       expect(d.deviceName, isNull);
-      expect(d.label, 'Mac');
+      expect(d.label(lookupAppLocalizations(const Locale('zh', 'TW'))), 'Mac');
+      final linux = UserDevice.fromJson({'id': 'r', 'device_id': 'i', 'device_type': 'linux'});
+      expect(linux.label(lookupAppLocalizations(const Locale('en'))), 'Linux PC');
+      expect(linux.label(lookupAppLocalizations(const Locale('zh', 'CN'))), 'Linux 电脑');
     });
   });
 

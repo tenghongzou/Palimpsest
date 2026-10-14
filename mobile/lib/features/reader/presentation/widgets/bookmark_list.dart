@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/api_error.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../data/bookmark_repository.dart';
 import '../../domain/entities/bookmark.dart';
 import '../providers/chapter_provider.dart';
+import '../../../../core/l10n/l10n.dart';
 
 /// Bookmarks of a novel (or all when [novelId] is null), read from local
 /// storage and synced with the server when shown.
@@ -36,10 +38,10 @@ class _BookmarkListState extends ConsumerState<BookmarkList> {
     final bookmarks = ref.watch(bookmarksProvider(widget.novelId));
     return bookmarks.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('讀取書籤失敗：$e')),
+      error: (e, _) => Center(child: Text(context.l10n.bookmarksLoadFailed(describeError(e, context.l10n)))),
       data: (list) {
         if (list.isEmpty) {
-          return const EmptyState(icon: Icons.bookmark_border, message: '還沒有書籤\n閱讀時點選書籤圖示即可加入');
+          return EmptyState(icon: Icons.bookmark_border, message: context.l10n.bookmarksEmpty);
         }
         return ListView.separated(
           controller: widget.scrollController,
@@ -49,12 +51,12 @@ class _BookmarkListState extends ConsumerState<BookmarkList> {
             final b = list[i];
             return ListTile(
               leading: Icon(Icons.bookmark, color: Theme.of(context).colorScheme.primary),
-              title: Text(b.chapterTitle ?? '章節', maxLines: 1, overflow: TextOverflow.ellipsis),
+              title: Text(b.chapterTitle ?? context.l10n.bookmarkChapterFallback, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(
                 [
-                  '第 ${b.paragraphIndex + 1} 段',
-                  formatRelative(b.createdAt.toLocal()),
-                  if (!b.isSynced) '尚未同步',
+                  context.l10n.commentParagraphLabel(b.paragraphIndex + 1),
+                  formatRelative(b.createdAt.toLocal(), context.l10n),
+                  if (!b.isSynced) context.l10n.bookmarkNotSynced,
                 ].join(' · ') +
                     (b.note == null ? '' : '\n${b.note}'),
                 maxLines: 3,
@@ -63,11 +65,11 @@ class _BookmarkListState extends ConsumerState<BookmarkList> {
               isThreeLine: b.note != null,
               onTap: () => widget.onOpen(b),
               trailing: PopupMenuButton<String>(
-                tooltip: '書籤選項',
+                tooltip: context.l10n.bookmarkOptions,
                 onSelected: (action) => action == 'note' ? _editNote(b) : _delete(b),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'note', child: Text('編輯備註')),
-                  PopupMenuItem(value: 'delete', child: Text('刪除')),
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: 'note', child: Text(context.l10n.bookmarkEditNote)),
+                  PopupMenuItem(value: 'delete', child: Text(context.l10n.commonDelete)),
                 ],
               ),
             );
@@ -80,7 +82,7 @@ class _BookmarkListState extends ConsumerState<BookmarkList> {
   Future<void> _delete(Bookmark b) async {
     await ref.read(bookmarkRepositoryProvider).delete(b.id);
     ref.invalidate(bookmarksProvider(widget.novelId));
-    if (mounted) showSnack(context, '已刪除書籤');
+    if (mounted) showSnack(context, context.l10n.bookmarkDeleted);
   }
 
   Future<void> _editNote(Bookmark b) async {
@@ -88,11 +90,11 @@ class _BookmarkListState extends ConsumerState<BookmarkList> {
     final note = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('書籤備註'),
+        title: Text(context.l10n.bookmarkNote),
         content: TextField(controller: controller, maxLength: 500, maxLines: 3, autofocus: true),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('儲存')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonCancel)),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: Text(context.l10n.commonSave)),
         ],
       ),
     );

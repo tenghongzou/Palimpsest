@@ -25,10 +25,11 @@ class UserRepository {
   UserRepository(this._api);
 
   /// PATCH /users/me; omitted fields stay unchanged.
-  Future<User> updateProfile({String? nickname, String? bio}) async {
+  Future<User> updateProfile({String? nickname, String? bio, String? languagePref}) async {
     final response = await _api.dio.patch('/users/me', data: {
       if (nickname != null) 'nickname': nickname,
       if (bio != null) 'bio': bio,
+      if (languagePref != null) 'language_pref': languagePref,
     });
     return User.fromJson(response.data['data'] as Map<String, dynamic>);
   }

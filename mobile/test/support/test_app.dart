@@ -10,6 +10,7 @@ import 'package:palimpsest/features/auth/data/auth_repository.dart';
 import 'package:palimpsest/features/auth/domain/entities/user.dart';
 import 'package:palimpsest/features/auth/presentation/providers/auth_provider.dart';
 import 'package:palimpsest/features/downloads/data/download_manager.dart';
+import 'package:palimpsest/features/profile/presentation/providers/app_language_provider.dart';
 import 'package:palimpsest/features/reader/data/reader_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -30,27 +31,41 @@ class TestEnv {
   final Database db;
   final User? user;
 
-  TestEnv._(this.backend, this.api, this.db, this.user);
+  /// The UI language setting the app starts with.
+  final AppLanguage language;
+
+  TestEnv._(this.backend, this.api, this.db, this.user, this.language);
 
   /// [openDb] defaults to an in-memory FFI database; on a device the
   /// integration test passes the platform's sqflite factory instead.
-  static Future<TestEnv> create({bool signedIn = true, Future<Database> Function()? openDb}) async {
-    SharedPreferences.setMockInitialValues({});
+  /// [uiLanguage] (the device's UI language setting, or `system`) defaults
+  /// to zh-TW, which the tests' expectations use, whatever the device's
+  /// language; [accountLanguage] is the account's `language_pref`.
+  static Future<TestEnv> create({
+    bool signedIn = true,
+    Future<Database> Function()? openDb,
+    String uiLanguage = 'zh-TW',
+    bool uiLanguagePending = false,
+    String accountLanguage = 'zh-TW',
+  }) async {
+    SharedPreferences.setMockInitialValues({'ui_language': uiLanguage, 'ui_language_pending': uiLanguagePending});
     final backend = FakeBackend();
+    backend.me['language_pref'] = accountLanguage;
     final api = ApiClient(baseUrl: 'http://fake.test/api/v1', adapter: backend.api);
     User? user;
     if (signedIn) {
       api.setAccessToken('test-token');
-      user = User.fromJson(userJson());
+      user = User.fromJson(backend.me);
     }
     final db = await (openDb ?? openTestDatabase)();
-    return TestEnv._(backend, api, db, user);
+    return TestEnv._(backend, api, db, user, await AppLanguage.load());
   }
 
   OfflineStore get store => OfflineStore(db);
 
   List<Override> get overrides => [
         apiClientProvider.overrideWithValue(api),
+        initialAppLanguageProvider.overrideWithValue(language),
         offlineStoreProvider.overrideWithValue(() async => OfflineStore(db)),
         authStateProvider.overrideWith((ref) => AuthNotifier(
               ref.read(authRepositoryProvider),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/l10n/l10n.dart';
 import 'core/router/app_router.dart';
 import 'core/sync/sync_service.dart';
 import 'core/theme/app_theme.dart';
@@ -8,6 +9,7 @@ import 'features/auth/domain/entities/user.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/devices/data/device_registration.dart';
 import 'features/notifications/presentation/providers/notification_providers.dart';
+import 'features/profile/presentation/providers/app_language_provider.dart';
 import 'features/reader/presentation/providers/reader_provider.dart';
 
 class PalimpsestApp extends ConsumerStatefulWidget {
@@ -25,7 +27,13 @@ class _PalimpsestAppState extends ConsumerState<PalimpsestApp> with WidgetsBindi
     // Already signed in when the app starts (e.g. a restored session that
     // completed before the first frame).
     final user = ref.read(authStateProvider).valueOrNull;
-    if (user != null) Future.microtask(() => _onSignedIn(user));
+    if (user != null) {
+      Future.microtask(() {
+        if (!mounted) return;
+        _onSignedIn(user);
+        ref.read(appLanguageProvider.notifier).syncWithAccount(user).ignore();
+      });
+    }
   }
 
   @override
@@ -79,18 +87,24 @@ class _PalimpsestAppState extends ConsumerState<PalimpsestApp> with WidgetsBindi
       sync.requestBookmarkSync().catchError((_) {});
       sync.pushPending().ignore();
       ref.read(readerSettingsProvider.notifier).syncWithServer();
+      // The account's UI language (or upload one picked while signed out).
+      ref.read(appLanguageProvider.notifier).syncWithAccount(user).ignore();
       _onSignedIn(user);
     });
 
+    final locale = ref.watch(appLanguageProvider.select((l) => l.locale));
     return MaterialApp.router(
-      title: 'Palimpsest',
+      onGenerateTitle: (context) => context.l10n.appTitle,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      locale: const Locale('zh', 'TW'),
-      supportedLocales: const [Locale('zh', 'TW'), Locale('zh', 'CN'), Locale('en')],
+      // Null follows the device's languages.
+      locale: locale,
+      supportedLocales: appSupportedLocales,
+      localeListResolutionCallback: (preferred, _) => resolveAppLocale(preferred),
       localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,

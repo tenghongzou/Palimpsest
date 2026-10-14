@@ -8,6 +8,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/bookshelf_repository.dart';
 import '../../domain/entities/bookshelf_item.dart';
 import '../providers/bookshelf_provider.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class BookshelfPage extends ConsumerStatefulWidget {
   const BookshelfPage({super.key});
@@ -37,7 +38,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selecting ? '已選擇 ${_selected.length} 本' : '我的書架'),
+        title: Text(_selecting ? context.l10n.shelfSelected(_selected.length) : context.l10n.shelfTitle),
         leading: _selecting
             ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(_exitSelection))
             : null,
@@ -46,23 +47,23 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
             : _selecting
                 ? [
                     IconButton(
-                      tooltip: '移出書架',
+                      tooltip: context.l10n.shelfRemove,
                       icon: const Icon(Icons.delete_outline),
                       onPressed: _selected.isEmpty ? null : _removeSelected,
                     ),
                   ]
                 : [
                     PopupMenuButton<String>(
-                      tooltip: '排序',
+                      tooltip: context.l10n.shelfSort,
                       icon: const Icon(Icons.sort),
                       initialValue: notifier.sortBy,
                       onSelected: (v) => notifier.load(sortBy: v),
-                      itemBuilder: (_) => bookshelfSortOptions.entries
-                          .map((e) => PopupMenuItem(value: e.key, child: Text(e.value)))
+                      itemBuilder: (_) => bookshelfSortOptions
+                          .map((e) => PopupMenuItem(value: e, child: Text(bookshelfSortLabel(e, context.l10n))))
                           .toList(),
                     ),
                     IconButton(
-                      tooltip: '管理',
+                      tooltip: context.l10n.shelfManage,
                       icon: const Icon(Icons.checklist),
                       onPressed: () => setState(() => _selecting = true),
                     ),
@@ -71,19 +72,19 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
       body: user == null
           ? EmptyState(
               icon: Icons.book_outlined,
-              message: '登入後即可使用書架',
-              actionLabel: '登入',
+              message: context.l10n.shelfSignInPrompt,
+              actionLabel: context.l10n.authLogin,
               onAction: () => context.push('/login'),
             )
           : bookshelf.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('載入失敗：${describeError(e)}')),
+              error: (e, _) => Center(child: Text(context.l10n.commonLoadFailed(describeError(e, context.l10n)))),
               data: (items) {
                 if (items.isEmpty) {
                   return EmptyState(
                     icon: Icons.book_outlined,
-                    message: '書架還是空的',
-                    actionLabel: '去逛逛',
+                    message: context.l10n.shelfEmpty,
+                    actionLabel: context.l10n.shelfBrowse,
                     onAction: () => context.go('/'),
                   );
                 }
@@ -101,7 +102,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
                             children: [null, ...groups].map((g) => Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
-                                label: Text(g == null ? '全部' : _groupLabel(g)),
+                                label: Text(g == null ? context.l10n.statusAll : _groupLabel(g)),
                                 selected: _group == g,
                                 onSelected: (_) => setState(() => _group = g),
                               ),
@@ -121,8 +122,9 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
   Widget _buildItem(BookshelfItem item) {
     final progress = item.progress;
     final subtitle = progress != null
-        ? '讀到 ${chapterLabel(progress.chapterNumber, progress.chapterTitle)} · ${progress.percentage.toStringAsFixed(0)}%'
-        : '尚未開始閱讀';
+        ? context.l10n.shelfReadingAt(chapterLabel(progress.chapterNumber, progress.chapterTitle, context.l10n),
+            progress.percentage.toStringAsFixed(0))
+        : context.l10n.shelfNotStarted;
     return ListTile(
       leading: _selecting
           ? Checkbox(
@@ -138,12 +140,12 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
               margin: const EdgeInsets.only(left: 6),
               padding: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
-              child: const Text('更新', style: TextStyle(color: Colors.white, fontSize: 10)),
+              child: Text(context.l10n.shelfUpdated, style: const TextStyle(color: Colors.white, fontSize: 10)),
             ),
           if (!item.isNotified)
             Padding(
               padding: const EdgeInsets.only(left: 6),
-              child: Icon(Icons.notifications_off_outlined, size: 14, color: Colors.grey.shade500, semanticLabel: '更新通知已關閉'),
+              child: Icon(Icons.notifications_off_outlined, size: 14, color: Colors.grey.shade500, semanticLabel: context.l10n.shelfNotificationsOffLabel),
             ),
         ],
       ),
@@ -152,14 +154,14 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
           ? null
           : TextButton(
               onPressed: () => context.push('/read/${progress!.chapterId}'),
-              child: const Text('繼續'),
+              child: Text(context.l10n.shelfContinue),
             ),
       onTap: () => _selecting ? _toggle(item.novelId) : context.push('/novel/${item.novelId}'),
       onLongPress: _selecting ? null : () => _showItemActions(item),
     );
   }
 
-  String _groupLabel(String group) => group == 'default' ? '預設' : group;
+  String _groupLabel(String group) => group == 'default' ? context.l10n.shelfDefaultGroup : group;
 
   void _toggle(String novelId) {
     setState(() => _selected.contains(novelId) ? _selected.remove(novelId) : _selected.add(novelId));
@@ -176,9 +178,9 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
       await ref.read(bookshelfProvider.notifier).removeMany(ids);
       if (!mounted) return;
       setState(_exitSelection);
-      showSnack(context, '已移出 ${ids.length} 本');
+      showSnack(context, context.l10n.shelfRemovedCount(ids.length));
     } catch (e) {
-      if (mounted) showSnack(context, describeError(e));
+      if (mounted) showSnack(context, describeError(e, context.l10n));
     }
   }
 
@@ -192,19 +194,19 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
             ListTile(title: Text(item.novelTitle, style: const TextStyle(fontWeight: FontWeight.bold))),
             SwitchListTile(
               secondary: Icon(item.isNotified ? Icons.notifications_active_outlined : Icons.notifications_off_outlined),
-              title: const Text('更新通知'),
-              subtitle: const Text('有新章節時通知我'),
+              title: Text(context.l10n.shelfNotifications),
+              subtitle: Text(context.l10n.shelfNotificationsSubtitle),
               value: item.isNotified,
               onChanged: (_) => Navigator.pop(context, 'notify'),
             ),
             ListTile(
               leading: const Icon(Icons.folder_outlined),
-              title: const Text('移動到分組'),
+              title: Text(context.l10n.shelfMoveToGroup),
               onTap: () => Navigator.pop(context, 'group'),
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text('移出書架'),
+              title: Text(context.l10n.shelfRemove),
               onTap: () => Navigator.pop(context, 'remove'),
             ),
           ],
@@ -216,17 +218,17 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
     try {
       if (action == 'remove') {
         await notifier.remove(item.novelId);
-        if (mounted) showSnack(context, '已移出書架');
+        if (mounted) showSnack(context, context.l10n.shelfRemoved);
       } else if (action == 'notify') {
         final on = !item.isNotified;
         await notifier.setNotified(item.novelId, on);
-        if (mounted) showSnack(context, on ? '已開啟更新通知' : '已關閉更新通知');
+        if (mounted) showSnack(context, on ? context.l10n.shelfNotificationsOn : context.l10n.shelfNotificationsTurnedOff);
       } else if (action == 'group') {
         final group = await _askGroup(item.groupName);
         if (group != null && group.isNotEmpty) await notifier.setGroup(item.novelId, group);
       }
     } catch (e) {
-      if (mounted) showSnack(context, describeError(e));
+      if (mounted) showSnack(context, describeError(e, context.l10n));
     }
   }
 
@@ -235,23 +237,30 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('移動到分組'),
+        title: Text(context.l10n.shelfMoveToGroup),
         content: TextField(
           controller: controller,
           maxLength: 50,
-          decoration: const InputDecoration(hintText: '分組名稱（留空為預設）'),
+          decoration: InputDecoration(hintText: context.l10n.shelfGroupHint),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonCancel)),
           FilledButton(
             onPressed: () {
               final name = controller.text.trim();
               Navigator.pop(context, name.isEmpty ? 'default' : name);
             },
-            child: const Text('確定'),
+            child: Text(context.l10n.commonConfirm),
           ),
         ],
       ),
     );
   }
 }
+
+String bookshelfSortLabel(String key, AppLocalizations l) => switch (key) {
+      'recent' => l.shelfSortRecent,
+      'added' => l.shelfSortAdded,
+      'title' => l.shelfSortTitle,
+      _ => key,
+    };

@@ -16,6 +16,17 @@ void main() {
       expect(settings.brightness, 100);
       expect(settings.keepScreenOn, isTrue);
       expect(settings.autoChapter, isTrue);
+      expect(settings.pageAnimation, 'slide');
+    });
+
+    test('page animation: parsed, sent only when this app offers it, curl shown as cover', () {
+      expect(ReadingSettings.fromJson(const {}).pageAnimation, 'slide');
+      expect(ReadingSettings.fromJson(const {'page_animation': 'cover'}).toApiJson()['page_animation'], 'cover');
+      final curl = ReadingSettings.fromJson(const {'page_animation': 'curl'});
+      expect(curl.effectivePageAnimation, 'cover');
+      expect(curl.toApiJson().containsKey('page_animation'), isFalse);
+      expect(const ReadingSettings(pageAnimation: 'bogus').effectivePageAnimation, 'slide');
+      expect(const ReadingSettings().copyWith(pageAnimation: 'none').pageAnimation, 'none');
     });
 
     test('copyWith creates new instance with changed values', () {

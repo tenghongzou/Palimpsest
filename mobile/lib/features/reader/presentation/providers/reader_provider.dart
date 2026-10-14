@@ -118,6 +118,11 @@ class ReaderSettingsNotifier extends StateNotifier<ReadingSettings> {
     _persist();
   }
 
+  void updatePageAnimation(String animation) {
+    state = state.copyWith(pageAnimation: animation);
+    _persist();
+  }
+
   void updateLetterSpacing(double spacing) {
     state = state.copyWith(letterSpacing: spacing.clamp(0.0, 5.0));
     _persist();

@@ -139,12 +139,5 @@ class LikeResult {
   const LikeResult({required this.liked, required this.likeCount});
 }
 
-/// Report reasons accepted by POST /reports, with their labels.
-const reportReasons = <String, String>{
-  'spam': '垃圾訊息',
-  'abuse': '人身攻擊或騷擾',
-  'spoiler': '劇透',
-  'copyright': '侵犯著作權',
-  'inappropriate': '不當內容',
-  'other': '其他',
-};
+/// Report reasons accepted by POST /reports (labels: report_dialog.dart).
+const reportReasons = ['spam', 'abuse', 'spoiler', 'copyright', 'inappropriate', 'other'];

@@ -10,6 +10,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/community_repository.dart';
 import '../../domain/entities/community.dart';
 import 'report_dialog.dart';
+import '../../../../core/l10n/l10n.dart';
 
 /// Which comments a sheet lists: a chapter's, or one paragraph's.
 typedef CommentsQuery = ({String chapterId, int? paragraph});
@@ -107,7 +108,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
 
   bool _requireLogin() {
     if (ref.read(authStateProvider).valueOrNull != null) return true;
-    showSnack(context, '請先登入');
+    showSnack(context, context.l10n.errorUnauthorized);
     Navigator.of(context).pop();
     context.push('/login');
     return false;
@@ -140,7 +141,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       _threadChanged();
       await ref.read(commentsProvider(_query).notifier).refresh();
     } catch (e) {
-      if (mounted) showSnack(context, '留言失敗：${describeError(e)}');
+      if (mounted) showSnack(context, context.l10n.commentPostFailed(describeError(e, context.l10n)));
     } finally {
       if (mounted) setState(() => _posting = false);
     }
@@ -156,7 +157,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       ref.read(commentsProvider(_query).notifier).updateItems((items) => items.map(apply).toList());
       _threadChanged();
     } catch (e) {
-      if (mounted) showSnack(context, describeError(e));
+      if (mounted) showSnack(context, describeError(e, context.l10n));
     }
   }
 
@@ -167,7 +168,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       _threadChanged();
       await ref.read(commentsProvider(_query).notifier).refresh();
     } catch (e) {
-      if (mounted) showSnack(context, describeError(e));
+      if (mounted) showSnack(context, describeError(e, context.l10n));
     }
   }
 
@@ -178,7 +179,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
             comment: c,
             isMine: c.userId == userId,
             paragraphLabel: widget.paragraphIndex == null && c.paragraphIndex != null
-                ? '第 ${c.paragraphIndex! + 1} 段'
+                ? context.l10n.commentParagraphLabel(c.paragraphIndex! + 1)
                 : null,
             onLike: () => _toggleLike(c),
             onReply: () => setState(() => _replyTo = c),
@@ -211,7 +212,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     if (thread == null) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Text('找不到這則留言，可能已被刪除', style: subtle),
+        child: Text(context.l10n.commentThreadGone, style: subtle),
       );
     }
     return Container(
@@ -221,7 +222,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('你收到回覆的留言', style: subtle)),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(context.l10n.commentRepliedThread, style: subtle)),
           _thread(thread, userId),
         ],
       ),
@@ -243,10 +244,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
           child: Row(
             children: [
-              Text(paragraph == null ? '本章留言' : '第 ${paragraph + 1} 段的留言',
+              Text(paragraph == null ? context.l10n.chapterComments : context.l10n.paragraphComments(paragraph + 1),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const Spacer(),
-              IconButton(tooltip: '關閉', icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              IconButton(tooltip: context.l10n.commonClose, icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
             ],
           ),
         ),
@@ -270,7 +271,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
             onLoadMore: notifier.loadMore,
             onRefresh: notifier.refresh,
             header: _focusHeader(userId),
-            empty: Text(paragraph == null ? '還沒有留言，來搶頭香吧' : '這一段還沒有留言，寫下第一則吧'),
+            empty: Text(paragraph == null ? context.l10n.commentsEmpty : context.l10n.commentsParagraphEmpty),
             itemBuilder: (context, c, _) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [_thread(c, userId), const Divider(height: 1)],
@@ -283,7 +284,10 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Expanded(child: Text('回覆 ${_replyTo!.user?.displayName ?? ''}', overflow: TextOverflow.ellipsis)),
+                Expanded(
+                  child: Text(context.l10n.commentReplyingTo(_replyTo!.user?.displayName ?? ''),
+                      overflow: TextOverflow.ellipsis),
+                ),
                 IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _replyTo = null)),
               ],
             ),
@@ -301,7 +305,9 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                     minLines: 1,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      hintText: paragraph == null || _replyTo != null ? '寫下你的想法…' : '對這一段有什麼想法？',
+                      hintText: paragraph == null || _replyTo != null
+                          ? context.l10n.commentHint
+                          : context.l10n.commentParagraphHint,
                       counterText: '',
                       border: const OutlineInputBorder(),
                       isDense: true,
@@ -309,7 +315,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
                   ),
                 ),
                 IconButton(
-                  tooltip: '送出留言',
+                  tooltip: context.l10n.commentSend,
                   icon: _posting
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.send),
@@ -348,7 +354,7 @@ class _CommentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = comment.user?.displayName ?? '';
-    final name = user.isEmpty ? '讀者' : user;
+    final name = user.isEmpty ? context.l10n.anonymousReader : user;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
       child: Row(
@@ -361,7 +367,7 @@ class _CommentTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  [name, formatRelative(comment.createdAt), if (paragraphLabel != null) paragraphLabel!].join(' · '),
+                  [name, formatRelative(comment.createdAt, context.l10n), if (paragraphLabel != null) paragraphLabel!].join(' · '),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 2),
@@ -373,15 +379,15 @@ class _CommentTile extends StatelessWidget {
                       icon: Icon(comment.likedByMe ? Icons.thumb_up : Icons.thumb_up_outlined, size: 16),
                       label: Text('${comment.likeCount}'),
                     ),
-                    TextButton(onPressed: onReply, child: const Text('回覆')),
+                    TextButton(onPressed: onReply, child: Text(context.l10n.commentReply)),
                     const Spacer(),
                     PopupMenuButton<String>(
-                      tooltip: '更多',
+                      tooltip: context.l10n.commonMore,
                       icon: const Icon(Icons.more_horiz, size: 18),
                       onSelected: (v) => v == 'delete' ? onDelete() : onReport(),
                       itemBuilder: (_) => [
-                        if (isMine) const PopupMenuItem(value: 'delete', child: Text('刪除')),
-                        if (!isMine) const PopupMenuItem(value: 'report', child: Text('檢舉')),
+                        if (isMine) PopupMenuItem(value: 'delete', child: Text(context.l10n.commonDelete)),
+                        if (!isMine) PopupMenuItem(value: 'report', child: Text(context.l10n.report)),
                       ],
                     ),
                   ],

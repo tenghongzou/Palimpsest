@@ -86,4 +86,62 @@ void main() {
     expect(puts.single.json['font_size'], 22);
     n.dispose();
   });
+
+  group('page animation', () {
+    test('is persisted locally and uploaded with the other settings', () async {
+      final a = notifier()..updatePageAnimation('cover');
+      await Future<void>.delayed(ReaderSettingsNotifier.pushDelay + const Duration(milliseconds: 300));
+      expect(backend.api.calls('PUT', '/users/me/reading-settings').last.json['page_animation'], 'cover');
+      final b = notifier(signedIn: false);
+      await b.loadFromLocal();
+      expect(b.state.pageAnimation, 'cover');
+      a.dispose();
+      b.dispose();
+    });
+
+    test('is applied from the server', () async {
+      backend.api.on('GET', '/users/me/reading-settings', (_) => FakeResponse.ok({
+            'font_size': 18,
+            'line_height': 1.8,
+            'theme': 'white',
+            'reading_mode': 'page',
+            'page_animation': 'none',
+            'brightness': 100,
+            'updated_at': '2026-10-01T00:00:00Z',
+          }));
+      final n = notifier();
+      await n.syncWithServer();
+      expect(n.state.pageAnimation, 'none');
+      expect(n.state.effectivePageAnimation, 'none');
+      n.dispose();
+    });
+
+    test('a server-side curl shows as cover and is not overwritten by other changes', () async {
+      backend.api.on('GET', '/users/me/reading-settings', (_) => FakeResponse.ok({
+            'font_size': 18,
+            'line_height': 1.8,
+            'theme': 'white',
+            'reading_mode': 'page',
+            'page_animation': 'curl',
+            'brightness': 100,
+            'updated_at': '2026-10-01T00:00:00Z',
+          }));
+      final n = notifier();
+      await n.syncWithServer();
+      expect(n.state.pageAnimation, 'curl');
+      expect(n.state.effectivePageAnimation, 'cover');
+
+      n.updateFontSize(22);
+      await Future<void>.delayed(ReaderSettingsNotifier.pushDelay + const Duration(milliseconds: 300));
+      final put = backend.api.calls('PUT', '/users/me/reading-settings').last.json;
+      expect(put['font_size'], 22);
+      expect(put.containsKey('page_animation'), isFalse);
+
+      // Picking one here does send it.
+      n.updatePageAnimation('slide');
+      await Future<void>.delayed(ReaderSettingsNotifier.pushDelay + const Duration(milliseconds: 300));
+      expect(backend.api.calls('PUT', '/users/me/reading-settings').last.json['page_animation'], 'slide');
+      n.dispose();
+    });
+  });
 }

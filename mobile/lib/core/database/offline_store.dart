@@ -256,7 +256,7 @@ class OfflineStore {
     return rows
         .map((r) => DownloadedNovel(
               novelId: r['novel_id'] as String,
-              title: r['title'] as String? ?? '未知作品',
+              title: r['title'] as String? ?? '',
               authorName: r['author_name'] as String?,
               coverUrl: r['cover_url'] as String?,
               downloadedChapters: r['chapters'] as int,
@@ -505,7 +505,11 @@ class OfflineStore {
       'auto_chapter': s.autoChapter ? 1 : 0,
       'updated_at': (updatedAt ?? DateTime.now()).toUtc().toIso8601String(),
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+    // The shared schema has no column for it; kept in local_meta instead.
+    await setMeta(_pageAnimationKey, s.pageAnimation);
   }
+
+  static const _pageAnimationKey = 'reader_page_animation';
 
   /// The stored settings and when they last changed, or null if never saved.
   Future<(ReadingSettings, DateTime?)?> loadReadingSettings() async {
@@ -523,6 +527,7 @@ class OfflineStore {
       brightness: d['brightness'] as int? ?? 100,
       keepScreenOn: (d['keep_screen_on'] as int? ?? 1) == 1,
       autoChapter: (d['auto_chapter'] as int? ?? 1) == 1,
+      pageAnimation: await getMeta(_pageAnimationKey) ?? 'slide',
     );
     return (settings, _parseStoredTime(d['updated_at'] as String?));
   }

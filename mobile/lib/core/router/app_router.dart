@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
@@ -81,11 +82,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/read/:chapterId',
         name: 'reader',
-        builder: (context, state) => ReaderPage(
-          chapterId: state.pathParameters['chapterId']!,
-          initialParagraph: int.tryParse(state.uri.queryParameters['p'] ?? ''),
-          focusCommentId: state.uri.queryParameters['comment'],
-        ),
+        pageBuilder: (context, state) {
+          final page = ReaderPage(
+            chapterId: state.pathParameters['chapterId']!,
+            initialParagraph: int.tryParse(state.uri.queryParameters['p'] ?? ''),
+            focusCommentId: state.uri.queryParameters['comment'],
+            startAtEnd: state.uri.queryParameters['at'] == 'end',
+          );
+          // Turning past a chapter's edge already animated into the new
+          // chapter; the route itself swaps without a transition.
+          return state.extra == seamlessChapterTurn
+              ? NoTransitionPage<void>(key: state.pageKey, name: state.name, child: page)
+              : MaterialPage<void>(key: state.pageKey, name: state.name, child: page);
+        },
       ),
       GoRoute(
         path: '/bookshelf',

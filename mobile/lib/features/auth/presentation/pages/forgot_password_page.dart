@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
 import '../../data/auth_repository.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class ForgotPasswordPage extends ConsumerStatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -30,7 +31,9 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
       await ref.read(authRepositoryProvider).forgotPassword(_emailController.text.trim());
       if (mounted) setState(() => _sent = true);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeError(e))));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeError(e, context.l10n))));
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -38,8 +41,9 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('忘記密碼')),
+      appBar: AppBar(title: Text(l.authForgotTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: _sent
@@ -48,16 +52,13 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                 children: [
                   const Icon(Icons.mark_email_read_outlined, size: 64, color: Colors.green),
                   const SizedBox(height: 16),
-                  const Text(
-                    '若此電子郵件已註冊，我們已寄出重設密碼的連結，請至信箱查收。',
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(l.authResetSent, textAlign: TextAlign.center),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () => context.push('/reset-password'),
-                    child: const Text('輸入重設代碼'),
+                    child: Text(l.authEnterResetCode),
                   ),
-                  TextButton(onPressed: () => context.go('/login'), child: const Text('返回登入')),
+                  TextButton(onPressed: () => context.go('/login'), child: Text(l.authBackToLogin)),
                 ],
               )
             : Form(
@@ -65,15 +66,15 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('請輸入註冊時使用的電子郵件，我們會寄送重設密碼的連結給您。'),
+                    Text(l.authForgotIntro),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: '電子郵件', border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: l.authEmail, border: const OutlineInputBorder()),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return '請輸入電子郵件';
-                        if (!v.contains('@')) return '電子郵件格式不正確';
+                        if (v == null || v.trim().isEmpty) return l.authEmailRequired;
+                        if (!v.contains('@')) return l.authEmailInvalid;
                         return null;
                       },
                     ),
@@ -82,11 +83,11 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                       onPressed: _sending ? null : _submit,
                       child: _sending
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('寄送重設連結'),
+                          : Text(l.authSendResetLink),
                     ),
                     TextButton(
                       onPressed: () => context.push('/reset-password'),
-                      child: const Text('已經有重設代碼？'),
+                      child: Text(l.authHaveResetCode),
                     ),
                   ],
                 ),

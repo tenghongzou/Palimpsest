@@ -6,6 +6,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class ReadingHistoryPage extends ConsumerWidget {
   const ReadingHistoryPage({super.key});
@@ -13,13 +14,14 @@ class ReadingHistoryPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).valueOrNull;
+    final l = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('閱讀記錄')),
+      appBar: AppBar(title: Text(l.readingHistory)),
       body: user == null
           ? EmptyState(
               icon: Icons.history,
-              message: '登入後即可查看閱讀記錄',
-              actionLabel: '登入',
+              message: l.historySignInPrompt,
+              actionLabel: l.authLogin,
               onAction: () => context.push('/login'),
             )
           : Consumer(builder: (context, ref, _) {
@@ -29,16 +31,17 @@ class ReadingHistoryPage extends ConsumerWidget {
                 state: state,
                 onLoadMore: notifier.loadMore,
                 onRefresh: notifier.refresh,
-                empty: const Text('還沒有閱讀記錄'),
+                empty: Text(l.historyEmpty),
                 itemBuilder: (context, entry, _) {
                   final chapter = entry.chapterNumber != null
-                      ? chapterLabel(entry.chapterNumber!, entry.chapterTitle ?? '')
+                      ? chapterLabel(entry.chapterNumber!, entry.chapterTitle ?? '', l)
                       : entry.chapterTitle ?? '';
                   return ListTile(
                     leading: NovelCover(url: entry.novel?.coverUrl, width: 40, height: 56),
-                    title: Text(entry.novel?.title ?? '未知作品', maxLines: 1, overflow: TextOverflow.ellipsis),
+                    title: Text(entry.novel?.title ?? l.unknownNovel, maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text(
-                      '$chapter\n${formatRelative(entry.readAt)}${entry.duration > 0 ? ' · 讀了 ${formatDuration(entry.duration)}' : ''}',
+                      '$chapter\n${formatRelative(entry.readAt, l)}'
+                      '${entry.duration > 0 ? ' · ${l.historyReadFor(formatDuration(entry.duration, l))}' : ''}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),

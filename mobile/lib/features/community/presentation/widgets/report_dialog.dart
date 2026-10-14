@@ -4,6 +4,7 @@ import '../../../../core/network/api_error.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../data/community_repository.dart';
 import '../../domain/entities/community.dart';
+import '../../../../core/l10n/l10n.dart';
 
 /// Asks for a reason and reports [targetType]/[targetId] to moderators.
 Future<void> showReportDialog(
@@ -24,11 +25,21 @@ Future<void> showReportDialog(
           reason: result.$1,
           description: result.$2,
         );
-    if (context.mounted) showSnack(context, '已送出檢舉，感謝您的回報');
+    if (context.mounted) showSnack(context, context.l10n.reportSent);
   } catch (e) {
-    if (context.mounted) showSnack(context, '檢舉失敗：${describeError(e)}');
+    if (context.mounted) showSnack(context, context.l10n.reportFailed(describeError(e, context.l10n)));
   }
 }
+
+String reportReasonLabel(String reason, AppLocalizations l) => switch (reason) {
+      'spam' => l.reportReasonSpam,
+      'abuse' => l.reportReasonAbuse,
+      'spoiler' => l.reportReasonSpoiler,
+      'copyright' => l.reportReasonCopyright,
+      'inappropriate' => l.reportReasonInappropriate,
+      'other' => l.reportReasonOther,
+      _ => reason,
+    };
 
 class _ReportDialog extends StatefulWidget {
   const _ReportDialog();
@@ -50,7 +61,7 @@ class _ReportDialogState extends State<_ReportDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('檢舉'),
+      title: Text(context.l10n.report),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -59,11 +70,11 @@ class _ReportDialogState extends State<_ReportDialog> {
             Wrap(
               spacing: 8,
               runSpacing: 4,
-              children: reportReasons.entries
+              children: reportReasons
                   .map((e) => ChoiceChip(
-                        label: Text(e.value),
-                        selected: _reason == e.key,
-                        onSelected: (_) => setState(() => _reason = e.key),
+                        label: Text(reportReasonLabel(e, context.l10n)),
+                        selected: _reason == e,
+                        onSelected: (_) => setState(() => _reason = e),
                       ))
                   .toList(),
             ),
@@ -72,16 +83,16 @@ class _ReportDialogState extends State<_ReportDialog> {
               controller: _description,
               maxLength: 1000,
               maxLines: 3,
-              decoration: const InputDecoration(hintText: '補充說明（選填）', border: OutlineInputBorder()),
+              decoration: InputDecoration(hintText: context.l10n.reportDetailsHint, border: const OutlineInputBorder()),
             ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonCancel)),
         FilledButton(
           onPressed: () => Navigator.pop(context, (_reason, _description.text)),
-          child: const Text('送出'),
+          child: Text(context.l10n.commonSubmit),
         ),
       ],
     );

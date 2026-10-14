@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:go_router/go_router.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/common_widgets.dart';
@@ -9,6 +10,7 @@ import '../../../bookshelf/presentation/providers/bookshelf_provider.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../domain/entities/reading_stats.dart';
 import '../providers/profile_provider.dart';
+import '../../../../core/l10n/l10n.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -18,7 +20,7 @@ class ProfilePage extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('我的'), actions: const [NotificationBell()]),
+      appBar: AppBar(title: Text(context.l10n.navProfile), actions: const [NotificationBell()]),
       body: authState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _buildNotLoggedIn(context),
@@ -39,12 +41,14 @@ class ProfilePage extends ConsumerWidget {
                 Card(
                   child: Column(
                     children: [
-                      _menu(context, Icons.book_outlined, '我的書架', () => context.go('/bookshelf')),
-                      _menu(context, Icons.notifications_outlined, '通知', () => context.push('/notifications')),
-                      _menu(context, Icons.history, '閱讀記錄', () => context.push('/history')),
-                      _menu(context, Icons.bookmarks_outlined, '我的書籤', () => context.push('/bookmarks')),
-                      _menu(context, Icons.download_outlined, '離線下載', () => context.push('/downloads')),
-                      _menu(context, Icons.settings_outlined, '設定', () => context.push('/settings'), divider: false),
+                      _menu(context, Icons.book_outlined, context.l10n.shelfTitle, () => context.go('/bookshelf')),
+                      _menu(context, Icons.notifications_outlined, context.l10n.notifications,
+                          () => context.push('/notifications')),
+                      _menu(context, Icons.history, context.l10n.readingHistory, () => context.push('/history')),
+                      _menu(context, Icons.bookmarks_outlined, context.l10n.myBookmarks, () => context.push('/bookmarks')),
+                      _menu(context, Icons.download_outlined, context.l10n.downloadsTitle, () => context.push('/downloads')),
+                      _menu(context, Icons.settings_outlined, context.l10n.settings, () => context.push('/settings'),
+                          divider: false),
                     ],
                   ),
                 ),
@@ -56,7 +60,7 @@ class ProfilePage extends ConsumerWidget {
                     if (context.mounted) context.go('/');
                   },
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('登出'),
+                  child: Text(context.l10n.logout),
                 ),
               ],
             ),
@@ -82,18 +86,30 @@ class ProfilePage extends ConsumerWidget {
         const SizedBox(height: 48),
         EmptyState(
           icon: Icons.person_outline,
-          message: '尚未登入',
-          actionLabel: '登入',
+          message: context.l10n.notSignedIn,
+          actionLabel: context.l10n.authLogin,
           onAction: () => context.push('/login'),
         ),
         const SizedBox(height: 24),
         Card(
           margin: const EdgeInsets.all(16),
-          child: ListTile(
-            leading: const Icon(Icons.download_outlined),
-            title: const Text('離線下載'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/downloads'),
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: Text(context.l10n.downloadsTitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/downloads'),
+              ),
+              const Divider(height: 1),
+              // Language and reading settings work without an account.
+              ListTile(
+                leading: const Icon(Icons.settings_outlined),
+                title: Text(context.l10n.settings),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/settings'),
+              ),
+            ],
           ),
         ),
       ],
@@ -140,7 +156,13 @@ class _UserCard extends StatelessWidget {
   }
 }
 
-const _periodLabels = {'daily': '近 7 天', 'weekly': '近 8 週', 'monthly': '近 12 個月'};
+const _periods = ['daily', 'weekly', 'monthly'];
+
+String _periodLabel(String period, AppLocalizations l) => switch (period) {
+      'weekly' => l.statsPeriodWeekly,
+      'monthly' => l.statsPeriodMonthly,
+      _ => l.statsPeriodDaily,
+    };
 
 class _StatsCard extends ConsumerStatefulWidget {
   const _StatsCard();
@@ -155,34 +177,35 @@ class _StatsCardState extends ConsumerState<_StatsCard> {
   @override
   Widget build(BuildContext context) {
     final stats = ref.watch(readingStatsProvider(_period));
+    final l = context.l10n;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: stats.when(
           loading: () => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
-          error: (_, __) => const SizedBox(height: 60, child: Center(child: Text('閱讀統計暫時無法載入'))),
+          error: (_, __) => SizedBox(height: 60, child: Center(child: Text(l.statsUnavailable))),
           data: (s) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _stat('閱讀字數', formatWordCount(s.totalReadWords)),
-                  _stat('閱讀時間', formatDuration(s.totalReadSeconds)),
-                  _stat('章節', '${s.chaptersRead}'),
-                  _stat('作品', '${s.novelsRead}'),
+                  _stat(l.statsWords, formatWordCount(s.totalReadWords, l)),
+                  _stat(l.statsTime, formatDuration(s.totalReadSeconds, l)),
+                  _stat(l.statsChapters, formatNumber(s.chaptersRead, l)),
+                  _stat(l.statsNovels, formatNumber(s.novelsRead, l)),
                 ],
               ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('閱讀時間 · ${_periodLabels[_period]}', style: Theme.of(context).textTheme.labelLarge),
+                  Text(l.statsTimeFor(_periodLabel(_period, l)), style: Theme.of(context).textTheme.labelLarge),
                   DropdownButton<String>(
                     value: _period,
                     underline: const SizedBox(),
-                    items: _periodLabels.entries
-                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    items: _periods
+                        .map((e) => DropdownMenuItem(value: e, child: Text(_periodLabel(e, l))))
                         .toList(),
                     onChanged: (v) => setState(() => _period = v ?? _period),
                   ),
@@ -224,7 +247,8 @@ class _BucketBars extends StatelessWidget {
           final start = b.start.toLocal();
           return Expanded(
             child: Tooltip(
-              message: '${start.month}/${start.day} · ${formatDuration(b.seconds)}',
+              message: context.l10n.statsBucket(
+                  DateFormat.Md(intlLocaleOf(context.l10n)).format(start), formatDuration(b.seconds, context.l10n)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
                 child: Column(
