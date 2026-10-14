@@ -29,6 +29,8 @@ type Handlers struct {
 	Translation *handler.TranslationHandler
 	Admin       *handler.AdminHandler
 	Ranking     *service.RankingService
+	// Metrics records request metrics; nil disables them.
+	Metrics *middleware.HTTPMetrics
 }
 
 func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine {
@@ -41,8 +43,11 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 		log.Fatalf("invalid TRUSTED_PROXIES: %v", err)
 	}
 
-	// Middleware chain: Recovery -> Logger -> CORS
+	// Middleware chain: Recovery -> Metrics -> Logger -> CORS
 	r.Use(gin.Recovery())
+	if h.Metrics != nil {
+		r.Use(h.Metrics.Middleware())
+	}
 	r.Use(middleware.Logger())
 	r.Use(middleware.CORS(cfg))
 
