@@ -90,12 +90,17 @@ func (s *UserService) ReadingSettings(userID uuid.UUID) (*model.ReadingSettings,
 func (s *UserService) SaveReadingSettings(userID uuid.UUID, settings model.ReadingSettings) (*model.ReadingSettings, error) {
 	settings.ID = uuid.Nil
 	settings.UserID = userID
+	columns := []string{
+		"font_size", "line_height", "letter_spacing", "margin", "font_family", "theme",
+		"reading_mode", "brightness", "keep_screen_on", "auto_chapter", "updated_at",
+	}
+	// Clients that predate page_animation leave it out; keep what is stored.
+	if settings.PageAnimation != "" {
+		columns = append(columns, "page_animation")
+	}
 	err := s.db.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "user_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"font_size", "line_height", "letter_spacing", "margin", "font_family", "theme",
-			"reading_mode", "brightness", "keep_screen_on", "auto_chapter", "updated_at",
-		}),
+		Columns:   []clause.Column{{Name: "user_id"}},
+		DoUpdates: clause.AssignmentColumns(columns),
 	}).Create(&settings).Error
 	if err != nil {
 		return nil, err

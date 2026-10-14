@@ -42,6 +42,8 @@ type ReadingSettings struct {
 	FontFamily    string    `gorm:"size:50;default:system" json:"font_family" binding:"max=50"`
 	Theme         string    `gorm:"size:20;default:white" json:"theme" binding:"oneof=white sepia green dark black"`
 	ReadingMode   string    `gorm:"size:20;default:scroll" json:"reading_mode" binding:"oneof=scroll page"`
+	// PageAnimation is how page mode turns pages; empty on save keeps the stored value.
+	PageAnimation string    `gorm:"size:20;default:slide" json:"page_animation" binding:"omitempty,oneof=none slide cover curl"`
 	Brightness    int       `gorm:"default:100" json:"brightness" binding:"min=10,max=100"`
 	KeepScreenOn  bool      `gorm:"not null" json:"keep_screen_on"`
 	AutoChapter   bool      `gorm:"not null" json:"auto_chapter"`
@@ -55,7 +57,7 @@ func (ReadingSettings) TableName() string { return "user_reading_settings" }
 func DefaultReadingSettings(userID uuid.UUID) ReadingSettings {
 	return ReadingSettings{
 		UserID: userID, FontSize: 18, LineHeight: 1.8, Margin: 16, FontFamily: "system",
-		Theme: "white", ReadingMode: "scroll", Brightness: 100, KeepScreenOn: true, AutoChapter: true,
+		Theme: "white", ReadingMode: "scroll", PageAnimation: "slide", Brightness: 100, KeepScreenOn: true, AutoChapter: true,
 	}
 }
 

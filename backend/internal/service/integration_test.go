@@ -365,6 +365,16 @@ func TestUserSettingsPasswordAndStats(t *testing.T) {
 	if again, _ := svc.SaveReadingSettings(user.ID, in); again.FontSize != 20 || again.KeepScreenOn {
 		t.Errorf("updated settings = %+v", again)
 	}
+	if def.PageAnimation != "slide" || saved.PageAnimation != "slide" {
+		t.Errorf("page animation default = %q, saved = %q", def.PageAnimation, saved.PageAnimation)
+	}
+	in.PageAnimation = "cover"
+	svc.SaveReadingSettings(user.ID, in)
+	// Older clients send no page_animation and must not reset it.
+	in.PageAnimation = ""
+	if kept, _ := svc.SaveReadingSettings(user.ID, in); kept.PageAnimation != "cover" {
+		t.Errorf("page animation after an old client saved = %q", kept.PageAnimation)
+	}
 
 	nick := "新暱稱"
 	if u, err := svc.UpdateProfile(user.ID, ProfileUpdate{Nickname: &nick}); err != nil || u.Nickname != nick {
