@@ -31,6 +31,25 @@ class ReadingSettingsPanel extends ConsumerWidget {
           _slider('邊距', settings.margin.clamp(0, 64).toDouble(), 0, 64, 16, '${settings.margin}',
               (v) => notifier.updateMargin(v.round())),
         ],
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              const SizedBox(width: 64, child: Text('閱讀模式')),
+              Expanded(
+                child: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'scroll', label: Text('捲動')),
+                    ButtonSegment(value: 'page', label: Text('翻頁')),
+                  ],
+                  selected: {settings.readingMode == 'page' ? 'page' : 'scroll'},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (v) => notifier.updateReadingMode(v.first),
+                ),
+              ),
+            ],
+          ),
+        ),
         _slider('亮度', settings.brightness.clamp(10, 100).toDouble(), 10, 100, 9, '${settings.brightness}%',
             (v) => notifier.updateBrightness(v.round())),
         const SizedBox(height: 8),
@@ -68,7 +87,7 @@ class ReadingSettingsPanel extends ConsumerWidget {
             onChanged: notifier.updateKeepScreenOn,
           ),
           SwitchListTile(
-            title: const Text('讀完自動跳至下一章'),
+            title: const Text('翻頁模式翻到章節首尾時自動換章'),
             value: settings.autoChapter,
             onChanged: notifier.updateAutoChapter,
           ),

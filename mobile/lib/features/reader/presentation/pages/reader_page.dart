@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/sync/sync_service.dart';
@@ -68,6 +69,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
       final chapter = next.valueOrNull;
       if (chapter != null && _chapter?.id != chapter.id) _onChapterLoaded(chapter);
     }, fireImmediately: true);
+    ref.listenManual<bool>(readerSettingsProvider.select((s) => s.keepScreenOn), (_, keep) {
+      _setWakelock(keep);
+    }, fireImmediately: true);
+  }
+
+  /// Keeps the screen on while the reader is open, if the user wants that.
+  void _setWakelock(bool on) {
+    (on ? WakelockPlus.enable() : WakelockPlus.disable()).catchError((_) {
+      // Not supported on this platform (e.g. tests); reading still works.
+    });
   }
 
   @override
@@ -75,6 +86,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     WidgetsBinding.instance.removeObserver(this);
     _idleTimer?.cancel();
     if (!_leaving) _report(disposing: true);
+    _setWakelock(false);
     _scroll.dispose();
     super.dispose();
   }
@@ -111,6 +123,50 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     if (target != null && target > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToParagraph(target));
     }
+  }
+
+  // ------------------------------------------------------- taps, page mode
+
+  void _toggleToolbar() => setState(() {
+        _showToolbar = !_showToolbar;
+        if (!_showToolbar) _showSettings = false;
+      });
+
+  /// In page mode the left and right thirds of the screen turn pages and the
+  /// middle shows the toolbar; in scroll mode any tap shows the toolbar.
+  void _onContentTap(Chapter chapter, TapUpDetails details, bool pageMode, bool autoChapter) {
+    if (_showToolbar || !pageMode) {
+      _toggleToolbar();
+      return;
+    }
+    final x = details.globalPosition.dx / MediaQuery.of(context).size.width;
+    if (x < 1 / 3) {
+      _pageBy(chapter, -1, autoChapter);
+    } else if (x > 2 / 3) {
+      _pageBy(chapter, 1, autoChapter);
+    } else {
+      _toggleToolbar();
+    }
+  }
+
+  /// Scrolls one screen, keeping a little overlap; at either end of the
+  /// chapter it moves to the neighbouring chapter when auto-chapter is on.
+  void _pageBy(Chapter chapter, int direction, bool autoChapter) {
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    if (direction > 0 && position.pixels >= position.maxScrollExtent - 4) {
+      final next = chapter.nextChapter;
+      if (autoChapter && next != null) _openChapter(next.id);
+      return;
+    }
+    if (direction < 0 && position.pixels <= position.minScrollExtent + 4) {
+      final prev = chapter.prevChapter;
+      if (autoChapter && prev != null) _openChapter(prev.id);
+      return;
+    }
+    final target = (position.pixels + direction * (position.viewportDimension - 80))
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    _scroll.animateTo(target, duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
   }
 
   // --------------------------------------------------------------- position
@@ -285,10 +341,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
           children: [
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() {
-                _showToolbar = !_showToolbar;
-                if (!_showToolbar) _showSettings = false;
-              }),
+              onTapUp: (details) => _onContentTap(chapter, details, settings.readingMode == 'page', settings.autoChapter),
               child: NotificationListener<ScrollNotification>(
                 onNotification: _onScroll,
                 child: _buildContent(chapter, settings.fontSize.toDouble(), settings.lineHeight,

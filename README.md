@@ -265,6 +265,7 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 |------|--------|------|
 | `SERVER_PORT` | `8080` | HTTP 監聽埠 |
 | `GIN_MODE` | `debug` | `debug` / `release` / `test` |
+| `METRICS_PORT` | （空） | 在另一個埠提供 Prometheus 指標（`/metrics`）；未設定時不啟用 |
 | `TRUSTED_PROXIES` | 私有網段（`127.0.0.0/8`、`10.0.0.0/8`、`172.16.0.0/12`、`192.168.0.0/16`、`::1`） | 只信任這些代理送來的 `X-Forwarded-For`，用來判斷限流的用戶端 IP |
 | `DB_HOST` / `DB_PORT` | `localhost` / `5432` | PostgreSQL 位址 |
 | `DB_USER` / `DB_PASSWORD` | `palimpsest` / `palimpsest` | PostgreSQL 帳密 |
@@ -405,19 +406,20 @@ flutter test integration_test           # 需要連接裝置或模擬器
 
 ### GitHub Actions
 
-三條 Workflow 各自依路徑觸發（push 到 `main` 或對 `main` 發 PR 時）：
+各 Workflow 依路徑觸發（push 到 `main` 或對 `main` 發 PR 時）：
 
 | Workflow | 觸發路徑 | 內容 |
 |----------|----------|------|
 | [`backend.yml`](.github/workflows/backend.yml) | `backend/**` | `go build`、`go vet`，並以 PostgreSQL 服務容器執行 `go test ./...`（含整合測試） |
-| [`web.yml`](.github/workflows/web.yml) | `web/**`、`shared/**` | Node 20 + pnpm，執行 `pnpm test:run` |
-| [`flutter.yml`](.github/workflows/flutter.yml) | `mobile/**`、`shared/**` | Flutter 3.47.2，執行 `flutter test` |
+| [`web.yml`](.github/workflows/web.yml) | `web/**`、`shared/**` | Node + pnpm：Vitest、`pnpm typecheck`（vue-tsc）、正式建置 |
+| [`flutter.yml`](.github/workflows/flutter.yml) | `mobile/**`、`shared/**` | Flutter 3.47.2：`flutter analyze`、檢查 SQLite Schema 產生檔、`flutter test`，並建置 release APK 上傳為 artifact |
+| [`docker.yml`](.github/workflows/docker.yml) | `backend/**`、`web/**` | 建置後端與 Web 映像檔；PR 只建置，`main` 與 `v*` 標籤會推送到 GHCR |
 
 ---
 
 ## 部署
 
-`backend/` 與 `web/` 各有 Dockerfile，兩者都以非 root 使用者執行；後端映像檔另含 `./seed` 指令。
+`backend/` 與 `web/` 各有 Dockerfile，兩者都以非 root 使用者執行；後端映像檔另含 `./seed` 指令。推送到 `main` 或建立 `v*` 標籤時，[`docker.yml`](.github/workflows/docker.yml) 會建置並發布到 GHCR（`ghcr.io/tenghongzou/palimpsest-backend`、`palimpsest-web`），標籤為 `main`、commit SHA，以及版本號（例如 `v0.1.0` 標籤會產生 `0.1.0`）。
 
 ```bash
 docker build -t palimpsest-backend backend
@@ -429,7 +431,8 @@ Kubernetes 設定以 Kustomize 撰寫，位於 [`deploy/k8s/`](deploy/k8s)：
 | 路徑 | 內容 |
 |------|------|
 | `base/` | Namespace、後端與 Web 的 Deployment / Service / HPA / PDB、ConfigMap、Ingress（`palimpsest.cc` 與行動端用的 `api.palimpsest.cc`，憑證由 cert-manager 簽發） |
-| `components/in-cluster-deps/` | 叢集內的 PostgreSQL、Redis、Meilisearch、RustFS（單一副本，供 staging 使用） |
+| `components/in-cluster-deps/` | 叢集內的 PostgreSQL、Redis、Meilisearch、RustFS（單一副本，供 staging 使用），以及每晚 03:00（台北時間）以 `pg_dump` 備份資料庫、保留 7 天的 CronJob |
+| `components/monitoring/` | 給使用 Prometheus Operator 的叢集：ServiceMonitor 與告警規則（服務中斷、5xx 比例、p95 延遲、資料庫連線池飽和、大量限流） |
 | `overlays/staging/` | base + 叢集內依賴，各服務一個副本，另開放圖片網域 |
 | `overlays/production/` | base 搭配外部的託管服務；套用前請改成實際的服務位址並固定映像檔版本 |
 
@@ -444,6 +447,19 @@ kubectl apply -k deploy/k8s/overlays/staging
 # 3. （選用）匯入範例資料
 kubectl -n palimpsest exec deploy/backend -- env SEED_ADMIN_PASSWORD=... ./seed
 ```
+
+### 監控
+
+後端在 `METRICS_PORT`（Kubernetes 設定中為 9090）提供 Prometheus 指標，這個埠不會經過 Ingress 對外開放：
+
+| 指標 | 說明 |
+|------|------|
+| `palimpsest_http_requests_total{method,route,status}` | 請求數；`route` 是路由樣板（例如 `/api/v1/novels/:id`），避免標籤數量無限增長 |
+| `palimpsest_http_request_duration_seconds{method,route}` | 請求延遲分布 |
+| `go_sql_*{db_name="palimpsest"}` | 資料庫連線池（使用中、閒置、等待次數等） |
+| `go_*`、`process_*` | Go runtime 與行程資源 |
+
+Pod 帶有 `prometheus.io/scrape` 註解，以註解自動探索的 Prometheus 可直接抓取；使用 Prometheus Operator 時，在 overlay 加入 `components/monitoring`。
 
 ---
 
@@ -472,10 +488,13 @@ kubectl -n palimpsest exec deploy/backend -- env SEED_ADMIN_PASSWORD=... ./seed
 | Web Token 自動刷新、離線快取（sql.js） | ✅ | 章節、進度與書籤可離線使用，恢復連線後同步 |
 | Flutter 書城、閱讀器、書架、搜尋、個人頁 | ✅ | 閱讀器含上下章、目錄、書籤、翻譯、留言；新增排行、分類、閱讀紀錄、設定頁 |
 | Flutter 離線閱讀 | ✅ | 章節快取、整本下載與下載管理、離線進度與書籤同步；本機 Schema 由共用 SQL 產生 |
-| Flutter 頭像上傳、翻頁模式、螢幕常亮 | 🚧 | 設定可儲存與同步，但尚未有對應功能（需額外套件） |
+| Flutter 頭像上傳、翻頁模式、螢幕常亮 | ✅ | 翻頁模式點擊左右翻頁，翻到章節首尾可自動換章 |
 | Flutter 原生平台專案目錄 | ✅ | Android、iOS（桌面版待 Phase 3） |
 | Docker 映像檔、Kubernetes 部署設定 | ✅ | Kustomize：staging（含叢集內依賴）與 production overlay |
-| 監控告警、CDN、資料庫備份 | 📋 | Sprint 8 |
+| 監控與告警 | ✅ | Prometheus 指標（獨立埠）、ServiceMonitor 與告警規則 |
+| 資料庫備份 | ✅ | staging 叢集內 PostgreSQL 每晚備份、保留 7 天；正式環境依託管服務的備份機制 |
+| 映像檔發布 | ✅ | GitHub Actions 建置並推送到 GHCR |
+| CDN | 📋 | 依部署平台設定；圖片網址由 `MINIO_PUBLIC_URL` 指定，可直接指向 CDN |
 
 ✅ 完成　🚧 進行中 / 部分完成　📋 規劃中
 

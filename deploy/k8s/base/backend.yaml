@@ -17,6 +17,12 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: backend
+      annotations:
+        # For Prometheus setups that discover pods by annotation; with the
+        # Prometheus Operator use components/monitoring instead.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
     spec:
       securityContext:
         runAsNonRoot: true
@@ -32,6 +38,8 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            - name: metrics
+              containerPort: 9090
           envFrom:
             - configMapRef:
                 name: palimpsest-backend-config
@@ -79,6 +87,9 @@ spec:
     - name: http
       port: 8080
       targetPort: http
+    - name: metrics
+      port: 9090
+      targetPort: metrics
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -43,6 +43,9 @@ type CORSConfig struct {
 type ServerConfig struct {
 	Port string
 	Mode string // debug, release, test
+	// MetricsPort serves Prometheus metrics on a separate, internal port;
+	// empty disables it.
+	MetricsPort string
 	// TrustedProxies are the proxies whose X-Forwarded-For header is believed
 	// when determining the client IP (used for rate limiting).
 	TrustedProxies []string
@@ -95,8 +98,9 @@ func (d DatabaseConfig) DSN() string {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
-			Port: getEnv("SERVER_PORT", "8080"),
-			Mode: getEnv("GIN_MODE", "debug"),
+			Port:        getEnv("SERVER_PORT", "8080"),
+			Mode:        getEnv("GIN_MODE", "debug"),
+			MetricsPort: os.Getenv("METRICS_PORT"),
 			TrustedProxies: parseList(getEnv("TRUSTED_PROXIES",
 				"127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16")),
 		},

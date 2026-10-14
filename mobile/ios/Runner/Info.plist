@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>選擇照片作為你的頭像</string>
 	<key>CFBundleDisplayName</key>
 	<string>Palimpsest</string>
 	<key>CFBundleExecutable</key>

@@ -1,0 +1,61 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: palimpsest
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: palimpsest-backend
+      rules:
+        - alert: PalimpsestBackendDown
+          expr: absent(up{job="backend", namespace="palimpsest"} == 1)
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: No backend pod is being scraped successfully
+            description: Every backend pod is down or unreachable for metrics.
+
+        - alert: PalimpsestHighErrorRate
+          expr: |
+            sum(rate(palimpsest_http_requests_total{namespace="palimpsest", status=~"5.."}[5m]))
+              / sum(rate(palimpsest_http_requests_total{namespace="palimpsest"}[5m])) > 0.05
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: More than 5% of API requests fail with a server error
+            description: "{{ $value | humanizePercentage }} of requests returned 5xx over the last 5 minutes."
+
+        - alert: PalimpsestSlowRequests
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(palimpsest_http_request_duration_seconds_bucket{namespace="palimpsest", route!="unmatched"}[5m]))
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: API p95 latency is above 1 second
+            description: "p95 latency is {{ $value | humanizeDuration }}."
+
+        - alert: PalimpsestDatabasePoolSaturated
+          expr: |
+            max by (pod) (go_sql_in_use_connections{namespace="palimpsest", db_name="palimpsest"}
+              / go_sql_max_open_connections{namespace="palimpsest", db_name="palimpsest"}) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: A backend pod is using over 90% of its database connections
+            description: "Pod {{ $labels.pod }} has been near its connection limit for 10 minutes."
+
+        - alert: PalimpsestRateLimitSurge
+          expr: sum(rate(palimpsest_http_requests_total{namespace="palimpsest", status="429"}[5m])) > 5
+          for: 15m
+          labels:
+            severity: info
+          annotations:
+            summary: Many requests are being rate limited
+            description: More than 5 requests per second are answered with 429; check for abuse or limits that are too tight.

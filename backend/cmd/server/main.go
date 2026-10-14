@@ -13,9 +13,13 @@ import (
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"github.com/tenghongzou/palimpsest/backend/internal/config"
 	"github.com/tenghongzou/palimpsest/backend/internal/handler"
+	"github.com/tenghongzou/palimpsest/backend/internal/middleware"
 	"github.com/tenghongzou/palimpsest/backend/internal/model"
 	"github.com/tenghongzou/palimpsest/backend/internal/pkg/mail"
 	"github.com/tenghongzou/palimpsest/backend/internal/pkg/storage"
@@ -152,12 +156,35 @@ func main() {
 		Admin:       adminH,
 		Ranking:     rankingSvc,
 	}
+	// --- Metrics (separate port, never exposed through the ingress) ---
+	var metricsSrv *http.Server
+	if cfg.Server.MetricsPort != "" {
+		reg := prometheus.NewRegistry()
+		reg.MustRegister(
+			collectors.NewGoCollector(),
+			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+			collectors.NewDBStatsCollector(sqlDB, "palimpsest"),
+		)
+		handlers.Metrics = middleware.NewHTTPMetrics(reg)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+		metricsSrv = &http.Server{Addr: ":" + cfg.Server.MetricsPort, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+		go func() {
+			log.Printf("Metrics listening on :%s/metrics", cfg.Server.MetricsPort)
+			if err := metricsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Printf("WARNING: metrics server stopped: %v", err)
+			}
+		}()
+	}
+
 	r := setupRouter(cfg, rdb, handlers)
 
 	// --- Server with graceful shutdown ---
 	srv := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
 		Handler: r,
+		// Bounds how long a client may take to send headers (slowloris).
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {
@@ -176,6 +203,9 @@ func main() {
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("server forced to shutdown: %v", err)
+	}
+	if metricsSrv != nil {
+		_ = metricsSrv.Shutdown(ctx)
 	}
 
 	sqlDB.Close()
