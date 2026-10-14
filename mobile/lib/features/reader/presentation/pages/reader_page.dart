@@ -278,7 +278,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
       body: chapterAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _buildError(e),
+        // Fill the screen even for short chapters, so the bottom toolbar sits
+        // at the bottom and taps below the text still toggle the toolbars.
         data: (chapter) => Stack(
+          fit: StackFit.expand,
           children: [
             GestureDetector(
               behavior: HitTestBehavior.opaque,

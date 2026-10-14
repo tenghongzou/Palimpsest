@@ -39,7 +39,7 @@ void main() {
       await tester.tap(find.byTooltip('目錄'));
       await tester.pumpAndSettle();
       expect(find.text('（離線：僅顯示已存章節）'), findsOneWidget);
-      await tester.tap(find.text('第3章 ${chapterTitles[2]}'));
+      await tester.tap(find.text(chapterTitles[2]).last);
       await tester.pumpAndSettle();
       expect(find.text(chapterTitles[2]), findsOneWidget);
       expect(find.text('已是最新章'), findsOneWidget);

@@ -1,0 +1,11 @@
+# Single-replica PostgreSQL, Redis, Meilisearch and S3-compatible storage
+# inside the cluster, for staging and demos. Production should use managed or
+# replicated services and point the backend config at them instead.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - postgres.yaml
+  - redis.yaml
+  - meilisearch.yaml
+  - object-storage.yaml

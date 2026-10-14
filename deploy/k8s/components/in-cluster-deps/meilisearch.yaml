@@ -1,0 +1,67 @@
+# The search index is rebuilt from PostgreSQL whenever the backend starts,
+# but a volume avoids reindexing on every Meilisearch restart.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: meilisearch
+  labels:
+    app.kubernetes.io/name: meilisearch
+spec:
+  serviceName: meilisearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: meilisearch
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: meilisearch
+    spec:
+      containers:
+        - name: meilisearch
+          image: getmeili/meilisearch:v1.6
+          ports:
+            - name: http
+              containerPort: 7700
+          env:
+            - name: MEILI_ENV
+              value: production
+            # Production mode requires a master key of at least 16 bytes; the
+            # backend uses the same value as its API key.
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: palimpsest-secrets
+                  key: MEILI_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /meili_data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meilisearch
+spec:
+  selector:
+    app.kubernetes.io/name: meilisearch
+  ports:
+    - name: http
+      port: 7700
+      targetPort: http

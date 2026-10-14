@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/bookshelf_repository.dart';
@@ -120,7 +121,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
   Widget _buildItem(BookshelfItem item) {
     final progress = item.progress;
     final subtitle = progress != null
-        ? '讀到 第${progress.chapterNumber}章 ${progress.chapterTitle} · ${progress.percentage.toStringAsFixed(0)}%'
+        ? '讀到 ${chapterLabel(progress.chapterNumber, progress.chapterTitle)} · ${progress.percentage.toStringAsFixed(0)}%'
         : '尚未開始閱讀';
     return ListTile(
       leading: _selecting

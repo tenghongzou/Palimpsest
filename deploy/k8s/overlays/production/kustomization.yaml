@@ -1,0 +1,43 @@
+# Production: the base workloads against external PostgreSQL, Redis,
+# Meilisearch and object storage. Point the config at them and pin image tags:
+#   cd deploy/k8s/overlays/production
+#   kustomize edit set image palimpsest-backend=ghcr.io/tenghongzou/palimpsest-backend:<tag>
+#   kubectl apply -k .
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: palimpsest-backend
+    newName: ghcr.io/tenghongzou/palimpsest-backend
+    newTag: v0.1.0
+  - name: palimpsest-web
+    newName: ghcr.io/tenghongzou/palimpsest-web
+    newTag: v0.1.0
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: palimpsest-backend-config
+    patch: |-
+      # Replace with your managed service endpoints.
+      - op: replace
+        path: /data/DB_HOST
+        value: palimpsest-db.example.internal
+      - op: replace
+        path: /data/DB_SSLMODE
+        value: require
+      - op: replace
+        path: /data/REDIS_HOST
+        value: palimpsest-redis.example.internal
+      - op: replace
+        path: /data/MEILI_HOST
+        value: http://palimpsest-search.example.internal:7700
+      - op: replace
+        path: /data/MINIO_ENDPOINT
+        value: s3.example.internal
+      - op: replace
+        path: /data/MINIO_USE_SSL
+        value: "true"

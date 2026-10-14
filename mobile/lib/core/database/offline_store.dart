@@ -527,6 +527,18 @@ class OfflineStore {
     return (settings, _parseStoredTime(d['updated_at'] as String?));
   }
 
+  /// Removes the signed-in user's personal data (progress, bookmarks,
+  /// bookshelf and unsent changes) so the next account on this device
+  /// neither sees nor uploads it. Downloaded chapters are kept.
+  Future<void> clearUserData() async {
+    await db.transaction((txn) async {
+      for (final table in ['local_bookmarks', 'local_sync_queue', 'local_reading_progress', 'local_bookshelf']) {
+        await txn.delete(table);
+      }
+    });
+    await setMeta('last_sync_at', null);
+  }
+
   // ----------------------------------------------------------------- meta
 
   Future<String?> getMeta(String key) async {

@@ -14,7 +14,7 @@
           :to="`/read/${ch.id}`"
           class="px-4 py-3 rounded border hover:bg-gray-50 flex items-center justify-between"
         >
-          <span class="truncate">第{{ ch.chapter_number }}章 {{ ch.title }}</span>
+          <span class="truncate">{{ chapterLabel(ch.chapter_number, ch.title) }}</span>
           <span class="text-xs text-gray-400 flex-shrink-0 ml-2">{{ ch.word_count }}字</span>
         </NuxtLink>
       </div>

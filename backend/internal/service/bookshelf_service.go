@@ -236,6 +236,9 @@ func (s *BookshelfService) UpdateProgress(userID, novelID uuid.UUID, u ProgressU
 				if err := tx.Model(&progress).UpdateColumn("read_duration", progress.ReadDuration).Error; err != nil {
 					return err
 				}
+				if err := addHistoryDuration(tx, userID, novelID, u.ChapterID, duration); err != nil {
+					return err
+				}
 			}
 			return updateUser(tx, userID, userUpdates)
 		}
@@ -247,6 +250,10 @@ func (s *BookshelfService) UpdateProgress(userID, novelID uuid.UUID, u ProgressU
 				return err
 			}
 			userUpdates["total_read_words"] = gorm.Expr("total_read_words + ?", chapter.WordCount)
+		} else if duration > 0 {
+			if err := addHistoryDuration(tx, userID, novelID, u.ChapterID, duration); err != nil {
+				return err
+			}
 		}
 
 		if isNew {
@@ -267,6 +274,18 @@ func (s *BookshelfService) UpdateProgress(userID, novelID uuid.UUID, u ProgressU
 		return nil, err
 	}
 	return &progress, nil
+}
+
+// addHistoryDuration adds reading time to the latest history entry of a
+// chapter, so daily statistics include time spent after the chapter opened.
+func addHistoryDuration(tx *gorm.DB, userID, novelID, chapterID uuid.UUID, seconds int) error {
+	return tx.Exec(`
+		UPDATE reading_history SET duration = duration + ?
+		WHERE id = (
+			SELECT id FROM reading_history
+			WHERE user_id = ? AND novel_id = ? AND chapter_id = ?
+			ORDER BY read_at DESC LIMIT 1
+		)`, seconds, userID, novelID, chapterID).Error
 }
 
 func updateUser(tx *gorm.DB, userID uuid.UUID, updates map[string]interface{}) error {

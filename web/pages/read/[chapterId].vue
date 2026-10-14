@@ -76,7 +76,7 @@
             :class="ch.id === chapter?.id ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'"
             @click="navigateToChapter(ch.id)"
           >
-            第{{ ch.chapter_number }}章 {{ ch.title }}
+            {{ chapterLabel(ch.chapter_number, ch.title) }}
           </div>
         </div>
       </n-drawer-content>
