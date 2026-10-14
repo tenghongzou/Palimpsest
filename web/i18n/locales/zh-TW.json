@@ -681,6 +681,7 @@
     }
   },
   "bookshelf": {
+    "offlineNotice": "離線中：顯示本機保存的書架，恢復連線後會自動更新",
     "defaultGroup": "預設",
     "heading": "我的書架",
     "done": "完成",

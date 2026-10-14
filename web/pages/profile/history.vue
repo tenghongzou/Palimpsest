@@ -28,7 +28,7 @@
           </div>
         </n-card>
       </div>
-      <n-empty v-if="!loading && items.length === 0" :description="$t('profile.stats.empty')" class="py-12" />
+      <n-empty v-if="!loading && items.length === 0" :description="loadFailed ? $t('profile.history.loadFailed') : $t('profile.stats.empty')" class="py-12" />
     </n-spin>
 
     <div v-if="pagination.total_pages > 1" class="flex justify-center">
@@ -51,6 +51,8 @@ const message = useMessage()
 const items = ref<ApiReadingHistory[]>([])
 const pagination = ref<Pagination>({ page: 1, page_size: 20, total: 0, total_pages: 0 })
 const loading = ref(false)
+/** The last load failed, so an empty list means "unknown", not "none". */
+const loadFailed = ref(false)
 
 async function load(page = 1) {
   loading.value = true
@@ -58,8 +60,10 @@ async function load(page = 1) {
     const res = await apiFetch<ApiResponse<Paginated<ApiReadingHistory>>>('/reading-history', { params: { page, page_size: 20 } })
     items.value = res.data.items
     pagination.value = res.data.pagination
+    loadFailed.value = false
   }
   catch (e) {
+    loadFailed.value = true
     message.error(describeError(t, e, {}, t('profile.history.loadFailed')))
   }
   finally {

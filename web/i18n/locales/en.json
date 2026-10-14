@@ -681,6 +681,7 @@
     }
   },
   "bookshelf": {
+    "offlineNotice": "You're offline: showing the bookshelf saved on this device. It updates once you're back online.",
     "defaultGroup": "Default",
     "heading": "My bookshelf",
     "done": "Done",
