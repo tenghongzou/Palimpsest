@@ -30,7 +30,7 @@ func Auth(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		claims, err := jwtpkg.ValidateToken(cfg.JWT.Secret, token)
+		claims, err := jwtpkg.ValidateTokenType(cfg.JWT.Secret, token, jwtpkg.TypeAccess)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"code":    40103,
@@ -55,6 +55,21 @@ func AdminOnly() gin.HandlerFunc {
 				"message": "admin access required",
 			})
 			return
+		}
+		c.Next()
+	}
+}
+
+// OptionalAuth identifies the user when a valid access token is sent but
+// lets anonymous requests through, for public pages that personalise
+// results (such as marking what the viewer liked).
+func OptionalAuth(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if token, ok := strings.CutPrefix(c.GetHeader("Authorization"), "Bearer "); ok {
+			if claims, err := jwtpkg.ValidateTokenType(cfg.JWT.Secret, token, jwtpkg.TypeAccess); err == nil {
+				c.Set("userID", claims.UserID)
+				c.Set("userRole", claims.Role)
+			}
 		}
 		c.Next()
 	}

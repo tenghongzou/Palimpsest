@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider>
+  <n-config-provider :locale="zhTW" :date-locale="dateZhTW">
     <n-message-provider>
       <div class="min-h-screen flex items-center justify-center bg-gray-50">
         <div class="w-full max-w-md px-4">
@@ -17,5 +17,5 @@
 </template>
 
 <script setup lang="ts">
-import { NConfigProvider, NMessageProvider, NCard } from 'naive-ui'
+import { NConfigProvider, NMessageProvider, NCard, zhTW, dateZhTW } from 'naive-ui'
 </script>

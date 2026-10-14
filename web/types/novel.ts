@@ -10,7 +10,11 @@ export interface Novel {
   total_chapters: number
   view_count: number
   favorite_count: number
+  review_count?: number
   avg_rating: number
+  is_published?: boolean
+  is_featured?: boolean
+  latest_chapter_id?: string
   latest_chapter_title: string
   latest_chapter_at: string
   categories: Category[]
@@ -37,4 +41,16 @@ export interface Chapter {
   content: string
   chapter_number: number
   word_count: number
+}
+
+export interface ChapterRef {
+  id: string
+  title: string
+  chapter_number: number
+}
+
+/** A chapter with links to its neighbours (GET /chapters/{id}). */
+export interface ChapterDetail extends Chapter {
+  prev_chapter?: ChapterRef | null
+  next_chapter?: ChapterRef | null
 }

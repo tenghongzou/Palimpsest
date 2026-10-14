@@ -275,3 +275,22 @@ func TestAdminOnlyWithoutRole(t *testing.T) {
 		t.Errorf("expected code 40301, got %v", body["code"])
 	}
 }
+
+func TestAuthRejectsNonAccessTokens(t *testing.T) {
+	cfg := newTestConfig()
+	r := gin.New()
+	r.GET("/test", Auth(cfg), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	for _, typ := range []string{jwtpkg.TypeRefresh, jwtpkg.TypePasswordReset} {
+		token, _ := jwtpkg.GenerateToken(cfg.JWT.Secret, uuid.New(), "admin", typ, time.Hour)
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("%s token: expected 401, got %d", typ, w.Code)
+		}
+	}
+}

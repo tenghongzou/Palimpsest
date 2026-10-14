@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <div class="flex items-center gap-4 flex-wrap">
+    <div class="flex items-center gap-3 flex-wrap">
       <NuxtLink
         v-for="cat in categories"
         :key="cat.id"
@@ -8,9 +8,9 @@
         class="no-underline"
       >
         <n-tag
-          :type="cat.slug === slug ? 'primary' : 'default'"
+          :type="cat.slug === activeTop?.slug ? 'primary' : 'default'"
           round
-          :bordered="cat.slug !== slug"
+          :bordered="cat.slug !== activeTop?.slug"
           class="cursor-pointer"
         >
           {{ cat.name }}
@@ -18,19 +18,19 @@
       </NuxtLink>
     </div>
 
+    <div v-if="activeTop?.children?.length" class="flex items-center gap-2 flex-wrap text-sm">
+      <span class="text-gray-500">子分類：</span>
+      <NuxtLink :to="`/category/${activeTop.slug}`" class="no-underline">
+        <n-tag size="small" :type="slug === activeTop.slug ? 'primary' : 'default'" class="cursor-pointer">全部</n-tag>
+      </NuxtLink>
+      <NuxtLink v-for="child in activeTop.children" :key="child.id" :to="`/category/${child.slug}`" class="no-underline">
+        <n-tag size="small" :type="slug === child.slug ? 'primary' : 'default'" class="cursor-pointer">{{ child.name }}</n-tag>
+      </NuxtLink>
+    </div>
+
     <div class="flex items-center gap-3">
-      <n-select
-        v-model:value="sortBy"
-        :options="sortOptions"
-        size="small"
-        class="w-32"
-      />
-      <n-select
-        v-model:value="statusFilter"
-        :options="statusOptions"
-        size="small"
-        class="w-32"
-      />
+      <n-select v-model:value="sortBy" :options="NOVEL_SORT_OPTIONS" size="small" class="w-32" />
+      <n-select v-model:value="statusFilter" :options="statusOptions" size="small" class="w-32" />
     </div>
 
     <n-spin :show="loading">
@@ -44,7 +44,7 @@
       <n-pagination
         :page="pagination.page"
         :page-count="pagination.total_pages"
-        @update:page="handlePageChange"
+        @update:page="loadNovels"
       />
     </div>
   </div>
@@ -58,34 +58,34 @@ const slug = computed(() => route.params.slug as string)
 const { categories } = useCategories()
 const { novels, pagination, loading, fetchNovels } = useNovelList()
 
-const sortBy = ref('latest')
-const statusFilter = ref('all')
+const sortBy = ref<NovelSort>('latest')
+const statusFilter = ref<'all' | 'ongoing' | 'completed' | 'hiatus'>('all')
 
-const sortOptions = [
-  { label: '最新', value: 'latest' },
-  { label: '人氣', value: 'views' },
-  { label: '評分', value: 'rating' },
-  { label: '字數', value: 'words' },
-]
+/** The top-level category for the current slug (itself or its parent). */
+const activeTop = computed(() =>
+  categories.value.find(c => c.slug === slug.value || c.children?.some(ch => ch.slug === slug.value)),
+)
+const activeName = computed(() => {
+  const top = activeTop.value
+  if (!top) return '分類'
+  return top.slug === slug.value ? top.name : top.children?.find(c => c.slug === slug.value)?.name ?? top.name
+})
+useHead({ title: computed(() => `${activeName.value} — Palimpsest`) })
 
 const statusOptions = [
-  { label: '全部', value: 'all' },
+  { label: '全部狀態', value: 'all' },
   { label: '連載中', value: 'ongoing' },
   { label: '已完結', value: 'completed' },
+  { label: '暫停', value: 'hiatus' },
 ]
 
 function loadNovels(page = 1) {
-  const params: Record<string, any> = {
+  fetchNovels({
     category: slug.value,
-    sort: sortBy.value,
+    sort_by: sortBy.value,
+    status: statusFilter.value === 'all' ? undefined : statusFilter.value,
     page,
-  }
-  if (statusFilter.value !== 'all') params.status = statusFilter.value
-  fetchNovels(params)
-}
-
-function handlePageChange(page: number) {
-  loadNovels(page)
+  })
 }
 
 watch([slug, sortBy, statusFilter], () => loadNovels(), { immediate: true })

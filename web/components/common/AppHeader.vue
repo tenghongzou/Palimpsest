@@ -31,7 +31,7 @@
         :options="userMenuOptions"
         @select="handleUserMenuSelect"
       >
-        <n-button quaternary circle>
+        <n-button quaternary circle data-testid="user-menu">
           <template #icon>
             <n-avatar
               v-if="user?.avatar_url"
@@ -84,12 +84,16 @@ const navOptions: MenuOption[] = [
   { label: () => h(resolveComponent('NuxtLink'), { to: '/bookshelf' }, () => '書架'), key: '/bookshelf' },
 ]
 
-const userMenuOptions: DropdownOption[] = [
+const userMenuOptions = computed<DropdownOption[]>(() => [
   { label: '個人中心', key: 'profile' },
   { label: '我的書架', key: 'bookshelf' },
+  { label: '閱讀紀錄', key: 'history' },
+  { label: '我的書籤', key: 'bookmarks' },
+  { label: '帳號設定', key: 'settings' },
+  ...(authStore.isAdmin ? [{ label: '管理後台', key: 'admin' }] : []),
   { type: 'divider', key: 'd1' },
   { label: '登出', key: 'logout' },
-]
+])
 
 function handleNavSelect(key: string) {
   router.push(key)
@@ -108,6 +112,18 @@ async function handleUserMenuSelect(key: string) {
       break
     case 'bookshelf':
       router.push('/bookshelf')
+      break
+    case 'history':
+      router.push('/profile/history')
+      break
+    case 'bookmarks':
+      router.push('/profile/bookmarks')
+      break
+    case 'settings':
+      router.push('/profile/settings')
+      break
+    case 'admin':
+      router.push('/admin')
       break
     case 'logout':
       await authStore.logout()

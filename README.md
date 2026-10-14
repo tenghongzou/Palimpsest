@@ -5,7 +5,7 @@
 Palimpsest 的定位類似「起點中文網」。讀者可以逛書城、搜尋、排行榜，在自訂的閱讀器裡看書，並在多個裝置之間同步書架與閱讀進度。系統以 OpenCC 做繁簡轉換、以 Google Translate 做英文翻譯，並把章節快取在本地 SQLite，沒有網路也能繼續閱讀。
 
 > [!NOTE]
-> 本專案目前處於 **MVP 開發階段（v0.1.0）**。後端 API 骨架、Web 與 Flutter 的主要頁面已經建立，但部分功能仍是佔位實作，詳見[開發進度](#開發進度)。
+> 本專案目前處於 **MVP 開發階段（v0.1.0）**。Phase 1 的功能已在後端、Web 與 Flutter 實作完成，尚未完成的是正式環境部署與少數 App 端設定，詳見[開發進度](#開發進度)。
 
 ---
 
@@ -177,8 +177,10 @@ docker-compose up -d
 | PostgreSQL | `localhost:5432` | `palimpsest` / `palimpsest`，DB：`palimpsest` |
 | Redis | `localhost:6379` | 無密碼 |
 | Meilisearch | http://localhost:7700 | 開發模式，無 API Key |
-| MinIO API | http://localhost:9000 | `minioadmin` / `minioadmin` |
-| MinIO Console | http://localhost:9001 | `minioadmin` / `minioadmin` |
+| 物件儲存（S3 相容） | http://localhost:9000 | `minioadmin` / `minioadmin` |
+
+> [!NOTE]
+> MinIO 已不再發布容器映像檔，`docker-compose.yml` 的 `minio` 服務改用 API 相容的 [RustFS](https://github.com/rustfs/rustfs)（固定在 `rustfs/rustfs:1.0.0`）。後端仍透過 MinIO 用戶端存取，啟動時會自動建立 Bucket，並讓 `public/` 底下的頭像與封面可匿名讀取。
 
 ### 2. 啟動後端
 
@@ -187,12 +189,19 @@ cd backend
 go run ./cmd/server
 ```
 
-預設的環境變數值已經對應 `docker-compose.yml`，本地開發不需額外設定即可啟動。伺服器啟動時會用 GORM `AutoMigrate` 建立核心資料表，另可用 `curl http://localhost:8080/health` 做健康檢查。
+預設的環境變數值已經對應 `docker-compose.yml`，本地開發不需額外設定即可啟動。伺服器啟動時會用 GORM `AutoMigrate` 建立資料表（清單見 `internal/model/models.go`），並在背景重建 Meilisearch 索引。可用 `curl http://localhost:8080/health` 做健康檢查。
+
+要填入示範資料（分類、管理員帳號、三本範例小說），執行種子指令。重複執行不會產生重複資料：
+
+```bash
+cd backend
+SEED_ADMIN_PASSWORD=<至少 8 碼> go run ./cmd/seed   # 管理員帳號預設為 admin
+```
 
 > [!TIP]
-> `backend/migrations/` 內有完整的 PostgreSQL Schema（22 張表，含 `user_devices`、`reading_history`、`reports`、`translation_cache`、`admin_logs` 等 AutoMigrate 未涵蓋的表）。如需完整結構，可用 [golang-migrate](https://github.com/golang-migrate/migrate) 或 `psql` 手動套用。
+> `backend/migrations/` 是早期規劃的完整 PostgreSQL Schema，目前程式不會套用。實際使用的資料表以 Go Model 為準；`user_devices`、`translation_cache`、`search_keywords`、`admin_logs` 等尚未使用的表不會被建立。
 
-Redis 或 MinIO 連線失敗時，伺服器只會印出警告並繼續執行（此時沒有快取或物件儲存）；PostgreSQL 連線失敗則會直接結束。
+Redis 或物件儲存連線失敗時，伺服器只會印出警告並繼續執行（此時沒有快取，上傳頭像與封面會回傳 503）；PostgreSQL 連線失敗則會直接結束。
 
 ### 3. 啟動 Web 前端
 
@@ -204,14 +213,15 @@ pnpm dev          # http://localhost:3000
 
 ### 4. 啟動 Flutter App
 
-`mobile/` 目前只包含 Dart 原始碼，尚未提交各平台的原生專案目錄。第一次執行前，請先產生需要的平台：
+`mobile/` 已包含 Android 與 iOS 原生專案（以 Flutter 3.47.2 產生，與 CI 相同版本；套件名稱 `cc.palimpsest.palimpsest`）。請使用 Flutter 3.47.x：
 
 ```bash
 cd mobile
-flutter create --platforms=android,ios .   # 依需求加入 windows、macos、linux
 flutter pub get
 flutter run
 ```
+
+之後要支援桌面版時，再執行 `flutter create --platforms=windows,macos,linux .`。
 
 App 預設連到 `http://10.0.2.2:8080/api/v1`（Android 模擬器對應的主機位址）。其他環境請用 `--dart-define` 覆寫：
 
@@ -236,18 +246,27 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 |------|--------|------|
 | `SERVER_PORT` | `8080` | HTTP 監聽埠 |
 | `GIN_MODE` | `debug` | `debug` / `release` / `test` |
+| `TRUSTED_PROXIES` | 私有網段（`127.0.0.0/8`、`10.0.0.0/8`、`172.16.0.0/12`、`192.168.0.0/16`、`::1`） | 只信任這些代理送來的 `X-Forwarded-For`，用來判斷限流的用戶端 IP |
 | `DB_HOST` / `DB_PORT` | `localhost` / `5432` | PostgreSQL 位址 |
 | `DB_USER` / `DB_PASSWORD` | `palimpsest` / `palimpsest` | PostgreSQL 帳密 |
 | `DB_NAME` / `DB_SSLMODE` | `palimpsest` / `disable` | 資料庫名稱與 SSL 模式 |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis 位址 |
 | `REDIS_PASSWORD` | （空） | Redis 密碼 |
-| `JWT_SECRET` | `change-me-in-production` | JWT 簽章金鑰，**正式環境務必更換** |
-| `MINIO_ENDPOINT` | `localhost:9000` | MinIO 位址 |
-| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `minioadmin` / `minioadmin` | MinIO 金鑰 |
+| `JWT_SECRET` | `change-me-in-production` | JWT 簽章金鑰。`release` 模式下若仍是預設值或少於 32 字元，伺服器會拒絕啟動 |
+| `MINIO_ENDPOINT` | `localhost:9000` | 物件儲存（S3 相容）位址 |
+| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `minioadmin` / `minioadmin` | 物件儲存金鑰 |
 | `MINIO_BUCKET` | `palimpsest` | Bucket 名稱 |
+| `MINIO_USE_SSL` | `false` | 是否以 HTTPS 連線物件儲存 |
+| `MINIO_PUBLIC_URL` | `http://localhost:9000/palimpsest` | 瀏覽器讀取上傳檔案的網址前綴（正式環境通常是 CDN） |
 | `MEILI_HOST` | `http://localhost:7700` | Meilisearch 位址 |
 | `MEILI_API_KEY` | （空） | Meilisearch API Key |
 | `CORS_ALLOWED_ORIGINS` | `*` | 允許的來源，以逗號分隔，例如 `https://a.com,https://b.com` |
+| `GOOGLE_TRANSLATE_API_KEY` | （空） | Google Cloud Translation v2 API Key。未設定時只提供繁簡轉換，英文翻譯回傳 503 |
+| `GOOGLE_TRANSLATE_ENDPOINT` | （空） | 覆寫翻譯 API 位址（測試或代理用） |
+| `SMTP_HOST` / `SMTP_PORT` | （空）/ `587` | 寄送重設密碼信的 SMTP 伺服器。未設定時不寄信，`debug` 模式下會把重設連結印在日誌中 |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | （空） | SMTP 帳密 |
+| `SMTP_FROM` | `Palimpsest <no-reply@palimpsest.local>` | 寄件者 |
+| `WEB_BASE_URL` | `http://localhost:3000` | Web 前端的公開網址，用於信中的重設密碼連結 |
 
 ### Web（`web/nuxt.config.ts`）
 
@@ -301,20 +320,27 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 
 | 權限 | 方法與路徑 | 說明 |
 |------|-----------|------|
-| 公開 | `POST /auth/register`、`/auth/login`、`/auth/refresh`、`/auth/logout` | 註冊、登入、刷新 Token、登出 |
-| 公開 | `POST /auth/forgot-password`、`/auth/reset-password` | 忘記密碼、重設密碼 |
-| 公開 | `GET /novels`、`/novels/:id` | 小說列表、詳情 |
-| 公開 | `GET /novels/:id/chapters`、`/novels/:id/chapters/:chapterId` | 章節目錄、章節內容 |
+| 公開 · 限流 | `POST /auth/register`、`/auth/login`、`/auth/forgot-password`、`/auth/reset-password` | 註冊、登入、忘記密碼、重設密碼（各自每 IP 每分鐘 5 次） |
+| 公開 | `POST /auth/refresh`、`/auth/logout` | 刷新 Token、登出 |
+| 公開 | `GET /home`、`/banners` | 書城首頁區塊、輪播 |
+| 公開 | `GET /novels`、`/novels/:id` | 小說列表（可依分類 `category` slug、狀態、語言篩選與排序）、詳情 |
+| 公開 | `GET /novels/:id/chapters`、`/chapters/:chapterId` | 章節目錄、章節內容（含上一章／下一章） |
 | 公開 | `GET /categories` | 分類列表 |
-| 公開 | `GET /rankings/:type?period=weekly` | 排行榜 |
+| 公開 | `GET /rankings/:type?period=weekly` | 排行榜（點閱榜依日／週／月統計） |
 | 公開 | `GET /search/novels`、`/search/suggestions`、`/search/hot-keywords` | 搜尋 |
-| 登入 | `GET` / `POST /bookshelf`、`DELETE /bookshelf/:novelId` | 書架 |
-| 登入 | `GET` / `PUT /reading-progress/:novelId` | 閱讀進度 |
+| 公開（登入可選） | `GET /novels/:id/reviews`、`/chapters/:chapterId/comments` | 書評、章節留言（登入時標示自己按過讚的項目） |
+| 登入 | `GET` / `PATCH /users/me`、`POST /users/me/avatar`、`PUT /users/me/password` | 個人資料、頭像、修改密碼 |
+| 登入 | `GET /users/me/reading-stats`、`GET` / `PUT /users/me/reading-settings` | 閱讀統計、閱讀設定同步 |
+| 登入 | `/bookshelf`（含 `PATCH` 分組、`POST /bookshelf/batch-remove`） | 書架 |
+| 登入 | `/reading-progress`、`/reading-progress/batch`、`GET /reading-history` | 閱讀進度、閱讀紀錄 |
+| 登入 | `/bookmarks`、`POST /bookmarks/sync` | 書籤、離線書籤同步 |
+| 登入 | `POST /novels/:id/reviews`、`/reviews/:id`、`/chapters/:chapterId/comments`、`/comments/:id`、`.../like`、`POST /reports` | 撰寫書評與留言、按讚、檢舉 |
 | 登入 · 限流 | `POST /translation/convert`、`/translation/chapter`、`/translation/text` | 繁簡轉換、翻譯 |
-| 管理員 | `/admin/novels`、`/admin/chapters`、`/admin/novels/:id/chapters/batch` | 小說與章節管理 |
+| 管理員 | `/admin/novels`、`/admin/chapters`、`/admin/novels/:id/chapters/batch`、`POST /admin/uploads` | 小說、章節、封面上傳 |
+| 管理員 | `/admin/categories`、`/admin/banners` | 分類、輪播 |
 | 管理員 | `/admin/users`、`/admin/reviews`、`/admin/reports`、`/admin/stats` | 用戶、審核、檢舉、統計 |
 
-受保護的端點需帶上 `Authorization: Bearer <access_token>`。
+受保護的端點需帶上 `Authorization: Bearer <access_token>`。完整規格見 [`shared/api-spec/openapi.yaml`](shared/api-spec/openapi.yaml)，`go test ./cmd/server` 會檢查規格與 Router 是否一致。
 
 ---
 
@@ -323,30 +349,39 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 ### 在本地執行測試
 
 ```bash
-# 後端
-cd backend && go test ./...
+# 後端：單元測試；設定 TEST_DATABASE_URL 時也會跑 PostgreSQL 整合測試
+# （每個測試使用獨立的 schema，結束後刪除）
+cd backend
+go test ./...
+TEST_DATABASE_URL='postgres://palimpsest:palimpsest@localhost:5432/palimpsest_test?sslmode=disable' go test ./...
 
 # Web
 cd web
 pnpm test:run      # 單次執行 Vitest
 pnpm test          # 監看模式
-pnpm test:e2e      # Playwright E2E
-pnpm typecheck     # TypeScript 型別檢查
+pnpm test:e2e      # Playwright E2E（預設會建置並以 pnpm preview 啟動 http://localhost:3000）
+pnpm typecheck     # vue-tsc 型別檢查（含 .vue 檔）
+
+# 對已在執行的站台跑 E2E（需要後端與種子資料；管理員帳密以 E2E_ADMIN_LOGIN / E2E_ADMIN_PASSWORD 指定）
+PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm test:e2e
 pnpm lint          # ESLint
 
 # Flutter
 cd mobile
 flutter test
 dart analyze
+dart run tool/sync_sqlite_schema.dart   # 共用 SQLite Schema 變更後重新產生 Dart 檔
+flutter test integration_test           # 需要連接裝置或模擬器
 ```
 
 ### 測試範圍
 
 | 層級 | 框架 | 目前涵蓋 |
 |------|------|----------|
-| 後端 | `go test` | config、handler、middleware、model、jwt、service |
-| Web | Vitest + Vue Test Utils | composables（bookshelf、localDb、novel、sync、translation）、stores（app、auth、reader） |
-| Flutter | `flutter_test` | app、config、各功能的 domain entities、reader provider |
+| 後端 | `go test` | config、handler、middleware、model、jwt、mail、translate、service；PostgreSQL 整合測試涵蓋書架、進度、書籤、社群、使用者設定、後台、密碼重設、首頁 |
+| Web | Vitest + Vue Test Utils | composables、stores、utils（API、本機 DB 與 sql.js 兩種建置、Schema 漂移、章節批次匯入解析等） |
+| Web E2E | Playwright | 註冊登入、忘記密碼、瀏覽與閱讀、書籤（含離線）、留言、翻譯、閱讀設定、書架、書評與檢舉、個人設定、管理後台 |
+| Flutter | `flutter_test` | 資料庫 migration 與 Schema 漂移、同步、repositories、離線下載、閱讀設定、各頁面 widget 測試，以及以假後端跑完整閱讀流程 |
 
 ### GitHub Actions
 
@@ -354,7 +389,7 @@ dart analyze
 
 | Workflow | 觸發路徑 | 內容 |
 |----------|----------|------|
-| [`backend.yml`](.github/workflows/backend.yml) | `backend/**` | `go build` + `go test ./internal/...` |
+| [`backend.yml`](.github/workflows/backend.yml) | `backend/**` | `go build`、`go vet`，並以 PostgreSQL 服務容器執行 `go test ./...`（含整合測試） |
 | [`web.yml`](.github/workflows/web.yml) | `web/**`、`shared/**` | Node 20 + pnpm，執行 `pnpm test:run` |
 | [`flutter.yml`](.github/workflows/flutter.yml) | `mobile/**`、`shared/**` | Flutter 3.47.2，執行 `flutter test` |
 
@@ -367,21 +402,27 @@ dart analyze
 | 項目 | 狀態 | 備註 |
 |------|:----:|------|
 | 後端分層架構、設定、優雅關機 | ✅ | |
-| 會員註冊 / 登入 / JWT / 重設密碼 Token | ✅ | 尚未串接寄信服務 |
-| 小說、章節、分類 API（含 Redis 快取） | ✅ | |
-| 書架與閱讀進度 API | ✅ | |
-| 排行榜 | ✅ | 優先讀 Redis Sorted Set，無資料時退回資料庫查詢 |
-| Meilisearch 搜尋與索引 | ✅ | 熱門關鍵字目前回傳空陣列 |
-| 管理後台 API | 🚧 | 小說、章節、用戶、統計可用；檢舉相關端點為佔位 |
-| 翻譯 API（路由、快取、限流） | 🚧 | **OpenCC 與 Google Translate 尚未整合**，目前原文回傳 |
-| 全域 API 限流（公開 60 / 登入 120 次/分） | 📋 | 目前僅翻譯路由有套用限流 |
-| Web 主要頁面、Pinia stores、BFF 代理 | ✅ | |
-| Web 管理後台頁面 | 🚧 | 統計總覽待實作 |
-| Web 離線快取（sql.js）與資料同步 | 🚧 | `useLocalDb`、`useSync` 為骨架 |
-| Flutter 登入、書城、閱讀器、書架、搜尋、個人頁 | ✅ | |
-| Flutter 原生平台專案目錄 | 📋 | 需先執行 `flutter create` |
-| 社群功能（書評、留言、按讚） | 📋 | 資料表已設計，API 待開發 |
-| Kubernetes 部署設定 | 📋 | |
+| 會員註冊 / 登入 / JWT / 忘記密碼 | ✅ | 重設密碼信透過 SMTP 寄出，連結只能用一次；改密碼會撤銷舊的 Refresh Token；封禁立即生效 |
+| 個人資料、頭像、閱讀設定同步、閱讀統計 | ✅ | 頭像存放於 S3 相容物件儲存 |
+| 小說、章節、分類 API（含 Redis 快取） | ✅ | 章節數、字數、最新章節自動維護；後台編輯會立即清除快取 |
+| 書架、閱讀進度、閱讀紀錄、書籤 API | ✅ | 進度以最後閱讀者為準；書籤支援離線批次同步 |
+| 書城首頁與輪播 | ✅ | |
+| 排行榜 | ✅ | 點閱榜依日 / 週 / 月統計（Redis 每日計數），其他榜單由資料庫排序 |
+| Meilisearch 搜尋與索引 | ✅ | 啟動時重建索引，後台新增 / 修改 / 發布 / 刪除時同步；熱門關鍵字以 Redis Sorted Set 統計 |
+| 社群功能（書評、留言、按讚、檢舉） | ✅ | 書評會更新小說評分；檢舉可在後台處理並隱藏內容 |
+| 管理後台 API | ✅ | 小說、章節（含批次匯入）、分類、輪播、上傳、用戶、書評審核、檢舉、統計 |
+| 翻譯 API | ✅ | 繁簡轉換用 OpenCC（台灣用語）；英文用 Google Cloud Translation v2，未設定 API Key 時回傳 503 |
+| API 限流 | ✅ | 公開 60 / 登入 120 次/分；翻譯共用 20 次/分；登入、註冊、密碼重設各 5 次/分 |
+| OpenAPI 規格 | ✅ | 涵蓋所有路由，`go test` 會檢查規格與 Router 是否一致 |
+| 種子資料 | ✅ | `go run ./cmd/seed`：分類、管理員、三本範例小說 |
+| Web 讀者端 | ✅ | 首頁、分類、排行、搜尋、小說頁（書評）、閱讀器（書籤、留言、翻譯、翻頁模式）、書架（分組）、個人中心、設定、閱讀紀錄 |
+| Web 管理後台 | ✅ | 儀表板、小說與章節、分類、輪播、用戶、書評審核、檢舉處理 |
+| Web Token 自動刷新、離線快取（sql.js） | ✅ | 章節、進度與書籤可離線使用，恢復連線後同步 |
+| Flutter 書城、閱讀器、書架、搜尋、個人頁 | ✅ | 閱讀器含上下章、目錄、書籤、翻譯、留言；新增排行、分類、閱讀紀錄、設定頁 |
+| Flutter 離線閱讀 | ✅ | 章節快取、整本下載與下載管理、離線進度與書籤同步；本機 Schema 由共用 SQL 產生 |
+| Flutter 頭像上傳、翻頁模式、螢幕常亮 | 🚧 | 設定可儲存與同步，但尚未有對應功能（需額外套件） |
+| Flutter 原生平台專案目錄 | ✅ | Android、iOS（桌面版待 Phase 3） |
+| Kubernetes 部署、監控、CDN | 📋 | Sprint 8 |
 
 ✅ 完成　🚧 進行中 / 部分完成　📋 規劃中
 

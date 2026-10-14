@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"math"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tenghongzou/palimpsest/backend/internal/model"
 	"github.com/tenghongzou/palimpsest/backend/internal/service"
+	"gorm.io/gorm"
 )
 
 type NovelHandler struct {
@@ -38,6 +40,14 @@ func (h *NovelHandler) List(c *gin.Context) {
 		if id, err := strconv.Atoi(catStr); err == nil {
 			categoryID = &id
 		}
+	} else if slug := c.Query("category"); slug != "" {
+		id, err := h.novelSvc.CategoryIDBySlug(slug)
+		if err != nil {
+			// An unknown category simply has no novels.
+			c.JSON(http.StatusOK, model.SuccessResponse(paginated([]model.Novel{}, page, pageSize, 0)))
+			return
+		}
+		categoryID = &id
 	}
 
 	novels, total, err := h.novelSvc.List(page, pageSize, categoryID, status, language, sortBy)
@@ -67,7 +77,11 @@ func (h *NovelHandler) GetByID(c *gin.Context) {
 
 	novel, err := h.novelSvc.GetByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, model.ErrorResponse(40401, "novel not found"))
+		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, service.ErrNotFound) {
+			c.JSON(http.StatusNotFound, model.ErrorResponse(40401, "novel not found"))
+		} else {
+			serviceError(c, err, 40401, "novel not found")
+		}
 		return
 	}
 
@@ -98,8 +112,17 @@ func (h *NovelHandler) GetChapter(c *gin.Context) {
 		return
 	}
 
-	chapter, err := h.novelSvc.GetChapter(chapterID)
+	chapter, err := h.novelSvc.GetChapter(chapterID, c.Query("count_view") != "false")
 	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			serviceError(c, err, 40402, "chapter not found")
+			return
+		}
+		c.JSON(http.StatusNotFound, model.ErrorResponse(40402, "chapter not found"))
+		return
+	}
+	// Reached through /novels/:id/chapters/:chapterId, the chapter must belong to that novel.
+	if novelID := c.Param("id"); novelID != "" && novelID != chapter.NovelID.String() {
 		c.JSON(http.StatusNotFound, model.ErrorResponse(40402, "chapter not found"))
 		return
 	}

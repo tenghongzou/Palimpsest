@@ -55,3 +55,11 @@ type Tag struct {
 	UsageCount int       `gorm:"default:0" json:"usage_count"`
 	CreatedAt  time.Time `json:"created_at"`
 }
+
+// NovelBrief identifies a novel in admin listings.
+type NovelBrief struct {
+	ID    uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	Title string    `json:"title"`
+}
+
+func (NovelBrief) TableName() string { return "novels" }

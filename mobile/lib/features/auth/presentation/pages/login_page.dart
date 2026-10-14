@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/api_error.dart';
 import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -33,7 +34,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       });
       if (next.hasError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('登入失敗：${next.error}')),
+          SnackBar(content: Text(httpStatus(next.error!) == 401 ? '帳號或密碼錯誤' : '登入失敗：${describeError(next.error!)}')),
         );
       }
     });
@@ -78,7 +79,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                         validator: (v) => v == null || v.isEmpty ? '請輸入密碼' : null,
                       ),
-                      const SizedBox(height: 24),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => context.push('/forgot-password'),
+                          child: const Text('忘記密碼？'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(

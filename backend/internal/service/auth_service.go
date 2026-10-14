@@ -2,12 +2,15 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/tenghongzou/palimpsest/backend/internal/config"
 	"github.com/tenghongzou/palimpsest/backend/internal/model"
 	jwtpkg "github.com/tenghongzou/palimpsest/backend/internal/pkg/jwt"
+	"github.com/tenghongzou/palimpsest/backend/internal/pkg/mail"
 	"github.com/tenghongzou/palimpsest/backend/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -30,7 +33,8 @@ type RegisterRequest struct {
 }
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	// Login accepts either a username or an email address.
+	Login    string `json:"login" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -53,13 +57,29 @@ type TokenPair struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
+// AuthResult is returned by register, login and refresh.
+type AuthResult struct {
+	User *model.User `json:"user"`
+	TokenPair
+}
+
 type AuthService struct {
 	userRepo *repository.UserRepository
 	cfg      *config.Config
+	mailer   mail.Sender
 }
 
-func NewAuthService(userRepo *repository.UserRepository, cfg *config.Config) *AuthService {
-	return &AuthService{userRepo: userRepo, cfg: cfg}
+func NewAuthService(userRepo *repository.UserRepository, cfg *config.Config, mailer mail.Sender) *AuthService {
+	return &AuthService{userRepo: userRepo, cfg: cfg, mailer: mailer}
+}
+
+// issuedBeforePasswordChange reports whether a token predates the user's
+// last password change, which revokes it.
+func issuedBeforePasswordChange(claims *jwtpkg.Claims, user *model.User) bool {
+	if user.PasswordChangedAt == nil || claims.IssuedAt == nil {
+		return false
+	}
+	return claims.IssuedAt.Time.Before(user.PasswordChangedAt.Truncate(time.Second))
 }
 
 func (s *AuthService) Register(req *RegisterRequest) (*model.User, *TokenPair, error) {
@@ -109,9 +129,9 @@ func (s *AuthService) Register(req *RegisterRequest) (*model.User, *TokenPair, e
 }
 
 func (s *AuthService) Login(req *LoginRequest) (*model.User, *TokenPair, error) {
-	user, err := s.userRepo.FindByUsername(req.Username)
+	user, err := s.userRepo.FindByUsername(req.Login)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		user, err = s.userRepo.FindByEmail(req.Username)
+		user, err = s.userRepo.FindByEmail(req.Login)
 	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -140,38 +160,57 @@ func (s *AuthService) Login(req *LoginRequest) (*model.User, *TokenPair, error) 
 	return user, tokens, nil
 }
 
-func (s *AuthService) RefreshToken(req *RefreshRequest) (*TokenPair, error) {
-	claims, err := jwtpkg.ValidateToken(s.cfg.JWT.Secret, req.RefreshToken)
+func (s *AuthService) RefreshToken(req *RefreshRequest) (*model.User, *TokenPair, error) {
+	claims, err := jwtpkg.ValidateTokenType(s.cfg.JWT.Secret, req.RefreshToken, jwtpkg.TypeRefresh)
 	if err != nil {
-		return nil, ErrInvalidToken
+		return nil, nil, ErrInvalidToken
 	}
 
 	user, err := s.userRepo.FindByID(claims.UserID)
 	if err != nil {
-		return nil, ErrUserNotFound
+		return nil, nil, ErrUserNotFound
+	}
+	if issuedBeforePasswordChange(claims, user) {
+		return nil, nil, ErrInvalidToken
 	}
 	if user.Status == "banned" {
-		return nil, ErrUserBanned
+		return nil, nil, ErrUserBanned
 	}
 
-	return s.generateTokenPair(user.ID, user.Role)
+	tokens, err := s.generateTokenPair(user.ID, user.Role)
+	if err != nil {
+		return nil, nil, err
+	}
+	return user, tokens, nil
 }
 
-func (s *AuthService) ForgotPassword(req *ForgotPasswordRequest) (string, error) {
+// ForgotPassword emails a one-hour password reset link. Unknown addresses
+// succeed silently so the endpoint cannot be used to probe for accounts.
+func (s *AuthService) ForgotPassword(req *ForgotPasswordRequest) error {
 	user, err := s.userRepo.FindByEmail(req.Email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil // prevent email enumeration
+			return nil
 		}
-		return "", err
+		return err
+	}
+	if user.Status == "banned" {
+		return nil
 	}
 
-	return jwtpkg.GenerateAccessToken(s.cfg.JWT.Secret, user.ID, "password-reset", time.Hour)
+	token, err := jwtpkg.GenerateToken(s.cfg.JWT.Secret, user.ID, user.Role, jwtpkg.TypePasswordReset, time.Hour)
+	if err != nil {
+		return err
+	}
+	link := s.cfg.WebBaseURL + "/reset-password?token=" + url.QueryEscape(token)
+	body := fmt.Sprintf("%s 您好：\n\n我們收到重設 Palimpsest 密碼的請求。請在一小時內開啟以下連結設定新密碼：\n\n%s\n\n"+
+		"如果這不是您本人的操作，請忽略這封信，您的密碼不會變更。\n", user.Nickname, link)
+	return s.mailer.Send(*user.Email, "重設您的 Palimpsest 密碼", body)
 }
 
 func (s *AuthService) ResetPassword(req *ResetPasswordRequest) error {
-	claims, err := jwtpkg.ValidateToken(s.cfg.JWT.Secret, req.Token)
-	if err != nil || claims.Role != "password-reset" {
+	claims, err := jwtpkg.ValidateTokenType(s.cfg.JWT.Secret, req.Token, jwtpkg.TypePasswordReset)
+	if err != nil {
 		return ErrInvalidToken
 	}
 
@@ -179,13 +218,19 @@ func (s *AuthService) ResetPassword(req *ResetPasswordRequest) error {
 	if err != nil {
 		return ErrUserNotFound
 	}
+	// A reset link works once: using it changes the password, which revokes it.
+	if issuedBeforePasswordChange(claims, user) {
+		return ErrInvalidToken
+	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
+	now := time.Now()
 	user.PasswordHash = string(hash)
+	user.PasswordChangedAt = &now
 	return s.userRepo.Update(user)
 }
 
@@ -198,7 +243,7 @@ func (s *AuthService) generateTokenPair(userID uuid.UUID, role string) (*TokenPa
 		return nil, err
 	}
 
-	refreshToken, err := jwtpkg.GenerateAccessToken(s.cfg.JWT.Secret, userID, role, refreshExpiry)
+	refreshToken, err := jwtpkg.GenerateToken(s.cfg.JWT.Secret, userID, role, jwtpkg.TypeRefresh, refreshExpiry)
 	if err != nil {
 		return nil, err
 	}

@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme-overrides="themeOverrides">
+  <n-config-provider :theme-overrides="themeOverrides" :locale="zhTW" :date-locale="dateZhTW">
     <n-message-provider>
       <n-dialog-provider>
         <n-layout class="min-h-screen">
@@ -21,7 +21,7 @@
 <script setup lang="ts">
 import {
   NConfigProvider, NMessageProvider, NDialogProvider,
-  NLayout, NLayoutHeader, NLayoutContent, NLayoutFooter,
+  NLayout, NLayoutHeader, NLayoutContent, NLayoutFooter, zhTW, dateZhTW,
 } from 'naive-ui'
 import type { GlobalThemeOverrides } from 'naive-ui'
 

@@ -6,10 +6,13 @@ export interface User {
   avatar_url: string
   bio: string
   role: 'reader' | 'author' | 'admin' | 'super_admin'
+  status?: 'active' | 'banned'
   language_pref: 'zh-TW' | 'zh-CN' | 'en'
   total_read_words: number
   total_read_seconds: number
+  last_login_at?: string
   created_at: string
+  updated_at?: string
 }
 
 export interface LoginRequest {

@@ -9,7 +9,9 @@ final authStateProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   final AuthRepository _repo;
 
-  AuthNotifier(this._repo) : super(const AsyncValue.data(null));
+  AuthNotifier(this._repo, {User? initialUser}) : super(AsyncValue.data(initialUser));
+
+  User? get user => state.valueOrNull;
 
   Future<void> login(String login, String password) async {
     state = const AsyncValue.loading();
@@ -36,11 +38,23 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     state = const AsyncValue.data(null);
   }
 
+  /// Replaces the signed in user after a profile change.
+  void updateUser(User user) {
+    state = AsyncValue.data(user);
+    _repo.cacheUser(user).ignore();
+  }
+
   Future<void> tryRestoreSession() async {
-    await _repo.restoreSession();
-    final result = await _repo.refreshToken();
-    if (result != null) {
-      state = AsyncValue.data(result.user);
-    }
+    final user = await _repo.restoreSession();
+    if (user != null && mounted) state = AsyncValue.data(user);
+  }
+
+  /// Re-reads the signed in user (e.g. reading totals) from the server.
+  Future<void> refreshUser() async {
+    if (user == null) return;
+    try {
+      final fresh = await _repo.fetchMe();
+      if (mounted) state = AsyncValue.data(fresh);
+    } catch (_) {}
   }
 }

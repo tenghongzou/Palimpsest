@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 
 describe('Translation composable contract', () => {
-  it('supported conversion directions', () => {
-    const directions = ['tw2cn', 'cn2tw'] as const
-    expect(directions).toContain('tw2cn')
-    expect(directions).toContain('cn2tw')
+  it('supported conversion languages', () => {
+    const chinese = ['zh-TW', 'zh-CN'] as const
+    expect(chinese).toContain('zh-TW')
+    expect(chinese).toContain('zh-CN')
   })
 
   it('supported target languages', () => {
@@ -20,8 +20,8 @@ describe('Translation composable contract', () => {
   })
 
   it('translate request structure', () => {
-    const req = { text: '你好', source_language: 'zh-TW', target_language: 'en' }
+    const req = { text: '你好', from: 'zh-TW', to: 'en' }
     expect(req.text).toBeTruthy()
-    expect(req.target_language).toBe('en')
+    expect(req.to).toBe('en')
   })
 })

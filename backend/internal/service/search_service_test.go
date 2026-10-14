@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -124,5 +125,43 @@ func TestConvertHitsPreservesAllFields(t *testing.T) {
 	}
 	if m["is_published"] != true {
 		t.Errorf("is_published: expected true, got %v", m["is_published"])
+	}
+}
+
+func TestBuildSearchFilterAlwaysPublishedOnly(t *testing.T) {
+	if got := buildSearchFilter(nil); got != "is_published = true" {
+		t.Errorf("expected published-only filter, got %q", got)
+	}
+}
+
+func TestBuildSearchFilterAllowedValues(t *testing.T) {
+	got := buildSearchFilter(map[string]string{"status": "completed", "language": "zh-CN"})
+	want := `is_published = true AND status = "completed" AND language = "zh-CN"`
+	if got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBuildSearchFilterRejectsInjection(t *testing.T) {
+	got := buildSearchFilter(map[string]string{
+		"status":   `ongoing" OR is_published = false OR status = "x`,
+		"language": "fr",
+	})
+	if got != "is_published = true" {
+		t.Errorf("expected unknown filter values to be dropped, got %q", got)
+	}
+}
+
+func TestNormalizeKeyword(t *testing.T) {
+	cases := map[string]string{
+		"  鬥破   蒼穹 ": "鬥破 蒼穹",
+		"":             "",
+		"   ":          "",
+		strings.Repeat("字", maxKeywordLength+1): "",
+	}
+	for in, want := range cases {
+		if got := normalizeKeyword(in); got != want {
+			t.Errorf("normalizeKeyword(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

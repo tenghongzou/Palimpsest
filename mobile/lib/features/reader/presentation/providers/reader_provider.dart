@@ -1,35 +1,101 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/database_helper.dart';
+import '../../../../core/database/offline_store.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/reading_settings.dart';
 
 final readerSettingsProvider = StateNotifierProvider<ReaderSettingsNotifier, ReadingSettings>((ref) {
-  return ReaderSettingsNotifier();
+  final api = ref.read(apiClientProvider);
+  return ReaderSettingsNotifier(
+    store: ref.read(offlineStoreProvider),
+    remote: ReadingSettingsRemote(api),
+    isSignedIn: () => api.hasAccessToken,
+  );
 });
 
+/// GET/PUT /users/me/reading-settings.
+class ReadingSettingsRemote {
+  final ApiClient _api;
+
+  ReadingSettingsRemote(this._api);
+
+  /// The saved settings and when they were saved (null if never saved).
+  Future<(ReadingSettings, DateTime?)> fetch() async {
+    final response = await _api.dio.get('/users/me/reading-settings');
+    final data = response.data['data'] as Map<String, dynamic>;
+    final updatedAt = DateTime.tryParse(data['updated_at'] as String? ?? '');
+    // The server reports the zero time when the user never saved settings.
+    final saved = updatedAt != null && updatedAt.year > 1;
+    return (ReadingSettings.fromJson(data), saved ? updatedAt : null);
+  }
+
+  Future<void> save(ReadingSettings settings) async {
+    await _api.dio.put('/users/me/reading-settings', data: settings.toApiJson());
+  }
+}
+
+/// Reader preferences, persisted in local_reading_settings and, for signed in
+/// users, synced with the server (the newer side wins).
 class ReaderSettingsNotifier extends StateNotifier<ReadingSettings> {
-  ReaderSettingsNotifier() : super(const ReadingSettings());
+  static const pushDelay = Duration(milliseconds: 800);
+
+  final Future<OfflineStore> Function()? _store;
+  final ReadingSettingsRemote? _remote;
+  final bool Function() _isSignedIn;
+  DateTime? _localUpdatedAt;
+  Timer? _pushTimer;
+
+  ReaderSettingsNotifier({
+    Future<OfflineStore> Function()? store,
+    ReadingSettingsRemote? remote,
+    bool Function()? isSignedIn,
+  })  : _store = store,
+        _remote = remote,
+        _isSignedIn = isSignedIn ?? _never,
+        super(const ReadingSettings());
+
+  static bool _never() => false;
 
   /// Load persisted settings from local SQLite on app startup.
   Future<void> loadFromLocal() async {
     try {
-      final data = await DatabaseHelper.loadReadingSettings();
-      if (data != null) {
-        state = ReadingSettings(
-          fontSize: data['font_size'] as int? ?? 18,
-          lineHeight: (data['line_height'] as num?)?.toDouble() ?? 1.8,
-          letterSpacing: (data['letter_spacing'] as num?)?.toDouble() ?? 0.0,
-          margin: data['margin'] as int? ?? 16,
-          fontFamily: data['font_family'] as String? ?? 'system',
-          theme: data['theme'] as String? ?? 'white',
-          readingMode: data['reading_mode'] as String? ?? 'scroll',
-          brightness: data['brightness'] as int? ?? 100,
-          keepScreenOn: (data['keep_screen_on'] as int? ?? 1) == 1,
-          autoChapter: (data['auto_chapter'] as int? ?? 1) == 1,
-        );
+      final loaded = await (await _store!()).loadReadingSettings();
+      if (loaded != null && mounted) {
+        state = loaded.$1;
+        _localUpdatedAt = loaded.$2;
       }
     } catch (_) {
       // If DB read fails, keep defaults
     }
+  }
+
+  /// Applies the server's settings when they are newer than the local ones,
+  /// otherwise uploads the local ones.
+  Future<void> syncWithServer() async {
+    final remote = _remote;
+    if (remote == null || !_isSignedIn()) return;
+    try {
+      final (settings, remoteUpdatedAt) = await remote.fetch();
+      final local = _localUpdatedAt;
+      if (remoteUpdatedAt != null && (local == null || remoteUpdatedAt.isAfter(local))) {
+        if (!mounted) return;
+        state = settings;
+        _localUpdatedAt = remoteUpdatedAt;
+        await _saveLocal(remoteUpdatedAt);
+      } else if (local != null) {
+        await remote.save(state);
+      }
+    } catch (_) {
+      // Offline or signed out: local settings stay in effect.
+    }
+  }
+
+  /// Replaces every setting at once (e.g. from the settings page).
+  void replace(ReadingSettings settings) {
+    state = settings;
+    _persist();
   }
 
   void updateFontSize(int size) {
@@ -53,12 +119,12 @@ class ReaderSettingsNotifier extends StateNotifier<ReadingSettings> {
   }
 
   void updateLetterSpacing(double spacing) {
-    state = state.copyWith(letterSpacing: spacing.clamp(-1.0, 5.0));
+    state = state.copyWith(letterSpacing: spacing.clamp(0.0, 5.0));
     _persist();
   }
 
   void updateMargin(int margin) {
-    state = state.copyWith(margin: margin.clamp(0, 48));
+    state = state.copyWith(margin: margin.clamp(0, 64));
     _persist();
   }
 
@@ -68,7 +134,7 @@ class ReaderSettingsNotifier extends StateNotifier<ReadingSettings> {
   }
 
   void updateBrightness(int brightness) {
-    state = state.copyWith(brightness: brightness.clamp(0, 100));
+    state = state.copyWith(brightness: brightness.clamp(10, 100));
     _persist();
   }
 
@@ -88,21 +154,30 @@ class ReaderSettingsNotifier extends StateNotifier<ReadingSettings> {
   }
 
   Future<void> _persist() async {
+    final now = DateTime.now().toUtc();
+    _localUpdatedAt = now;
+    await _saveLocal(now);
+    final remote = _remote;
+    if (remote != null && _isSignedIn()) {
+      // Debounced: a slider drag produces many changes but one upload.
+      _pushTimer?.cancel();
+      _pushTimer = Timer(pushDelay, () => remote.save(state).catchError((_) {}));
+    }
+  }
+
+  Future<void> _saveLocal(DateTime updatedAt) async {
+    final store = _store;
+    if (store == null) return;
     try {
-      await DatabaseHelper.saveReadingSettings(
-        fontSize: state.fontSize,
-        lineHeight: state.lineHeight,
-        letterSpacing: state.letterSpacing,
-        margin: state.margin,
-        fontFamily: state.fontFamily,
-        theme: state.theme,
-        readingMode: state.readingMode,
-        brightness: state.brightness,
-        keepScreenOn: state.keepScreenOn,
-        autoChapter: state.autoChapter,
-      );
+      await (await store()).saveReadingSettings(state, updatedAt: updatedAt);
     } catch (_) {
       // Non-critical: settings will be re-persisted on next change
     }
+  }
+
+  @override
+  void dispose() {
+    _pushTimer?.cancel();
+    super.dispose();
   }
 }

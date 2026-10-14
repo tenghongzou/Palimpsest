@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/pagination/paged_notifier.dart';
 import '../../data/novel_repository.dart';
+import '../../domain/entities/home_data.dart';
 import '../../domain/entities/novel.dart';
 
-final homeNovelsProvider = FutureProvider.family<List<Novel>, String>((ref, sort) async {
-  final repo = ref.read(novelRepositoryProvider);
-  final result = await repo.getNovelList(sort: sort, pageSize: 6);
-  return result.items;
+final homeProvider = FutureProvider<HomeData>((ref) async {
+  return ref.read(novelRepositoryProvider).getHome();
 });
 
 final novelDetailProvider = FutureProvider.family<Novel, String>((ref, id) async {
@@ -23,10 +23,21 @@ final categoriesProvider = FutureProvider<List<CategoryItem>>((ref) async {
   return repo.getCategories();
 });
 
-final rankingProvider = FutureProvider.family<List<Novel>, RankingParams>((ref, params) async {
+final rankingProvider = StateNotifierProvider.autoDispose
+    .family<PagedNotifier<Novel>, PagedState<Novel>, RankingParams>((ref, params) {
   final repo = ref.read(novelRepositoryProvider);
-  final result = await repo.getRanking(params.type, period: params.period);
-  return result.items;
+  return PagedNotifier((page) => repo.getRanking(params.type, period: params.period, page: page));
+});
+
+final novelListProvider = StateNotifierProvider.autoDispose
+    .family<PagedNotifier<Novel>, PagedState<Novel>, NovelQuery>((ref, query) {
+  final repo = ref.read(novelRepositoryProvider);
+  return PagedNotifier((page) => repo.getNovelList(
+        page: page,
+        sortBy: query.sortBy,
+        status: query.status,
+        category: query.category,
+      ));
 });
 
 class RankingParams {
@@ -40,5 +51,29 @@ class RankingParams {
       identical(this, other) || other is RankingParams && type == other.type && period == other.period;
 
   @override
-  int get hashCode => type.hashCode ^ period.hashCode;
+  int get hashCode => Object.hash(type, period);
+}
+
+/// Filters of GET /novels.
+class NovelQuery {
+  final String sortBy;
+  final String? status;
+
+  /// Category slug.
+  final String? category;
+
+  const NovelQuery({this.sortBy = 'latest', this.status, this.category});
+
+  NovelQuery copyWith({String? sortBy, String? status, bool clearStatus = false}) => NovelQuery(
+        sortBy: sortBy ?? this.sortBy,
+        status: clearStatus ? null : status ?? this.status,
+        category: category,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is NovelQuery && other.sortBy == sortBy && other.status == status && other.category == category;
+
+  @override
+  int get hashCode => Object.hash(sortBy, status, category);
 }

@@ -56,3 +56,15 @@ func TestValidateTokenExpired(t *testing.T) {
 		t.Error("expected error for expired token, got nil")
 	}
 }
+
+func TestValidateTokenType(t *testing.T) {
+	userID := uuid.New()
+	refresh, _ := GenerateToken(testSecret, userID, "reader", TypeRefresh, time.Hour)
+
+	if _, err := ValidateTokenType(testSecret, refresh, TypeRefresh); err != nil {
+		t.Fatalf("expected refresh token to validate as refresh, got %v", err)
+	}
+	if _, err := ValidateTokenType(testSecret, refresh, TypeAccess); err != ErrWrongTokenType {
+		t.Errorf("expected ErrWrongTokenType when using refresh token as access, got %v", err)
+	}
+}

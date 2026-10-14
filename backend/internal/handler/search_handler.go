@@ -26,6 +26,12 @@ func (h *SearchHandler) SearchNovels(c *gin.Context) {
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
 
 	filters := map[string]string{
 		"status":   c.Query("status"),
@@ -36,6 +42,10 @@ func (h *SearchHandler) SearchNovels(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse(50001, "search failed"))
 		return
+	}
+
+	if page == 1 {
+		h.searchSvc.RecordKeyword(query)
 	}
 
 	c.JSON(http.StatusOK, model.SuccessResponse(result))
@@ -54,7 +64,7 @@ func (h *SearchHandler) Suggestions(c *gin.Context) {
 		return
 	}
 
-	var suggestions []string
+	suggestions := []string{}
 	for _, hit := range result.Hits {
 		if title, ok := hit["title"].(string); ok {
 			suggestions = append(suggestions, title)

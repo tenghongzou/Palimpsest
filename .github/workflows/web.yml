@@ -41,3 +41,9 @@ jobs:
 
       - name: Run unit tests
         run: pnpm test:run
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build

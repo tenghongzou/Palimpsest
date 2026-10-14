@@ -1,36 +1,31 @@
-import type { Novel } from '~/types/novel'
+import type { ApiResponse } from '~/utils/api'
+import type { ApiBookshelfEntry } from '~/types/models'
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T
+export type BookshelfEntry = ApiBookshelfEntry
+export type BookshelfSort = 'recent' | 'added' | 'title'
+
+export const DEFAULT_GROUP = 'default'
+
+/** Display name of a bookshelf group. */
+export function groupLabel(name: string | null | undefined): string {
+  return !name || name === DEFAULT_GROUP ? '預設' : name
 }
 
-interface BookshelfItem {
-  id: string
-  novel_id: string
-  novel: Novel
-  group_name: string
-  last_read_chapter_id: string | null
-  last_read_at: string | null
-  created_at: string
+/** Distinct group names, the default group first, the rest alphabetically. */
+export function bookshelfGroups(items: Pick<BookshelfEntry, 'group_name'>[]): string[] {
+  const names = new Set(items.map(i => i.group_name || DEFAULT_GROUP))
+  return [...names].sort((a, b) => a === DEFAULT_GROUP ? -1 : b === DEFAULT_GROUP ? 1 : a.localeCompare(b, 'zh-Hant'))
 }
 
 export function useBookshelf() {
-  const items = ref<BookshelfItem[]>([])
+  const items = ref<BookshelfEntry[]>([])
   const loading = ref(true)
-  const authStore = useAuthStore()
 
-  function authHeaders() {
-    return { Authorization: `Bearer ${authStore.accessToken}` }
-  }
-
-  async function fetchBookshelf(sortBy: 'recent' | 'added' | 'title' = 'recent') {
+  async function fetchBookshelf(sortBy: BookshelfSort = 'recent') {
     loading.value = true
     try {
-      const res = await $fetch<ApiResponse<BookshelfItem[]>>('/api/v1/bookshelf', {
-        headers: authHeaders(),
-        params: { sort: sortBy },
+      const res = await apiFetch<ApiResponse<BookshelfEntry[]>>('/bookshelf', {
+        params: { sort_by: sortBy },
       })
       items.value = res.data
     }
@@ -39,21 +34,34 @@ export function useBookshelf() {
     }
   }
 
-  async function addToBookshelf(novelId: string, groupName = 'default') {
-    await $fetch('/api/v1/bookshelf', {
+  async function addToBookshelf(novelId: string, groupName = DEFAULT_GROUP) {
+    await apiFetch('/bookshelf', {
       method: 'POST',
-      headers: authHeaders(),
       body: { novel_id: novelId, group_name: groupName },
     })
   }
 
   async function removeFromBookshelf(novelId: string) {
-    await $fetch(`/api/v1/bookshelf/${novelId}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    })
+    await apiFetch(`/bookshelf/${novelId}`, { method: 'DELETE' })
     items.value = items.value.filter(item => item.novel_id !== novelId)
   }
 
-  return { items, loading, fetchBookshelf, addToBookshelf, removeFromBookshelf }
+  async function removeMany(novelIds: string[]) {
+    if (!novelIds.length) return
+    await apiFetch('/bookshelf/batch-remove', { method: 'POST', body: { novel_ids: novelIds } })
+    const removed = new Set(novelIds)
+    items.value = items.value.filter(item => !removed.has(item.novel_id))
+  }
+
+  async function moveToGroup(novelId: string, groupName: string) {
+    const name = groupName.trim() || DEFAULT_GROUP
+    const res = await apiFetch<ApiResponse<{ group_name: string }>>(`/bookshelf/${novelId}`, {
+      method: 'PATCH',
+      body: { group_name: name },
+    })
+    const item = items.value.find(i => i.novel_id === novelId)
+    if (item) item.group_name = res.data?.group_name ?? name
+  }
+
+  return { items, loading, fetchBookshelf, addToBookshelf, removeFromBookshelf, removeMany, moveToGroup }
 }
