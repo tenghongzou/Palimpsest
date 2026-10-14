@@ -13,7 +13,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register a new user */
+        /**
+         * Register a new user
+         * @description Rate limited to 5 requests/minute per IP (login, password reset and registration each have their own quota).
+         */
         post: operations["register"];
         delete?: never;
         options?: never;
@@ -167,7 +170,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get chapter content */
+        /**
+         * Get a published chapter with links to its neighbours
+         * @description Counts a view of the novel unless count_view=false.
+         */
         get: operations["getChapter"];
         put?: never;
         post?: never;
@@ -184,8 +190,181 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get chapter content by chapter id alone (used by readers that route by chapter) */
+        /**
+         * Get a published chapter by id alone (used by readers that route by chapter)
+         * @description Counts a view of the novel unless count_view=false.
+         */
         get: operations["getChapterById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novelId}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List approved reviews of a novel
+         * @description With a bearer token, `liked_by_me` marks reviews the caller liked.
+         */
+        get: operations["listReviews"];
+        put?: never;
+        /** Review a novel (once per user) */
+        post: operations["createReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chapters/{chapterId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a chapter's top-level comments with their replies
+         * @description With a bearer token, `liked_by_me` marks comments the caller liked.
+         */
+        get: operations["listComments"];
+        put?: never;
+        /**
+         * Comment on a chapter, or reply to a comment
+         * @description Replies always attach to the top-level comment of the thread.
+         */
+        post: operations["createComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reviews/{reviewId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update your review */
+        put: operations["updateReview"];
+        post?: never;
+        /** Delete your review (admins may delete any) */
+        delete: operations["deleteReview"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reviews/{reviewId}/like": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Like a review (idempotent) */
+        post: operations["likeReview"];
+        /** Remove your like (idempotent) */
+        delete: operations["unlikeReview"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comments/{commentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete your comment and its replies (admins may delete any) */
+        delete: operations["deleteComment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comments/{commentId}/like": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Like a comment (idempotent) */
+        post: operations["likeComment"];
+        /** Remove your like (idempotent) */
+        delete: operations["unlikeComment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report content to moderators
+         * @description Reporting the same target again while a report is pending returns that report.
+         */
+        post: operations["createReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bookstore front page sections (cached for 5 minutes) */
+        get: operations["getHome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active banners within their schedule */
+        get: operations["listBanners"];
         put?: never;
         post?: never;
         delete?: never;
@@ -297,6 +476,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bookshelf/batch-remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove several novels from the bookshelf */
+        post: operations["batchRemoveFromBookshelf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bookshelf/{novelId}": {
         parameters: {
             query?: never;
@@ -311,6 +507,58 @@ export interface paths {
         delete: operations["removeFromBookshelf"];
         options?: never;
         head?: never;
+        /** Move a shelved novel to another group */
+        patch: operations["setBookshelfGroup"];
+        trace?: never;
+    };
+    "/reading-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all reading progress of the current user (for sync) */
+        get: operations["listReadingProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reading-progress/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reading progress for several novels */
+        post: operations["batchReadingProgress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reading-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chapters the user opened, newest first */
+        get: operations["readingHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -323,8 +571,162 @@ export interface paths {
         };
         /** Get reading progress for a novel */
         get: operations["getReadingProgress"];
-        /** Update reading progress for a novel */
+        /**
+         * Update reading progress for a novel
+         * @description Last read wins: if `read_at` is older than the stored progress, the
+         *     update is ignored and the stored progress is returned. Offline clients
+         *     should send the time the position was actually read. Moving to another
+         *     chapter adds a reading history entry and counts its words as read.
+         */
         put: operations["updateReadingProgress"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List bookmarks, newest first */
+        get: operations["listBookmarks"];
+        put?: never;
+        /** Add a bookmark */
+        post: operations["createBookmark"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookmarks/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply bookmarks changed offline and return the full list
+         * @description Upserts keep client-generated ids. Upserts on deleted chapters, or
+         *     with ids belonging to another user, are skipped. At most 500 changes
+         *     per request.
+         */
+        post: operations["syncBookmarks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookmarks/{bookmarkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a bookmark */
+        delete: operations["deleteBookmark"];
+        options?: never;
+        head?: never;
+        /** Change a bookmark's note or position */
+        patch: operations["updateBookmark"];
+        trace?: never;
+    };
+    "/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current user */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update profile fields; omitted fields stay unchanged */
+        patch: operations["updateMe"];
+        trace?: never;
+    };
+    "/users/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload an avatar (JPEG, PNG, WebP or GIF, at most 2 MB) */
+        post: operations["uploadAvatar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change password
+         * @description Revokes refresh tokens and reset links issued before the change.
+         */
+        put: operations["changePassword"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/reading-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reading totals and per-period activity */
+        get: operations["readingStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/reading-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reader preferences (defaults when never saved) */
+        get: operations["getReadingSettings"];
+        /** Replace reader preferences */
+        put: operations["putReadingSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -417,7 +819,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get any novel, published or not */
+        get: operations["adminGetNovel"];
         /** Update a novel */
         put: operations["adminUpdateNovel"];
         post?: never;
@@ -437,7 +840,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish a novel */
+        /** Publish a novel, or unpublish it with `{"is_published": false}` */
         post: operations["adminPublishNovel"];
         delete?: never;
         options?: never;
@@ -452,7 +855,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** All chapters of a novel, published or not (no content) */
+        get: operations["adminListChapters"];
         put?: never;
         /** Create a chapter */
         post: operations["adminCreateChapter"];
@@ -471,7 +875,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Batch import chapters */
+        /** Batch import up to 500 chapters */
         post: operations["adminBatchImportChapters"];
         delete?: never;
         options?: never;
@@ -486,7 +890,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get any chapter with content */
+        get: operations["adminGetChapter"];
         /** Update a chapter */
         put: operations["adminUpdateChapter"];
         post?: never;
@@ -555,7 +960,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the latest 50 reviews */
+        /** List reviews for moderation */
         get: operations["adminListReviews"];
         put?: never;
         post?: never;
@@ -573,7 +978,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Approve or reject a review */
+        /** Approve, reject or hide a review (updates the novel's rating) */
         put: operations["adminModerateReview"];
         post?: never;
         delete?: never;
@@ -589,7 +994,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List reports (not yet implemented, returns an empty list) */
+        /** List reports with a preview of the reported content */
         get: operations["adminListReports"];
         put?: never;
         post?: never;
@@ -607,9 +1012,101 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Resolve a report (not yet implemented) */
+        /** Resolve or dismiss a report, optionally hiding the reported review or comment */
         put: operations["adminResolveReport"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All categories, flat, including inactive ones */
+        get: operations["adminListCategories"];
+        put?: never;
+        /** Create a category (two levels at most) */
+        post: operations["adminCreateCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/categories/{categoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a category */
+        put: operations["adminUpdateCategory"];
+        post?: never;
+        /**
+         * Delete a category without subcategories
+         * @description Answers 409 with code 40905 while subcategories exist; a duplicate slug on create or update is 40903.
+         */
+        delete: operations["adminDeleteCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All banners */
+        get: operations["adminListBanners"];
+        put?: never;
+        /** Create a banner */
+        post: operations["adminCreateBanner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/banners/{bannerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a banner */
+        put: operations["adminUpdateBanner"];
+        post?: never;
+        /** Delete a banner */
+        delete: operations["adminDeleteBanner"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload a cover or banner image (at most 5 MB) and get its URL */
+        post: operations["adminUploadImage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -623,7 +1120,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Overview counts */
+        /** Dashboard overview counts */
         get: operations["adminStats"];
         put?: never;
         post?: never;
@@ -762,6 +1259,10 @@ export interface components {
             status?: components["schemas"]["NovelStatus"];
             language?: components["schemas"]["Language"];
             is_featured?: boolean;
+            /** @description Replaces the novel's categories when present */
+            category_ids?: number[];
+            /** @description Replaces the novel's tags when present; unknown tags are created */
+            tags?: string[];
         };
         NovelResponse: components["schemas"]["Envelope"] & {
             data?: components["schemas"]["Novel"];
@@ -779,6 +1280,7 @@ export interface components {
             slug: string;
             icon_url?: string;
             sort_order?: number;
+            is_active?: boolean;
             children?: components["schemas"]["Category"][];
         };
         Tag: {
@@ -822,6 +1324,19 @@ export interface components {
         ChapterResponse: components["schemas"]["Envelope"] & {
             data?: components["schemas"]["Chapter"];
         };
+        ChapterRef: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            chapter_number: number;
+        };
+        ChapterDetail: components["schemas"]["Chapter"] & {
+            prev_chapter: components["schemas"]["ChapterRef"] | null;
+            next_chapter: components["schemas"]["ChapterRef"] | null;
+        };
+        ChapterDetailResponse: components["schemas"]["Envelope"] & {
+            data?: components["schemas"]["ChapterDetail"];
+        };
         ChapterListResponse: components["schemas"]["Envelope"] & {
             data?: components["schemas"]["Chapter"][];
         };
@@ -847,6 +1362,22 @@ export interface components {
             /** Format: date-time */
             added_at?: string;
             novel?: components["schemas"]["Novel"];
+        };
+        BookshelfEntry: components["schemas"]["BookshelfItem"] & {
+            reading_progress: {
+                /** Format: uuid */
+                chapter_id?: string;
+                chapter_title?: string;
+                chapter_number?: number;
+                percentage?: number;
+                /** Format: date-time */
+                read_at?: string;
+            } | null;
+            /** @description Chapters were published after the reader last read */
+            has_update: boolean;
+        };
+        NovelIdsRequest: {
+            novel_ids: string[];
         };
         AddBookshelfRequest: {
             /** Format: uuid */
@@ -879,6 +1410,123 @@ export interface components {
             chapter_id: string;
             paragraph_index?: number;
             scroll_offset?: number;
+            /**
+             * Format: date-time
+             * @description When the position was read; defaults to now
+             */
+            read_at?: string;
+            /** @description Seconds read since the previous report (at most 3600 count) */
+            duration?: number;
+        };
+        ReadingHistory: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            novel_id: string;
+            /** Format: uuid */
+            chapter_id: string;
+            /** Format: date-time */
+            read_at: string;
+            duration?: number;
+            novel?: components["schemas"]["Novel"];
+            chapter?: components["schemas"]["Chapter"];
+        };
+        Bookmark: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            user_id?: string;
+            /** Format: uuid */
+            novel_id: string;
+            /** Format: uuid */
+            chapter_id: string;
+            paragraph_index: number;
+            note?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            synced_at?: string;
+            chapter?: components["schemas"]["Chapter"];
+            novel?: {
+                /** Format: uuid */
+                id?: string;
+                title?: string;
+            };
+        };
+        BookmarkInput: {
+            /**
+             * Format: uuid
+             * @description Client-generated id, so offline bookmarks keep their identity
+             */
+            id?: string;
+            /** Format: uuid */
+            chapter_id: string;
+            paragraph_index?: number;
+            note?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        BookmarkPatch: {
+            paragraph_index?: number;
+            note?: string;
+        };
+        BookmarkSync: {
+            upserts?: components["schemas"]["BookmarkInput"][];
+            deletes?: string[];
+        };
+        ProfileUpdate: {
+            nickname?: string;
+            bio?: string;
+            avatar_url?: string;
+            language_pref?: components["schemas"]["Language"];
+        };
+        ChangePasswordRequest: {
+            current_password: string;
+            new_password: string;
+        };
+        ReadingSettings: {
+            font_size: number;
+            line_height: number;
+            letter_spacing?: number;
+            margin?: number;
+            font_family?: string;
+            /** @enum {string} */
+            theme: "white" | "sepia" | "green" | "dark" | "black";
+            /** @enum {string} */
+            reading_mode: "scroll" | "page";
+            brightness: number;
+            keep_screen_on?: boolean;
+            auto_chapter?: boolean;
+            /** Format: date-time */
+            readonly updated_at?: string;
+        };
+        ReadingStats: {
+            /** Format: int64 */
+            total_read_words: number;
+            /** Format: int64 */
+            total_read_seconds: number;
+            chapters_read: number;
+            novels_read: number;
+            bookshelf_count?: number;
+            bookmark_count?: number;
+            review_count?: number;
+            /** @enum {string} */
+            period: "daily" | "weekly" | "monthly";
+            /** @description Oldest first; the last bucket is the current day, week or month */
+            buckets: {
+                /** Format: date-time */
+                start: string;
+                chapters: number;
+                words: number;
+                seconds: number;
+            }[];
+        };
+        UserBrief: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            nickname: string;
+            avatar_url?: string;
         };
         ConvertRequest: {
             text: string;
@@ -918,29 +1566,164 @@ export interface components {
             translated_content: string;
             is_cached: boolean;
         };
+        /** @enum {string} */
+        ModerationStatus: "approved" | "rejected" | "hidden";
         Review: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            user_id?: string;
+            user_id: string;
             /** Format: uuid */
-            novel_id?: string;
-            title?: string;
-            content?: string;
-            rating?: number;
-            like_count?: number;
-            /** @enum {string} */
-            status?: "approved" | "pending" | "rejected";
-            user?: components["schemas"]["User"];
+            novel_id: string;
+            title: string;
+            content: string;
+            rating: number;
+            like_count: number;
+            status: components["schemas"]["ModerationStatus"];
+            user?: components["schemas"]["UserBrief"];
+            /** @description Only in admin listings */
+            novel?: {
+                /** Format: uuid */
+                id?: string;
+                title?: string;
+            };
+            liked_by_me: boolean;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
             updated_at?: string;
         };
+        ReviewInput: {
+            title: string;
+            content: string;
+            /** @description Rounded to the nearest half star */
+            rating: number;
+        };
+        Comment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            user_id: string;
+            /** Format: uuid */
+            chapter_id: string;
+            /** Format: uuid */
+            parent_id?: string;
+            content: string;
+            paragraph_index?: number;
+            like_count: number;
+            status?: components["schemas"]["ModerationStatus"];
+            user?: components["schemas"]["UserBrief"];
+            liked_by_me: boolean;
+            replies?: components["schemas"]["Comment"][];
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        CommentInput: {
+            content: string;
+            /** Format: uuid */
+            parent_id?: string;
+            paragraph_index?: number;
+        };
+        LikeResult: {
+            liked: boolean;
+            like_count: number;
+        };
+        ReportInput: {
+            /** @enum {string} */
+            target_type: "review" | "comment" | "novel" | "chapter" | "user";
+            /** Format: uuid */
+            target_id: string;
+            /** @enum {string} */
+            reason: "spam" | "abuse" | "spoiler" | "copyright" | "inappropriate" | "other";
+            description?: string;
+        };
+        Report: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            reporter_id: string;
+            target_type: string;
+            /** Format: uuid */
+            target_id: string;
+            reason: string;
+            description?: string;
+            /** @enum {string} */
+            status: "pending" | "resolved" | "dismissed";
+            /** Format: uuid */
+            resolved_by?: string;
+            /** Format: date-time */
+            resolved_at?: string;
+            /** Format: date-time */
+            created_at?: string;
+            reporter?: components["schemas"]["UserBrief"];
+        };
+        ReportView: components["schemas"]["Report"] & {
+            /** @description First 120 characters of the reported content */
+            target_preview?: string;
+        };
+        Banner: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            image_url: string;
+            /** @enum {string} */
+            link_type?: "novel" | "url" | "category";
+            link_value?: string;
+            sort_order: number;
+            is_active: boolean;
+            /** Format: date-time */
+            start_at?: string;
+            /** Format: date-time */
+            end_at?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        BannerInput: {
+            title: string;
+            image_url: string;
+            /** @enum {string} */
+            link_type?: "novel" | "url" | "category";
+            /** @description Novel id, absolute URL, or category slug, depending on link_type */
+            link_value?: string;
+            sort_order?: number;
+            /** @default true */
+            is_active: boolean;
+            /** Format: date-time */
+            start_at?: string;
+            /** Format: date-time */
+            end_at?: string;
+        };
+        HomePage: {
+            banners: components["schemas"]["Banner"][];
+            featured: components["schemas"]["Novel"][];
+            latest_updates: components["schemas"]["Novel"][];
+            popular: components["schemas"]["Novel"][];
+            new_arrivals: components["schemas"]["Novel"][];
+            completed: components["schemas"]["Novel"][];
+        };
+        CategoryInput: {
+            /** @description A top-level category; categories are at most two levels deep */
+            parent_id?: number;
+            name: string;
+            slug: string;
+            icon_url?: string;
+            sort_order?: number;
+            /** @default true */
+            is_active: boolean;
+        };
         AdminStats: {
             users: number;
+            new_users_today: number;
             novels: number;
+            published_novels: number;
             chapters: number;
+            reviews: number;
+            comments: number;
+            pending_reports: number;
+            active_readers_7d: number;
+            reads_today: number;
         };
     };
     responses: {
@@ -1034,7 +1817,10 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Upstream translation provider not configured or failing (50301) */
+        /**
+         * @description A dependency is not configured or failing: translation provider
+         *     (50301, 50302) or file storage (50303)
+         */
         ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
@@ -1081,6 +1867,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     login: {
@@ -1108,6 +1895,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     refreshToken: {
@@ -1146,6 +1934,7 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["Empty"];
+            400: components["responses"]["BadRequest"];
         };
     };
     forgotPassword: {
@@ -1163,6 +1952,7 @@ export interface operations {
         responses: {
             200: components["responses"]["Message"];
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     resetPassword: {
@@ -1180,6 +1970,7 @@ export interface operations {
         responses: {
             200: components["responses"]["Message"];
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     listNovels: {
@@ -1188,9 +1979,11 @@ export interface operations {
                 page?: components["parameters"]["Page"];
                 page_size?: components["parameters"]["PageSize"];
                 category_id?: number;
+                /** @description Category slug; ignored when category_id is given */
+                category?: string;
                 status?: components["schemas"]["NovelStatus"];
                 language?: components["schemas"]["Language"];
-                sort_by?: "latest" | "popular" | "rating" | "words" | "favorites";
+                sort_by?: "latest" | "popular" | "rating" | "words" | "favorites" | "new";
             };
             header?: never;
             path?: never;
@@ -1207,6 +2000,7 @@ export interface operations {
                     "application/json": components["schemas"]["NovelPageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
         };
     };
     getNovel: {
@@ -1260,7 +2054,10 @@ export interface operations {
     };
     getChapter: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Send false for bulk offline downloads so they are not counted as views */
+                count_view?: boolean;
+            };
             header?: never;
             path: {
                 novelId: components["parameters"]["NovelId"];
@@ -1276,7 +2073,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChapterResponse"];
+                    "application/json": components["schemas"]["ChapterDetailResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -1285,7 +2082,10 @@ export interface operations {
     };
     getChapterById: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Send false for bulk offline downloads so they are not counted as views */
+                count_view?: boolean;
+            };
             header?: never;
             path: {
                 chapterId: components["parameters"]["ChapterId"];
@@ -1300,11 +2100,385 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChapterResponse"];
+                    "application/json": components["schemas"]["ChapterDetailResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listReviews: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+                sort_by?: "latest" | "popular";
+            };
+            header?: never;
+            path: {
+                novelId: components["parameters"]["NovelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated reviews */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            items: components["schemas"]["Review"][];
+                            pagination: components["schemas"]["Pagination"];
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    createReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novelId: components["parameters"]["NovelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Review"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listComments: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+                sort_by?: "latest" | "popular";
+                /** @description Only comments on this paragraph */
+                paragraph_index?: number;
+            };
+            header?: never;
+            path: {
+                chapterId: components["parameters"]["ChapterId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated comments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            items: components["schemas"]["Comment"][];
+                            pagination: components["schemas"]["Pagination"];
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    createComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chapterId: components["parameters"]["ChapterId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Comment"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Review"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    likeReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Like state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["LikeResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    unlikeReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Like state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["LikeResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    likeComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Like state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["LikeResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    unlikeComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Like state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["LikeResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportInput"];
+            };
+        };
+        responses: {
+            /** @description Report */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Report"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Front page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["HomePage"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    listBanners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Banners */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Banner"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
     listCategories: {
@@ -1327,6 +2501,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
         };
     };
     searchNovels: {
@@ -1370,6 +2545,7 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["StringList"];
+            400: components["responses"]["BadRequest"];
         };
     };
     hotKeywords: {
@@ -1382,11 +2558,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["StringList"];
+            400: components["responses"]["BadRequest"];
         };
     };
     getRanking: {
         parameters: {
             query?: {
+                /** @description Only the views board is computed per period; the other boards ignore it. */
                 period?: "daily" | "weekly" | "monthly" | "all";
                 page?: components["parameters"]["Page"];
                 page_size?: components["parameters"]["PageSize"];
@@ -1408,6 +2586,7 @@ export interface operations {
                     "application/json": components["schemas"]["NovelPageResponse"];
                 };
             };
+            404: components["responses"]["NotFound"];
         };
     };
     listBookshelf: {
@@ -1428,7 +2607,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope"] & {
-                        data?: components["schemas"]["BookshelfItem"][];
+                        data?: components["schemas"]["BookshelfEntry"][];
                     };
                 };
             };
@@ -1461,7 +2640,26 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    batchRemoveFromBookshelf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NovelIdsRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["Empty"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     removeFromBookshelf: {
@@ -1476,6 +2674,121 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    setBookshelfGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novelId: components["parameters"]["NovelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    group_name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description New group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            group_name?: string;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listReadingProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reading progress, most recent first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ReadingProgress"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    batchReadingProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NovelIdsRequest"];
+            };
+        };
+        responses: {
+            /** @description Reading progress, most recent first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ReadingProgress"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    readingHistory: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            items: components["schemas"]["ReadingHistory"][];
+                            pagination: components["schemas"]["Pagination"];
+                        };
+                    };
+                };
+            };
             401: components["responses"]["Unauthorized"];
         };
     };
@@ -1525,6 +2838,319 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadingProgressResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listBookmarks: {
+        parameters: {
+            query?: {
+                novel_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bookmarks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Bookmark"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookmarkInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Bookmark"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    syncBookmarks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookmarkSync"];
+            };
+        };
+        responses: {
+            /** @description All bookmarks after the sync */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Bookmark"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookmarkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookmarkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookmarkPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Bookmark"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["User"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["User"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    uploadAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    avatar: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["User"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            413: components["responses"]["BadRequest"];
+            415: components["responses"]["BadRequest"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["Empty"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    readingStats: {
+        parameters: {
+            query?: {
+                /** @description daily = last 7 days, weekly = last 8 weeks, monthly = last 12 months */
+                period?: "daily" | "weekly" | "monthly";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stats */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ReadingStats"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getReadingSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ReadingSettings"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    putReadingSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadingSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ReadingSettings"];
+                    };
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -1621,6 +3247,10 @@ export interface operations {
             query?: {
                 page?: components["parameters"]["Page"];
                 page_size?: components["parameters"]["PageSize"];
+                /** @description Matches title or author */
+                q?: string;
+                status?: components["schemas"]["NovelStatus"];
+                is_published?: boolean;
             };
             header?: never;
             path?: never;
@@ -1668,6 +3298,29 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    adminGetNovel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novelId: components["parameters"]["NovelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Novel */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NovelResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
     adminUpdateNovel: {
         parameters: {
             query?: never;
@@ -1708,6 +3361,8 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     adminPublishNovel: {
@@ -1719,7 +3374,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @default true */
+                    is_published?: boolean;
+                };
+            };
+        };
         responses: {
             /** @description Published */
             200: {
@@ -1731,6 +3393,30 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    adminListChapters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novelId: components["parameters"]["NovelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chapters */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     adminCreateChapter: {
@@ -1758,6 +3444,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
         };
     };
     adminBatchImportChapters: {
@@ -1789,6 +3476,29 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    adminGetChapter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chapterId: components["parameters"]["ChapterId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chapter */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     adminUpdateChapter: {
@@ -1830,6 +3540,8 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["Empty"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     adminListUsers: {
@@ -1837,6 +3549,9 @@ export interface operations {
             query?: {
                 page?: components["parameters"]["Page"];
                 page_size?: components["parameters"]["PageSize"];
+                /** @description Matches username, email or nickname */
+                q?: string;
+                status?: "active" | "banned";
             };
             header?: never;
             path?: never;
@@ -1858,6 +3573,8 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     adminGetUser: {
@@ -1916,28 +3633,39 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     adminListReviews: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+                status?: components["schemas"]["ModerationStatus"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Reviews */
+            /** @description Paginated reviews */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope"] & {
-                        data?: components["schemas"]["Review"][];
+                        data?: {
+                            items: components["schemas"]["Review"][];
+                            pagination: components["schemas"]["Pagination"];
+                        };
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     adminModerateReview: {
@@ -1952,35 +3680,55 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @enum {string} */
-                    status: "approved" | "rejected";
+                    status: components["schemas"]["ModerationStatus"];
                 };
             };
         };
         responses: {
-            200: components["responses"]["Empty"];
-        };
-    };
-    adminListReports: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Reports */
+            /** @description Moderated review */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope"] & {
-                        data?: Record<string, never>[];
+                        data?: components["schemas"]["Review"];
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminListReports: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+                status?: "pending" | "resolved" | "dismissed";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated reports */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            items: components["schemas"]["ReportView"][];
+                            pagination: components["schemas"]["Pagination"];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     adminResolveReport: {
@@ -1992,9 +3740,261 @@ export interface operations {
             };
             cookie?: never;
         };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    status: "resolved" | "dismissed";
+                    /** @default false */
+                    hide_target?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Closed report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Report"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminListCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Categories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Category"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    adminCreateCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Category"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    adminUpdateCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Category"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    adminDeleteCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: number;
+            };
+            cookie?: never;
+        };
         requestBody?: never;
         responses: {
             200: components["responses"]["Empty"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    adminListBanners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Banners */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Banner"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    adminCreateBanner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BannerInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Banner"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    adminUpdateBanner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bannerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BannerInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Banner"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminDeleteBanner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bannerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["Empty"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminUploadImage: {
+        parameters: {
+            query?: {
+                kind?: "covers" | "banners";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Uploaded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            url?: string;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     adminStats: {
@@ -2017,6 +4017,8 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

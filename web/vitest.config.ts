@@ -9,5 +9,7 @@ export default defineConfig({
   },
   test: {
     passWithNoTests: true,
+    // Playwright specs live in tests/e2e and run with `playwright test`.
+    include: ['tests/unit/**/*.test.ts'],
   },
 })

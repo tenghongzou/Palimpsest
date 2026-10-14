@@ -86,8 +86,8 @@ async function handleRegister() {
     message.success('註冊成功')
     router.push('/')
   }
-  catch (e: any) {
-    message.error(e?.data?.message || '註冊失敗，請稍後再試')
+  catch (e) {
+    message.error(describeError(e, { 400: '註冊資料格式不正確', 409: '帳號或電子郵件已被使用' }, '註冊失敗，請稍後再試'))
   }
   finally {
     loading.value = false

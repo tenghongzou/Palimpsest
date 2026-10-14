@@ -1,38 +1,29 @@
-interface ReaderSettings {
-  fontSize: number
-  lineHeight: number
-  letterSpacing: number
-  margin: number
-  fontFamily: string
-  theme: 'white' | 'yellow' | 'green' | 'dark' | 'black'
-  readingMode: 'scroll' | 'page'
-}
+import { DEFAULT_READER_SETTINGS, normalizeSettings, type ReaderSettings } from '~/utils/readingSettings'
 
-const defaultSettings: ReaderSettings = {
-  fontSize: 18,
-  lineHeight: 1.8,
-  letterSpacing: 0,
-  margin: 16,
-  fontFamily: 'system',
-  theme: 'white',
-  readingMode: 'scroll',
-}
 
 export const useReaderStore = defineStore('reader', () => {
-  const settings = ref<ReaderSettings>({ ...defaultSettings })
+  const settings = ref<ReaderSettings>({ ...DEFAULT_READER_SETTINGS })
   const currentChapterId = ref<string | null>(null)
 
   function updateSettings(partial: Partial<ReaderSettings>) {
-    settings.value = { ...settings.value, ...partial }
+    settings.value = normalizeSettings({ ...settings.value, ...partial })
+  }
+
+  function replaceSettings(next: ReaderSettings) {
+    settings.value = normalizeSettings(next)
   }
 
   function resetSettings() {
-    settings.value = { ...defaultSettings }
+    settings.value = { ...DEFAULT_READER_SETTINGS }
   }
 
-  return { settings, currentChapterId, updateSettings, resetSettings }
+  return { settings, currentChapterId, updateSettings, replaceSettings, resetSettings }
 }, {
   persist: {
     pick: ['settings'],
+    // Settings saved by older versions may miss fields or use old theme names.
+    afterHydrate: (ctx) => {
+      ctx.store.settings = normalizeSettings(ctx.store.settings)
+    },
   },
 })

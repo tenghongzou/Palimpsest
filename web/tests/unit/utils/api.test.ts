@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiFetch } from '~/utils/api'
+import { apiFetch, describeError, errorMessage } from '~/utils/api'
 
 interface FakeAuthStore {
   accessToken: string | null
@@ -96,5 +96,25 @@ describe('apiFetch', () => {
     await expect(apiFetch('/x')).rejects.toThrow('HTTP 401')
 
     expect(store.refresh).not.toHaveBeenCalled()
+  })
+})
+
+describe('error helpers', () => {
+  const httpError = (status: number, message?: string) =>
+    Object.assign(new Error(`HTTP ${status}`), { response: { status }, data: message ? { code: 1, message } : undefined })
+
+  it('prefers the per-status message', () => {
+    expect(describeError(httpError(409), { 409: '已存在' }, '失敗')).toBe('已存在')
+  })
+
+  it('falls back to common messages and then the fallback', () => {
+    expect(describeError(httpError(429), {}, '失敗')).toBe('操作太頻繁，請稍後再試')
+    expect(describeError(new Error('network'), {}, '失敗')).toBe('無法連線到伺服器，請檢查網路')
+    expect(describeError(httpError(500), {}, '失敗')).toBe('失敗')
+  })
+
+  it('reads the envelope message', () => {
+    expect(errorMessage(httpError(400, 'bad'), 'x')).toBe('bad')
+    expect(errorMessage(new Error('y'), 'x')).toBe('x')
   })
 })

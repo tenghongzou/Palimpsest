@@ -18,7 +18,7 @@
         v-for="s in suggestions"
         :key="s"
         class="px-3 py-2 hover:bg-gray-50 rounded cursor-pointer"
-        @click="query = s; handleSearch()"
+        @click="pick(s)"
       >
         {{ s }}
       </div>
@@ -32,7 +32,7 @@
           :key="keyword"
           round
           class="cursor-pointer"
-          @click="query = keyword; handleSearch()"
+          @click="pick(keyword)"
         >
           {{ keyword }}
         </n-tag>
@@ -64,6 +64,11 @@ const router = useRouter()
 const query = ref((route.query.q as string) || '')
 const hasSearched = ref(false)
 const { results, hotKeywords, suggestions, loading, total, search, fetchHotKeywords, fetchSuggestions } = useSearch()
+
+function pick(value: string) {
+  query.value = value
+  handleSearch()
+}
 
 function handleSearch() {
   if (!query.value.trim()) return

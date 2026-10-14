@@ -1,26 +1,32 @@
 <template>
-  <div
-    class="min-h-screen"
-    :style="{
-      backgroundColor: readerThemes[settings.theme]?.bg || '#ffffff',
-      color: readerThemes[settings.theme]?.text || '#333333',
-    }"
-  >
-    <slot />
-  </div>
+  <n-config-provider :locale="zhTW" :date-locale="dateZhTW">
+    <n-message-provider>
+      <n-dialog-provider>
+        <div
+          class="min-h-screen reader-layout"
+          :style="{
+            backgroundColor: theme.bg,
+            color: theme.text,
+          }"
+        >
+          <slot />
+          <!-- Dims the page without `filter`, which would break fixed positioning inside. -->
+          <div
+            v-if="settings.brightness < 100"
+            class="fixed inset-0 pointer-events-none z-40"
+            :style="{ backgroundColor: `rgba(0, 0, 0, ${(100 - settings.brightness) / 100 * 0.8})` }"
+          />
+        </div>
+      </n-dialog-provider>
+    </n-message-provider>
+  </n-config-provider>
 </template>
 
 <script setup lang="ts">
-import { useReaderStore } from '~/stores/reader'
+import { NConfigProvider, NMessageProvider, NDialogProvider, zhTW, dateZhTW } from 'naive-ui'
+import { READER_THEMES } from '~/utils/readingSettings'
 
 const readerStore = useReaderStore()
 const settings = computed(() => readerStore.settings)
-
-const readerThemes: Record<string, { bg: string; text: string }> = {
-  white: { bg: '#ffffff', text: '#333333' },
-  yellow: { bg: '#f5f0e0', text: '#4a4a4a' },
-  green: { bg: '#e0f0e0', text: '#3a4a3a' },
-  dark: { bg: '#2c2c2c', text: '#c0c0c0' },
-  black: { bg: '#000000', text: '#808080' },
-}
+const theme = computed(() => READER_THEMES[settings.value.theme] ?? READER_THEMES.white)
 </script>

@@ -1,4 +1,7 @@
 import type { ApiResponse } from '~/utils/api'
+import type { components } from '~/types/api'
+
+export type ChapterTranslation = components['schemas']['ChapterTranslation']
 
 export function useTranslation() {
   const translating = ref(false)
@@ -17,14 +20,14 @@ export function useTranslation() {
     }
   }
 
-  async function translateChapter(chapterId: string, targetLang: string): Promise<string> {
+  async function translateChapter(chapterId: string, targetLang: string): Promise<ChapterTranslation> {
     translating.value = true
     try {
-      const res = await apiFetch<ApiResponse<{ translated_content: string }>>('/translation/chapter', {
+      const res = await apiFetch<ApiResponse<ChapterTranslation>>('/translation/chapter', {
         method: 'POST',
         body: { chapter_id: chapterId, target_lang: targetLang },
       })
-      return res.data.translated_content
+      return res.data
     }
     finally {
       translating.value = false

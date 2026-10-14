@@ -1,43 +1,34 @@
 import { describe, it, expect } from 'vitest'
+import { NOVEL_SORT_OPTIONS, RANKING_TYPES, novelListParams } from '~/composables/useNovel'
 
-describe('Novel composable contract', () => {
-  it('API response structure', () => {
-    const response = {
-      code: 0,
-      message: 'success',
-      data: { id: '1', title: 'Test', author_name: 'Author' },
-    }
-    expect(response.code).toBe(0)
-    expect(response.data.title).toBe('Test')
+describe('novelListParams', () => {
+  it('sends sort_by, not sort', () => {
+    expect(novelListParams({ sort_by: 'rating' })).toEqual({ sort_by: 'rating' })
+    expect(novelListParams({ sort: 'latest' })).toEqual({ sort_by: 'latest' })
   })
 
-  it('paginated response structure', () => {
-    const response = {
-      items: [{ id: '1' }, { id: '2' }],
-      pagination: { page: 1, page_size: 20, total: 100, total_pages: 5 },
-    }
-    expect(response.items).toHaveLength(2)
-    expect(response.pagination.total_pages).toBe(5)
+  it('maps the legacy "views" sort to popular and drops unknown sorts', () => {
+    expect(novelListParams({ sort: 'views' })).toEqual({ sort_by: 'popular' })
+    expect(novelListParams({ sort: 'bogus' })).toEqual({})
   })
 
-  it('chapter order options', () => {
-    const orders = ['asc', 'desc']
-    expect(orders).toContain('asc')
-    expect(orders).toContain('desc')
+  it('uses category_id over the slug', () => {
+    expect(novelListParams({ category: 'scifi' })).toEqual({ category: 'scifi' })
+    expect(novelListParams({ category: 'scifi', category_id: 10 })).toEqual({ category_id: 10 })
   })
 
-  it('sort options for novels', () => {
-    const sortOptions = ['latest', 'popular', 'rating', 'words']
-    expect(sortOptions).toHaveLength(4)
+  it('keeps filters and drops empty values and page 1', () => {
+    expect(novelListParams({ status: 'completed', language: 'zh-TW', page: 1, page_size: 6 }))
+      .toEqual({ status: 'completed', language: 'zh-TW', page_size: 6 })
+    expect(novelListParams({ page: 3, status: undefined })).toEqual({ page: 3 })
   })
 
-  it('ranking types', () => {
-    const types = ['views', 'favorites', 'rating', 'latest', 'completed']
-    expect(types).toHaveLength(5)
+  it('offers only sort values the API accepts', () => {
+    expect(NOVEL_SORT_OPTIONS.map(o => o.value).sort())
+      .toEqual(['favorites', 'latest', 'new', 'popular', 'rating', 'words'])
   })
 
-  it('ranking periods', () => {
-    const periods = ['daily', 'weekly', 'monthly', 'all']
-    expect(periods).toHaveLength(4)
+  it('lists the ranking boards the API serves', () => {
+    expect(RANKING_TYPES.map(t => t.key)).toEqual(['views', 'favorites', 'rating', 'latest', 'completed'])
   })
 })

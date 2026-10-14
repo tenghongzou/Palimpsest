@@ -29,3 +29,25 @@ export function formatRelativeTime(date: string | Date): string {
   if (diffDays < 30) return `${diffDays} 天前`
   return target.toLocaleDateString('zh-TW')
 }
+
+export const NOVEL_STATUS: Record<string, { label: string, type: 'success' | 'warning' | 'info' }> = {
+  ongoing: { label: '連載中', type: 'success' },
+  completed: { label: '已完結', type: 'info' },
+  hiatus: { label: '暫停', type: 'warning' },
+}
+
+/** Seconds as "N 小時 M 分鐘" / "M 分鐘". */
+export function formatDuration(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds || 0))
+  const hours = Math.floor(s / 3600)
+  const minutes = Math.floor((s % 3600) / 60)
+  if (hours > 0) return minutes ? `${hours} 小時 ${minutes} 分鐘` : `${hours} 小時`
+  return `${minutes} 分鐘`
+}
+
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return ''
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('zh-TW', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}

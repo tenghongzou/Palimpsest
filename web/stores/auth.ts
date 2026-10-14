@@ -20,12 +20,30 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken.value = null
   }
 
+  function setUser(next: User) {
+    user.value = next
+  }
+
+  /** Refreshes the cached user from GET /users/me. Returns null on failure. */
+  async function fetchMe(): Promise<User | null> {
+    if (!accessToken.value) return null
+    try {
+      const res = await apiFetch<{ code: number; data: User }>('/users/me')
+      user.value = res.data
+      return res.data
+    }
+    catch {
+      return null
+    }
+  }
+
   async function login(credentials: { login: string; password: string }) {
     const data = await $fetch<{ code: number; data: AuthResponse }>('/api/v1/auth/login', {
       method: 'POST',
       body: credentials,
     })
     setAuth(data.data)
+    await fetchMe()
     return data.data
   }
 
@@ -35,6 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
       body: form,
     })
     setAuth(data.data)
+    await fetchMe()
     return data.data
   }
 
@@ -69,7 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, accessToken, refreshToken, isLoggedIn, isAdmin, login, register, logout, refresh, clearAuth }
+  return { user, accessToken, refreshToken, isLoggedIn, isAdmin, login, register, logout, refresh, clearAuth, setUser, fetchMe }
 }, {
   persist: {
     pick: ['user', 'accessToken', 'refreshToken'],

@@ -5,12 +5,15 @@ import {
   markProgressSynced,
   markRetry,
   pendingQueue,
+  query,
   removeQueued,
+  replaceBookmarks,
   replaceBookshelf,
   saveProgress,
   setMeta,
   type LocalBookshelfItem,
   type LocalProgress,
+  type ServerBookmark,
   type SqlDatabase,
   type SyncQueueItem,
 } from '~/utils/localDb'
@@ -47,7 +50,8 @@ function isPermanentFailure(status: number | undefined) {
  */
 export async function pushQueue(db: SqlDatabase, send = sendQueued): Promise<number> {
   let sent = 0
-  for (const item of pendingQueue(db)) {
+  // Bookmarks go up in one batch through pushBookmarks.
+  for (const item of pendingQueue(db).filter(i => i.entity_type !== 'bookmark')) {
     try {
       await send(item)
       removeQueued(db, item.id)
@@ -68,6 +72,76 @@ export async function pushQueue(db: SqlDatabase, send = sendQueued): Promise<num
   return sent
 }
 
+export interface BookmarkSyncBody {
+  upserts: { id: string, chapter_id: string, paragraph_index: number, note?: string, created_at: string }[]
+  deletes: string[]
+}
+
+const MAX_BOOKMARK_CHANGES = 500
+
+let chain: Promise<unknown> = Promise.resolve()
+
+/**
+ * Runs uploads one after another so the same queued item is never sent twice
+ * concurrently (which would, for example, count reading time twice).
+ */
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const run = chain.then(fn, fn)
+  chain = run.catch(() => {})
+  return run
+}
+
+function sendBookmarkSync(body: BookmarkSyncBody): Promise<ServerBookmark[]> {
+  return apiFetch<ApiResponse<ServerBookmark[]>>('/bookmarks/sync', { method: 'POST', body }).then(r => r.data)
+}
+
+/** Builds the sync request from queued bookmark changes (deletes win over upserts). */
+export function bookmarkSyncBody(items: SyncQueueItem[]): BookmarkSyncBody {
+  const deletes = new Set(items.filter(i => i.action === 'delete').map(i => i.entity_id))
+  const upserts: BookmarkSyncBody['upserts'] = []
+  for (const item of items) {
+    if (item.action !== 'upsert' || deletes.has(item.entity_id) || !item.payload) continue
+    const b = JSON.parse(item.payload) as BookmarkSyncBody['upserts'][number]
+    upserts.push({
+      id: b.id,
+      chapter_id: b.chapter_id,
+      paragraph_index: b.paragraph_index,
+      ...(b.note ? { note: b.note } : {}),
+      created_at: b.created_at,
+    })
+  }
+  return { upserts, deletes: [...deletes] }
+}
+
+/**
+ * Sends queued bookmark changes in one POST /bookmarks/sync and mirrors the
+ * full list the server returns. With nothing queued it just pulls the list.
+ * Returns false when the request failed (changes stay queued unless rejected
+ * permanently).
+ */
+export async function pushBookmarks(db: SqlDatabase, send = sendBookmarkSync): Promise<boolean> {
+  const items = query<SyncQueueItem>(
+    db,
+    `SELECT id, action, entity_type, entity_id, payload, retry_count FROM local_sync_queue
+     WHERE entity_type = 'bookmark' ORDER BY id ASC LIMIT ?`,
+    [MAX_BOOKMARK_CHANGES],
+  )
+  try {
+    const server = await send(bookmarkSyncBody(items))
+    items.forEach(i => removeQueued(db, i.id))
+    replaceBookmarks(db, server)
+    return true
+  }
+  catch (error) {
+    const permanent = isPermanentFailure(statusOf(error))
+    for (const item of items) {
+      if (permanent || item.retry_count + 1 >= MAX_RETRIES) removeQueued(db, item.id)
+      else markRetry(db, item.id)
+    }
+    return false
+  }
+}
+
 export function useSync() {
   const { getDb, withDb, flush } = useLocalDb()
   const authStore = useAuthStore()
@@ -79,11 +153,30 @@ export function useSync() {
   }
 
   /** Uploads pending local changes, e.g. right after saving progress. */
-  async function pushPending() {
-    if (!canSync()) return
-    const db = await getDb()
-    if (!db) return
-    if (await pushQueue(db)) await flush()
+  function pushPending(): Promise<void> {
+    return serial(async () => {
+      if (!canSync()) return
+      const db = await getDb()
+      if (!db) return
+      const sent = await pushQueue(db)
+      const hasBookmarks = query(db, `SELECT 1 FROM local_sync_queue WHERE entity_type = 'bookmark' LIMIT 1`).length > 0
+      const bookmarksSent = hasBookmarks && await pushBookmarks(db)
+      if (sent || bookmarksSent) await flush()
+    }).catch((error) => {
+      console.warn('[sync] push failed', error)
+    })
+  }
+
+  /** Uploads queued bookmark changes and refreshes the local mirror. */
+  function syncBookmarks(): Promise<boolean> {
+    return serial(async () => {
+      if (!canSync()) return false
+      const db = await getDb()
+      if (!db) return false
+      const ok = await pushBookmarks(db)
+      await flush()
+      return ok
+    })
   }
 
   async function pullBookshelf() {
@@ -103,8 +196,8 @@ export function useSync() {
     if (!db) return
     syncing.value = true
     try {
-      await pushQueue(db)
-      await Promise.all([pullBookshelf(), pullProgress()])
+      await serial(() => pushQueue(db))
+      await Promise.all([pullBookshelf(), pullProgress(), serial(() => pushBookmarks(db))])
       const now = new Date().toISOString()
       setMeta(db, 'last_sync_at', now)
       lastSyncAt.value = now
@@ -123,5 +216,5 @@ export function useSync() {
     if (db) lastSyncAt.value = getMeta(db, 'last_sync_at')
   }
 
-  return { syncing, lastSyncAt, syncAll, pushPending, loadLastSyncAt }
+  return { syncing, lastSyncAt, syncAll, pushPending, syncBookmarks, loadLastSyncAt }
 }

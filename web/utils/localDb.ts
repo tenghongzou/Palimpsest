@@ -347,3 +347,132 @@ export function removeQueued(db: SqlDatabase, id: number) {
 export function markRetry(db: SqlDatabase, id: number) {
   execute(db, 'UPDATE local_sync_queue SET retry_count = retry_count + 1 WHERE id = ?', [id])
 }
+
+/**
+ * Queues a progress update. Reading time of a progress update that has not
+ * been uploaded yet is carried over, so durations add up while offline.
+ */
+export function enqueueProgress(db: SqlDatabase, progress: Omit<LocalProgress, 'is_synced'> & { duration?: number }) {
+  const queued = query<{ payload: string | null }>(
+    db,
+    `SELECT payload FROM local_sync_queue WHERE action = 'update' AND entity_type = 'progress' AND entity_id = ?`,
+    [progress.novel_id],
+  )[0]
+  let carried = 0
+  if (queued?.payload) {
+    try {
+      carried = Number((JSON.parse(queued.payload) as { duration?: number }).duration) || 0
+    }
+    catch {}
+  }
+  const duration = Math.min(MAX_PROGRESS_DURATION, carried + Math.max(0, Math.round(progress.duration ?? 0)))
+  enqueue(db, 'update', 'progress', progress.novel_id, { ...progress, duration })
+}
+
+/** The server counts at most this many seconds per progress report. */
+export const MAX_PROGRESS_DURATION = 3600
+
+// --------------------------------------------------------------- bookmarks
+
+export interface LocalBookmark {
+  id: string
+  novel_id: string
+  chapter_id: string
+  chapter_title: string | null
+  paragraph_index: number
+  note: string | null
+  /** ISO 8601 UTC timestamp */
+  created_at: string
+  is_synced: number
+}
+
+/** Shape of a bookmark returned by the server (subset used here). */
+export interface ServerBookmark {
+  id: string
+  novel_id: string
+  chapter_id: string
+  paragraph_index: number
+  note?: string
+  created_at?: string
+  chapter?: { title?: string, chapter_number?: number }
+}
+
+export function saveBookmark(db: SqlDatabase, b: Omit<LocalBookmark, 'is_synced'>, synced: boolean) {
+  execute(
+    db,
+    `INSERT INTO local_bookmarks (id, novel_id, chapter_id, chapter_title, paragraph_index, note, created_at, is_synced, is_deleted)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+     ON CONFLICT(id) DO UPDATE SET
+       novel_id = excluded.novel_id, chapter_id = excluded.chapter_id, chapter_title = excluded.chapter_title,
+       paragraph_index = excluded.paragraph_index, note = excluded.note, created_at = excluded.created_at,
+       is_synced = excluded.is_synced, is_deleted = 0`,
+    [b.id, b.novel_id, b.chapter_id, b.chapter_title, b.paragraph_index, b.note, toIso(b.created_at), synced ? 1 : 0],
+  )
+}
+
+/** Hides a bookmark locally until the deletion reaches the server. */
+export function markBookmarkDeleted(db: SqlDatabase, id: string) {
+  execute(db, 'UPDATE local_bookmarks SET is_deleted = 1, is_synced = 0 WHERE id = ?', [id])
+}
+
+export function listBookmarks(db: SqlDatabase, filter: { novelId?: string, chapterId?: string } = {}): LocalBookmark[] {
+  const where = ['is_deleted = 0']
+  const params: SqlValue[] = []
+  if (filter.novelId) {
+    where.push('novel_id = ?')
+    params.push(filter.novelId)
+  }
+  if (filter.chapterId) {
+    where.push('chapter_id = ?')
+    params.push(filter.chapterId)
+  }
+  return query<LocalBookmark>(
+    db,
+    `SELECT id, novel_id, chapter_id, chapter_title, paragraph_index, note, created_at, is_synced
+     FROM local_bookmarks WHERE ${where.join(' AND ')} ORDER BY created_at DESC, id DESC`,
+    params,
+  ).map(b => ({ ...b, paragraph_index: Number(b.paragraph_index), is_synced: Number(b.is_synced) }))
+}
+
+/**
+ * Mirrors the server's bookmark list. Rows with changes still waiting in the
+ * sync queue are left alone so they are not lost.
+ */
+export function replaceBookmarks(db: SqlDatabase, server: ServerBookmark[]) {
+  const pending = new Set(
+    query<{ entity_id: string }>(db, `SELECT entity_id FROM local_sync_queue WHERE entity_type = 'bookmark'`)
+      .map(r => r.entity_id),
+  )
+  db.exec('BEGIN')
+  try {
+    const local = query<{ id: string, chapter_title: string | null }>(db, 'SELECT id, chapter_title FROM local_bookmarks')
+    // Keep chapter titles we already know when the server omits the chapter.
+    const titles = new Map(local.map(r => [r.id, r.chapter_title]))
+    for (const row of local) {
+      if (!pending.has(row.id)) execute(db, 'DELETE FROM local_bookmarks WHERE id = ?', [row.id])
+    }
+    for (const b of server) {
+      if (pending.has(b.id)) continue
+      saveBookmark(db, {
+        id: b.id,
+        novel_id: b.novel_id,
+        chapter_id: b.chapter_id,
+        chapter_title: b.chapter?.title ?? titles.get(b.id) ?? null,
+        paragraph_index: b.paragraph_index ?? 0,
+        note: b.note ?? null,
+        created_at: toIso(b.created_at),
+      }, true)
+    }
+    db.exec('COMMIT')
+  }
+  catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
+
+/** Removes everything that belongs to the signed-in user (on logout). */
+export function clearUserData(db: SqlDatabase) {
+  db.exec(`DELETE FROM local_bookmarks; DELETE FROM local_sync_queue; DELETE FROM local_reading_progress; DELETE FROM local_bookshelf;`)
+  setMeta(db, 'last_sync_at', null)
+}
