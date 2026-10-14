@@ -22,7 +22,7 @@ class AppTheme {
   // Reader themes
   static const readerThemes = {
     'white': ReaderTheme(background: Color(0xFFFFFFFF), text: Color(0xFF333333)),
-    'yellow': ReaderTheme(background: Color(0xFFF5F0E0), text: Color(0xFF4A4A4A)),
+    'sepia': ReaderTheme(background: Color(0xFFF5F0E0), text: Color(0xFF4A4A4A)),
     'green': ReaderTheme(background: Color(0xFFE0F0E0), text: Color(0xFF3A4A3A)),
     'dark': ReaderTheme(background: Color(0xFF2C2C2C), text: Color(0xFFC0C0C0)),
     'black': ReaderTheme(background: Color(0xFF000000), text: Color(0xFF808080)),

@@ -1,47 +1,78 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated.dart';
+import '../domain/entities/home_data.dart';
 import '../domain/entities/novel.dart';
 
 final novelRepositoryProvider = Provider<NovelRepository>((ref) {
   return NovelRepository(ref.read(apiClientProvider));
 });
 
+typedef PaginatedNovels = Paginated<Novel>;
+
+/// `sort_by` values of GET /novels with their labels.
+const novelSortOptions = <String, String>{
+  'latest': '最近更新',
+  'popular': '人氣',
+  'rating': '評分',
+  'words': '字數',
+  'favorites': '收藏',
+  'new': '新書',
+};
+
+/// Ranking types of GET /rankings/{type} with their labels.
+const rankingTypes = <String, String>{
+  'views': '人氣榜',
+  'favorites': '收藏榜',
+  'rating': '評分榜',
+  'latest': '更新榜',
+  'completed': '完本榜',
+};
+
+const rankingPeriods = <String, String>{
+  'daily': '日榜',
+  'weekly': '週榜',
+  'monthly': '月榜',
+  'all': '總榜',
+};
+
 class NovelRepository {
   final ApiClient _apiClient;
 
   NovelRepository(this._apiClient);
 
+  /// GET /novels. [sortBy] is one of [novelSortOptions]; [category] is a
+  /// category slug and is ignored by the server when [categoryId] is given.
   Future<PaginatedNovels> getNovelList({
     int page = 1,
     int pageSize = 20,
-    String? sort,
+    String? sortBy,
     String? status,
     String? category,
+    int? categoryId,
+    String? language,
   }) async {
     final params = <String, dynamic>{
       'page': page,
       'page_size': pageSize,
+      if (sortBy != null) 'sort_by': sortBy,
+      if (status != null) 'status': status,
+      if (categoryId != null) 'category_id': categoryId,
+      if (category != null) 'category': category,
+      if (language != null) 'language': language,
     };
-    if (sort != null) params['sort'] = sort;
-    if (status != null) params['status'] = status;
-    if (category != null) params['category'] = category;
-
     final response = await _apiClient.dio.get('/novels', queryParameters: params);
-    final data = response.data['data'];
-    final items = (data['items'] as List).map((e) => _parseNovel(e)).toList();
-    final pagination = data['pagination'];
+    return Paginated.fromJson(response.data['data'] as Map<String, dynamic>, Novel.fromJson);
+  }
 
-    return PaginatedNovels(
-      items: items,
-      page: pagination['page'] as int,
-      totalPages: pagination['total_pages'] as int,
-      total: pagination['total'] as int,
-    );
+  Future<HomeData> getHome() async {
+    final response = await _apiClient.dio.get('/home');
+    return HomeData.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   Future<Novel> getNovelById(String id) async {
     final response = await _apiClient.dio.get('/novels/$id');
-    return _parseNovel(response.data['data']);
+    return Novel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   Future<List<ChapterInfo>> getChapters(String novelId, {String order = 'asc'}) async {
@@ -59,59 +90,18 @@ class NovelRepository {
 
   Future<List<CategoryItem>> getCategories() async {
     final response = await _apiClient.dio.get('/categories');
-    return (response.data['data'] as List).map((e) => CategoryItem(
-      id: e['id'] as int,
-      name: e['name'] as String,
-      slug: e['slug'] as String,
-    )).toList();
+    return (response.data['data'] as List)
+        .map((e) => CategoryItem.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<PaginatedNovels> getRanking(String type, {String period = 'weekly', int page = 1}) async {
+  Future<PaginatedNovels> getRanking(String type, {String period = 'weekly', int page = 1, int pageSize = 20}) async {
     final response = await _apiClient.dio.get(
       '/rankings/$type',
-      queryParameters: {'period': period, 'page': page},
+      queryParameters: {'period': period, 'page': page, 'page_size': pageSize},
     );
-    final data = response.data['data'];
-    final items = (data['items'] as List).map((e) => _parseNovel(e)).toList();
-    return PaginatedNovels(items: items, page: page, totalPages: 1, total: items.length);
+    return Paginated.fromJson(response.data['data'] as Map<String, dynamic>, Novel.fromJson);
   }
-
-  Novel _parseNovel(Map<String, dynamic> json) {
-    return Novel(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      authorName: json['author_name'] as String,
-      coverUrl: json['cover_url'] as String?,
-      description: json['description'] as String?,
-      status: json['status'] as String? ?? 'ongoing',
-      language: json['language'] as String? ?? 'zh-TW',
-      totalWords: json['total_words'] as int? ?? 0,
-      totalChapters: json['total_chapters'] as int? ?? 0,
-      viewCount: json['view_count'] as int? ?? 0,
-      favoriteCount: json['favorite_count'] as int? ?? 0,
-      avgRating: (json['avg_rating'] as num?)?.toDouble() ?? 0,
-      latestChapterTitle: json['latest_chapter_title'] as String?,
-      latestChapterAt: json['latest_chapter_at'] != null
-          ? DateTime.tryParse(json['latest_chapter_at'] as String)
-          : null,
-      categories: (json['categories'] as List?)?.map((c) => c['name'] as String).toList() ?? [],
-      tags: (json['tags'] as List?)?.map((t) => t['name'] as String).toList() ?? [],
-    );
-  }
-}
-
-class PaginatedNovels {
-  final List<Novel> items;
-  final int page;
-  final int totalPages;
-  final int total;
-
-  const PaginatedNovels({
-    required this.items,
-    required this.page,
-    required this.totalPages,
-    required this.total,
-  });
 }
 
 class ChapterInfo {
@@ -130,8 +120,26 @@ class ChapterInfo {
 
 class CategoryItem {
   final int id;
+  final int? parentId;
   final String name;
   final String slug;
+  final List<CategoryItem> children;
 
-  const CategoryItem({required this.id, required this.name, required this.slug});
+  const CategoryItem({
+    required this.id,
+    required this.name,
+    required this.slug,
+    this.parentId,
+    this.children = const [],
+  });
+
+  factory CategoryItem.fromJson(Map<String, dynamic> json) => CategoryItem(
+        id: json['id'] as int,
+        parentId: json['parent_id'] as int?,
+        name: json['name'] as String,
+        slug: json['slug'] as String,
+        children: (json['children'] as List? ?? const [])
+            .map((e) => CategoryItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
 }

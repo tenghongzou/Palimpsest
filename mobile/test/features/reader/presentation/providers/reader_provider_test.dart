@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:palimpsest/features/reader/domain/entities/reading_settings.dart';
 import 'package:palimpsest/features/reader/presentation/providers/reader_provider.dart';
 
 void main() {

@@ -1,19 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/formatters.dart';
 import '../domain/entities/bookshelf_item.dart';
 
 final bookshelfRepositoryProvider = Provider<BookshelfRepository>((ref) {
   return BookshelfRepository(ref.read(apiClientProvider));
 });
 
+/// `sort_by` values of GET /bookshelf with their labels.
+const bookshelfSortOptions = <String, String>{
+  'recent': '最近閱讀',
+  'added': '加入時間',
+  'title': '書名',
+};
+
 class BookshelfRepository {
   final ApiClient _apiClient;
 
   BookshelfRepository(this._apiClient);
 
-  Future<List<BookshelfItem>> getBookshelf({String sort = 'recent'}) async {
-    final response = await _apiClient.dio.get('/bookshelf', queryParameters: {'sort': sort});
-    return (response.data['data'] as List).map((e) => _parseItem(e)).toList();
+  Future<List<BookshelfItem>> getBookshelf({String sortBy = 'recent'}) async {
+    final response = await _apiClient.dio.get('/bookshelf', queryParameters: {'sort_by': sortBy});
+    return (response.data['data'] as List).map((e) => parseItem(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> addToBookshelf(String novelId, {String groupName = 'default'}) async {
@@ -27,6 +35,14 @@ class BookshelfRepository {
     await _apiClient.dio.delete('/bookshelf/$novelId');
   }
 
+  Future<void> batchRemove(List<String> novelIds) async {
+    await _apiClient.dio.post('/bookshelf/batch-remove', data: {'novel_ids': novelIds});
+  }
+
+  Future<void> setGroup(String novelId, String groupName) async {
+    await _apiClient.dio.patch('/bookshelf/$novelId', data: {'group_name': groupName});
+  }
+
   /// [scrollOffset] is the position within the chapter, from 0.0 to 1.0.
   Future<void> updateProgress(String novelId, String chapterId, double scrollOffset) async {
     await _apiClient.dio.put('/reading-progress/$novelId', data: {
@@ -35,27 +51,31 @@ class BookshelfRepository {
     });
   }
 
-  BookshelfItem _parseItem(Map<String, dynamic> json) {
+  /// Parses a `BookshelfEntry`.
+  static BookshelfItem parseItem(Map<String, dynamic> json) {
     final novel = json['novel'] as Map<String, dynamic>?;
-    ReadingProgressInfo? progress;
-    if (json['last_read_chapter_id'] != null) {
-      progress = ReadingProgressInfo(
-        chapterTitle: json['last_read_chapter_title'] as String? ?? '',
-        chapterNumber: json['last_read_chapter_number'] as int? ?? 0,
-        percentage: (json['progress'] as num?)?.toDouble() ?? 0,
-      );
-    }
-
+    final rp = json['reading_progress'] as Map<String, dynamic>?;
+    final progress = rp == null
+        ? null
+        : ReadingProgressInfo(
+            chapterId: rp['chapter_id'] as String?,
+            chapterTitle: rp['chapter_title'] as String? ?? '',
+            chapterNumber: rp['chapter_number'] as int? ?? 0,
+            percentage: (rp['percentage'] as num?)?.toDouble() ?? 0,
+            readAt: parseDateTime(rp['read_at']),
+          );
+    final cover = novel?['cover_url'] as String?;
     return BookshelfItem(
       id: json['id'] as String,
       novelId: json['novel_id'] as String,
       novelTitle: novel?['title'] as String? ?? '',
-      coverUrl: novel?['cover_url'] as String?,
+      authorName: novel?['author_name'] as String?,
+      coverUrl: cover == null || cover.isEmpty ? null : cover,
       latestChapterTitle: novel?['latest_chapter_title'] as String?,
       groupName: json['group_name'] as String? ?? 'default',
-      hasUpdate: false,
+      hasUpdate: json['has_update'] as bool? ?? false,
       progress: progress,
-      addedAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
+      addedAt: parseDateTime(json['added_at']) ?? DateTime.now(),
     );
   }
 }

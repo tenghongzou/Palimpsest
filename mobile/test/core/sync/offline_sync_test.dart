@@ -21,10 +21,7 @@ void main() {
   setUpAll(sqfliteFfiInit);
 
   setUp(() async {
-    db = await databaseFactoryFfi.openDatabase(
-      inMemoryDatabasePath,
-      options: OpenDatabaseOptions(version: 1, onCreate: DatabaseHelper.createSchema, singleInstance: false),
-    );
+    db = await DatabaseHelper.open(databaseFactoryFfi, inMemoryDatabasePath);
     store = OfflineStore(db);
   });
 

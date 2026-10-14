@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
@@ -11,7 +14,8 @@ class ApiClient {
   final Dio _dio;
   Future<bool>? _refreshing;
 
-  ApiClient({required String baseUrl})
+  /// [adapter] replaces the HTTP transport; tests use it to fake the server.
+  ApiClient({required String baseUrl, HttpClientAdapter? adapter})
       : _dio = Dio(BaseOptions(
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 10),
@@ -20,8 +24,12 @@ class ApiClient {
             'Content-Type': 'application/json',
           },
         )) {
+    if (adapter != null) _dio.httpClientAdapter = adapter;
     _dio.interceptors.add(_AuthInterceptor(this));
-    _dio.interceptors.add(LogInterceptor(responseBody: false));
+    // Request logging in debug builds, but not under `flutter test`.
+    if (kDebugMode && !Platform.environment.containsKey('FLUTTER_TEST')) {
+      _dio.interceptors.add(LogInterceptor(responseBody: false));
+    }
   }
 
   Dio get dio => _dio;
@@ -29,6 +37,8 @@ class ApiClient {
   void setAccessToken(String token) {
     _dio.options.headers['Authorization'] = 'Bearer $token';
   }
+
+  bool get hasAccessToken => _dio.options.headers['Authorization'] != null;
 
   void clearAccessToken() {
     _dio.options.headers.remove('Authorization');
@@ -45,7 +55,9 @@ class ApiClient {
       final refreshToken = prefs.getString('refresh_token');
       if (refreshToken == null) return false;
 
-      final response = await Dio(BaseOptions(baseUrl: _dio.options.baseUrl)).post(
+      final refreshDio = Dio(BaseOptions(baseUrl: _dio.options.baseUrl))
+        ..httpClientAdapter = _dio.httpClientAdapter;
+      final response = await refreshDio.post(
         '/auth/refresh',
         data: {'refresh_token': refreshToken},
       );

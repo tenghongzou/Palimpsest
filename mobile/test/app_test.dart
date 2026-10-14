@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palimpsest/app.dart';
-import 'package:palimpsest/features/bookstore/domain/entities/novel.dart';
+import 'package:palimpsest/features/bookstore/domain/entities/home_data.dart';
 import 'package:palimpsest/features/bookstore/presentation/providers/bookstore_provider.dart';
 
 void main() {
@@ -9,8 +9,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          homeNovelsProvider('views').overrideWith((ref) async => <Novel>[]),
-          homeNovelsProvider('latest').overrideWith((ref) async => <Novel>[]),
+          homeProvider.overrideWith((ref) async => const HomeData()),
         ],
         child: const PalimpsestApp(),
       ),

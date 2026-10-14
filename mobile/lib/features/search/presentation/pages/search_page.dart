@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/database/database_helper.dart';
 import '../providers/search_provider.dart';
 import '../../../bookstore/presentation/widgets/novel_card.dart';
 
@@ -35,12 +36,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             hintText: '搜尋小說名稱、作者...',
             border: InputBorder.none,
           ),
-          onSubmitted: (v) => ref.read(searchQueryProvider.notifier).state = v,
+          onSubmitted: _search,
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () => ref.read(searchQueryProvider.notifier).state = _controller.text,
+            onPressed: () => _search(_controller.text),
           ),
         ],
       ),
@@ -60,7 +61,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: NovelCard(
                       novel: novels[index],
-                      onTap: () => context.go('/novel/${novels[index].id}'),
+                      onTap: () => context.push('/novel/${novels[index].id}'),
                     ),
                   ),
                 );
@@ -69,7 +70,67 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
+  void _search(String keyword) {
+    ref.read(searchQueryProvider.notifier).state = keyword;
+    if (keyword.trim().isEmpty) return;
+    () async {
+      try {
+        final store = await ref.read(offlineStoreProvider)();
+        await store.addSearchKeyword(keyword);
+        ref.invalidate(searchHistoryProvider);
+      } catch (_) {
+        // History is a convenience; searching works without it.
+      }
+    }();
+  }
+
   Widget _buildHotKeywords(AsyncValue<List<String>> hotKeywords) {
+    final history = ref.watch(searchHistoryProvider).valueOrNull ?? const <String>[];
+    return ListView(
+      children: [
+        if (history.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('最近搜尋', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    TextButton(
+                      onPressed: () async {
+                        try {
+                          final store = await ref.read(offlineStoreProvider)();
+                          await store.clearSearchHistory();
+                        } catch (_) {}
+                        ref.invalidate(searchHistoryProvider);
+                      },
+                      child: const Text('清除'),
+                    ),
+                  ],
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: history.map((k) => ActionChip(
+                    avatar: const Icon(Icons.history, size: 16),
+                    label: Text(k),
+                    onPressed: () {
+                      _controller.text = k;
+                      _search(k);
+                    },
+                  )).toList(),
+                ),
+              ],
+            ),
+          ),
+        _buildHotKeywordList(hotKeywords),
+      ],
+    );
+  }
+
+  Widget _buildHotKeywordList(AsyncValue<List<String>> hotKeywords) {
     return hotKeywords.when(
       loading: () => const SizedBox(),
       error: (_, __) => const SizedBox(),
@@ -87,7 +148,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 label: Text(k),
                 onPressed: () {
                   _controller.text = k;
-                  ref.read(searchQueryProvider.notifier).state = k;
+                  _search(k);
                 },
               )).toList(),
             ),

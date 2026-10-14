@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/api_error.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -39,7 +40,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       });
       if (next.hasError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('註冊失敗：${next.error}')),
+          SnackBar(content: Text('註冊失敗：${describeError(next.error!)}')),
         );
       }
     });

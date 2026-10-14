@@ -4,6 +4,7 @@ class BookshelfItem {
   final String novelTitle;
   final String? coverUrl;
   final String? latestChapterTitle;
+  final String? authorName;
   final String groupName;
   final bool hasUpdate;
   final ReadingProgressInfo? progress;
@@ -15,6 +16,7 @@ class BookshelfItem {
     required this.novelTitle,
     this.coverUrl,
     this.latestChapterTitle,
+    this.authorName,
     this.groupName = 'default',
     this.hasUpdate = false,
     this.progress,
@@ -23,13 +25,19 @@ class BookshelfItem {
 }
 
 class ReadingProgressInfo {
+  final String? chapterId;
   final String chapterTitle;
   final int chapterNumber;
+
+  /// Share of the novel read, 0–100.
   final double percentage;
+  final DateTime? readAt;
 
   const ReadingProgressInfo({
+    this.chapterId,
     required this.chapterTitle,
     required this.chapterNumber,
     required this.percentage,
+    this.readAt,
   });
 }

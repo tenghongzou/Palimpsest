@@ -18,7 +18,7 @@ class SearchRepository {
       'page_size': pageSize,
     });
     final data = response.data['data'];
-    final hits = (data['hits'] as List).map((e) => _parseNovel(e)).toList();
+    final hits = (data['hits'] as List).map((e) => Novel.fromJson(e as Map<String, dynamic>)).toList();
     return SearchResult(
       hits: hits,
       total: data['estimated_total'] as int? ?? hits.length,
@@ -33,22 +33,6 @@ class SearchRepository {
   Future<List<String>> getSuggestions(String query) async {
     final response = await _apiClient.dio.get('/search/suggestions', queryParameters: {'q': query});
     return (response.data['data'] as List).cast<String>();
-  }
-
-  Novel _parseNovel(Map<String, dynamic> json) {
-    return Novel(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      authorName: json['author_name'] as String,
-      coverUrl: json['cover_url'] as String?,
-      description: json['description'] as String?,
-      status: json['status'] as String? ?? 'ongoing',
-      totalWords: json['total_words'] as int? ?? 0,
-      totalChapters: json['total_chapters'] as int? ?? 0,
-      viewCount: json['view_count'] as int? ?? 0,
-      favoriteCount: json['favorite_count'] as int? ?? 0,
-      avgRating: (json['avg_rating'] as num?)?.toDouble() ?? 0,
-    );
   }
 }
 
