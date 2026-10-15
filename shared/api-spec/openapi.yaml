@@ -656,6 +656,65 @@ paths:
                       data: { $ref: '#/components/schemas/HomePage' }
         '400': { $ref: '#/components/responses/BadRequest' }
 
+  /recommendations:
+    get:
+      tags: [home]
+      operationId: getRecommendations
+      summary: Novels recommended for the caller
+      description: |
+        Signed in, novels are scored against the categories, tags and authors
+        of the caller's bookshelf, reading history (last 90 days) and reviews
+        rated 4 or more; novels the caller has shelved, read or reviewed are
+        left out.
+        Anonymous callers, and users with no signals yet, get popular novels
+        (`personalized` false). Cached per user for 10 minutes.
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 30, default: 12 }
+      responses:
+        '200':
+          description: Recommendations, best first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Recommendations' }
+
+  /novels/{novelId}/similar:
+    get:
+      tags: [novels]
+      operationId: getSimilarNovels
+      security: []
+      summary: Published novels similar to this one
+      description: |
+        Ranked by shared categories, shared tags and the same author, then
+        popularity; the novel itself is excluded. Cached for 10 minutes.
+      parameters:
+        - $ref: '#/components/parameters/NovelId'
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 6 }
+      responses:
+        '200':
+          description: Similar novels, most similar first (may be empty)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Novel' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /banners:
     get:
       tags: [home]
@@ -3141,6 +3200,32 @@ components:
         start_at: { type: string, format: date-time }
         end_at: { type: string, format: date-time }
 
+    Recommendations:
+      type: object
+      required: [personalized, items]
+      properties:
+        personalized:
+          type: boolean
+          description: False when the list is popular novels (anonymous caller or no signals yet).
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Recommendation' }
+    Recommendation:
+      type: object
+      required: [novel, reason]
+      properties:
+        novel: { $ref: '#/components/schemas/Novel' }
+        reason: { $ref: '#/components/schemas/RecommendationReason' }
+    RecommendationReason:
+      type: object
+      description: |
+        Why the novel is recommended, for the client to phrase in its UI
+        language. `value` is the category name (category), tag name (tag) or
+        author name (author); empty for popular.
+      required: [type, value]
+      properties:
+        type: { type: string, enum: [category, tag, author, popular] }
+        value: { type: string }
     HomePage:
       type: object
       required: [banners, featured, latest_updates, popular, new_arrivals, completed]

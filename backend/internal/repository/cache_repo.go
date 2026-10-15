@@ -25,6 +25,7 @@ func (r *CacheRepository) Set(ctx context.Context, key string, value interface{}
 	return r.rdb.Set(ctx, key, value, ttl).Err()
 }
 
-func (r *CacheRepository) Delete(ctx context.Context, key string) error {
-	return r.rdb.Del(ctx, key).Err()
+// Delete removes keys; missing keys are ignored.
+func (r *CacheRepository) Delete(ctx context.Context, keys ...string) error {
+	return r.rdb.Del(ctx, keys...).Err()
 }

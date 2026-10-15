@@ -84,7 +84,8 @@
     "noChapters": "尚無章節",
     "addedToBookshelf": "已加入書架",
     "alreadyInBookshelf": "這本書已經在書架上了",
-    "addToBookshelfFailed": "加入書架失敗"
+    "addToBookshelfFailed": "加入書架失敗",
+    "similar": "相似作品"
   },
   "language": {
     "label": "語言",
@@ -509,6 +510,13 @@
         "song": "宋體",
         "kai": "楷體",
         "serif": "襯線"
+      },
+      "pageAnimation": "翻頁動畫",
+      "animations": {
+        "none": "無",
+        "slide": "平移",
+        "cover": "覆蓋",
+        "curl": "仿真"
       }
     },
     "paragraph": {
@@ -558,6 +566,11 @@
       "englishUnavailable": "目前沒有可用的英文翻譯服務，請稍後再試，或改選繁體／簡體中文。",
       "unavailable": "翻譯服務暫時無法使用，請稍後再試。",
       "failed": "翻譯失敗，請稍後再試。"
+    },
+    "page": {
+      "indicator": "{current} / {total}",
+      "indicatorAria": "第 {current} 頁，共 {total} 頁",
+      "endOfChapter": "本章完"
     }
   },
   "comments": {
@@ -763,7 +776,8 @@
       "popular": "熱門推薦",
       "latest": "最新更新",
       "new": "新書上架",
-      "completed": "完結精選"
+      "completed": "完結精選",
+      "recommended": "為你推薦"
     }
   },
   "about": {
@@ -932,6 +946,14 @@
       "changed": "密碼已變更，請使用新密碼重新登入",
       "wrongCurrent": "目前密碼不正確",
       "failed": "變更失敗，請稍後再試"
+    }
+  },
+  "recommend": {
+    "reason": {
+      "category": "因為你喜歡{name}",
+      "tag": "你常看的「{name}」",
+      "author": "{name} 的作品",
+      "popular": "熱門推薦"
     }
   }
 }

@@ -78,6 +78,12 @@
         <n-empty v-if="!chapters.length" :description="$t('novel.noChapters')" />
       </n-card>
 
+      <n-card v-if="similarNovels.length" :title="$t('novel.similar')" data-testid="similar-novels">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <NovelCard v-for="item in similarNovels" :key="item.id" :novel="item" />
+        </div>
+      </n-card>
+
       <NovelReviews :novel-id="novelId" @changed="fetchNovel()" />
     </div>
   </n-spin>
@@ -97,6 +103,7 @@ const message = useMessage()
 const authStore = useAuthStore()
 
 const { novel, chapters, loading, error, fetchNovel } = useNovel(novelId)
+const { novels: similarNovels } = useSimilarNovels(novelId)
 // A tag named like one of the categories would only repeat it.
 const visibleTags = computed(() => {
   const n = novel.value

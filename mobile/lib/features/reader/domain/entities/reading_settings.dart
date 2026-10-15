@@ -2,9 +2,9 @@ class ReadingSettings {
   /// Reader themes accepted by the API (`ReadingSettings.theme`).
   static const themes = ['white', 'sepia', 'green', 'dark', 'black'];
 
-  /// Page-turn animations this app offers in page mode. The API also accepts
-  /// `curl`, which this app does not draw (see [effectivePageAnimation]).
-  static const pageAnimations = ['none', 'slide', 'cover'];
+  /// Page-turn animations this app offers in page mode (the API's
+  /// `page_animation` values; `curl` is the realistic page curl).
+  static const pageAnimations = ['none', 'slide', 'cover', 'curl'];
 
   final int fontSize;
   final double lineHeight;
@@ -15,8 +15,8 @@ class ReadingSettings {
   final String readingMode;
 
   /// `ReadingSettings.page_animation` as stored (none, slide, cover or curl).
-  /// A `curl` chosen on another client is kept as is, so saving other
-  /// settings from here does not overwrite it.
+  /// A value this app does not know (e.g. one added on the server later) is
+  /// kept as is, so saving other settings from here does not overwrite it.
   final String pageAnimation;
   final int brightness;
   final bool keepScreenOn;
@@ -70,12 +70,10 @@ class ReadingSettings {
     return themes.contains(theme) ? theme! : 'white';
   }
 
-  /// The animation page mode actually uses: `curl` (not drawn by this app)
-  /// falls back to `cover`, its closest look; unknown values to `slide`.
-  String get effectivePageAnimation {
-    if (pageAnimation == 'curl') return 'cover';
-    return pageAnimations.contains(pageAnimation) ? pageAnimation : 'slide';
-  }
+  /// The animation page mode actually uses: unknown values fall back to
+  /// `slide`.
+  String get effectivePageAnimation =>
+      pageAnimations.contains(pageAnimation) ? pageAnimation : 'slide';
 
   /// Parses `GET /users/me/reading-settings` data.
   factory ReadingSettings.fromJson(Map<String, dynamic> json) {
@@ -97,7 +95,7 @@ class ReadingSettings {
 
   /// The full body for `PUT /users/me/reading-settings`, clamped to the
   /// ranges the API accepts (PUT replaces every field, except that an omitted
-  /// `page_animation` keeps the stored one: a `curl` this app cannot show is
+  /// `page_animation` keeps the stored one: a value this app cannot show is
   /// not sent back).
   Map<String, dynamic> toApiJson() => {
         'font_size': fontSize.clamp(12, 36),

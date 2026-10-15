@@ -3,6 +3,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated.dart';
 import '../domain/entities/home_data.dart';
 import '../domain/entities/novel.dart';
+import '../domain/entities/recommendation.dart';
 
 final novelRepositoryProvider = Provider<NovelRepository>((ref) {
   return NovelRepository(ref.read(apiClientProvider));
@@ -51,6 +52,21 @@ class NovelRepository {
   Future<HomeData> getHome() async {
     final response = await _apiClient.dio.get('/home');
     return HomeData.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  /// GET /recommendations: personalized when signed in and the account has
+  /// reading signals, popular novels otherwise.
+  Future<Recommendations> getRecommendations({int limit = 12}) async {
+    final response = await _apiClient.dio.get('/recommendations', queryParameters: {'limit': limit});
+    return Recommendations.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  /// GET /novels/{id}/similar, most similar first.
+  Future<List<Novel>> getSimilarNovels(String id, {int limit = 6}) async {
+    final response = await _apiClient.dio.get('/novels/$id/similar', queryParameters: {'limit': limit});
+    return (response.data['data'] as List? ?? const [])
+        .map((e) => Novel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Novel> getNovelById(String id) async {

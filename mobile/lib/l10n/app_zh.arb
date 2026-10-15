@@ -207,6 +207,32 @@
   "homeLatest": "最新更新",
   "homeNewArrivals": "新書上架",
   "homeCompleted": "完本精選",
+  "homeRecommended": "為你推薦",
+  "recommendReasonCategory": "因為你喜歡{name}",
+  "@recommendReasonCategory": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendReasonTag": "你常看的「{name}」",
+  "@recommendReasonTag": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendReasonAuthor": "{name} 的作品",
+  "@recommendReasonAuthor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendReasonPopular": "熱門推薦",
   "rankings": "排行榜",
   "categories": "分類",
   "allNovels": "全部作品",
@@ -223,6 +249,7 @@
   },
   "novelReport": "檢舉作品",
   "novelSynopsis": "簡介",
+  "novelSimilar": "相似作品",
   "novelNoSynopsis": "暫無簡介",
   "novelChaptersAndWords": "{chapters}章 · {words}",
   "@novelChaptersAndWords": {
@@ -743,6 +770,7 @@
   "settingAnimationNone": "無",
   "settingAnimationSlide": "滑動",
   "settingAnimationCover": "覆蓋",
+  "settingAnimationCurl": "仿真",
   "settingBrightness": "亮度",
   "settingThemeSample": "文",
   "settingKeepScreenOn": "閱讀時保持螢幕開啟",

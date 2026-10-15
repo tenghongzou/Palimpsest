@@ -4,7 +4,7 @@ import type { ApiReadingSettings } from '~/types/models'
 
 export type ReaderTheme = 'white' | 'sepia' | 'green' | 'dark' | 'black'
 export type ReadingMode = 'scroll' | 'page'
-/** How page mode turns pages. The web reader has no animation UI; it only round-trips the value. */
+/** How page mode turns pages (labels: i18n keys `reader.settings.animations.<value>`). */
 export type PageAnimation = 'none' | 'slide' | 'cover' | 'curl'
 export const PAGE_ANIMATIONS: readonly PageAnimation[] = ['none', 'slide', 'cover', 'curl']
 

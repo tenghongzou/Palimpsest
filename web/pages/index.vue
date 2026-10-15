@@ -35,6 +35,23 @@
             <NovelCard v-for="novel in section.items" :key="novel.id" :novel="novel" />
           </div>
         </section>
+
+        <!-- Per user: fetched in the browser after hydration, never part of the ISR HTML. -->
+        <ClientOnly v-if="section.key === 'featured'">
+          <section v-if="personalized && recommendedItems.length" class="mb-8" data-testid="home-section-recommended">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-bold">{{ $t('home.sections.recommended') }}</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <NovelCard
+                v-for="item in recommendedItems"
+                :key="item.novel.id"
+                :novel="item.novel"
+                :hint="recommendationReasonText(t, item.reason)"
+              />
+            </div>
+          </section>
+        </ClientOnly>
       </template>
 
       <n-empty v-if="!pending && !error && sections.every(s => !s.items.length)" :description="$t('home.empty')" />
@@ -47,6 +64,7 @@ import { NSpin, NCarousel, NAlert, NEmpty } from 'naive-ui'
 import type { ApiResponse } from '~/utils/api'
 import type { ApiBanner, ApiHomePage } from '~/types/models'
 import type { Novel } from '~/types/novel'
+import { recommendationReasonText } from '~/utils/recommendations'
 
 // No page title: app.vue's title template renders "Palimpsest — <tagline>".
 const { t } = useI18n()
@@ -55,6 +73,8 @@ const { data: home, pending, error } = await useAsyncData('home', async () => {
   const res = await apiFetch<ApiResponse<ApiHomePage>>('/home')
   return res.data
 })
+
+const { items: recommendedItems, personalized } = useRecommendations()
 
 const sections = computed(() => {
   const h = home.value

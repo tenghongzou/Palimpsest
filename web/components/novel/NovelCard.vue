@@ -6,6 +6,7 @@
         <div>
           <div class="font-semibold text-base truncate">{{ novel.title }}</div>
           <div class="text-sm text-gray-500 mt-1">{{ novel.author_name }}</div>
+          <div v-if="hint" class="text-xs text-primary mt-1 truncate" data-testid="novel-card-hint">{{ hint }}</div>
           <div class="text-xs text-gray-400 mt-1 line-clamp-2">{{ novel.description }}</div>
         </div>
         <div class="flex items-center gap-2 mt-2 flex-wrap">
@@ -24,6 +25,8 @@ import type { Novel } from '~/types/novel'
 
 const props = defineProps<{
   novel: Pick<Novel, 'id' | 'title' | 'author_name' | 'status'> & Partial<Novel>
+  /** A short line under the author, e.g. why the novel is recommended. */
+  hint?: string
 }>()
 
 const { formatWordCount, novelStatus } = useFormat()

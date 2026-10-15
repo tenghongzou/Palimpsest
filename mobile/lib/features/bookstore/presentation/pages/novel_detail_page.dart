@@ -12,6 +12,7 @@ import '../../../downloads/data/download_manager.dart';
 import '../../../reader/presentation/providers/progress_provider.dart';
 import '../../domain/entities/novel.dart';
 import '../providers/bookstore_provider.dart';
+import '../widgets/novel_carousel.dart';
 import '../../../../core/l10n/l10n.dart';
 
 class NovelDetailPage extends ConsumerStatefulWidget {
@@ -92,6 +93,7 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
             ref.invalidate(novelDetailProvider(novelId));
             ref.invalidate(chapterListProvider(novelId));
             ref.invalidate(reviewsProvider(novelId));
+            ref.invalidate(similarNovelsProvider(novelId));
           },
           child: ReadableInset(
             builder: (context, inset) => ListView(
@@ -106,6 +108,7 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
               const SizedBox(height: 8),
               Text(novel.description ?? context.l10n.novelNoSynopsis, style: TextStyle(color: Colors.grey.shade700, height: 1.6)),
               const SizedBox(height: 24),
+              _buildSimilar(),
               _buildChapters(),
               const SizedBox(height: 24),
               ReviewSection(novelId: novelId),
@@ -217,6 +220,35 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
         icon: Icon(task?.status == DownloadStatus.completed ? Icons.download_done : Icons.download_outlined),
         label: Text(label),
         onPressed: () => manager.download(novel),
+      ),
+    );
+  }
+
+  /// Similar novels; nothing while loading, when empty or on failure.
+  Widget _buildSimilar() {
+    final async = ref.watch(similarNovelsProvider(novelId));
+    final novels = async.hasError ? null : async.valueOrNull;
+    if (novels == null || novels.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      key: const ValueKey('novel-similar'),
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(context.l10n.novelSimilar,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          NovelCarousel(
+            tiles: [
+              for (final novel in novels)
+                NovelCoverTile(
+                  novel: novel,
+                  subtitle: novel.authorName,
+                  onTap: () => context.push('/novel/${novel.id}'),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

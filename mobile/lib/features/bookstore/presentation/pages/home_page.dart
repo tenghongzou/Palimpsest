@@ -8,8 +8,10 @@ import '../../../../core/widgets/common_widgets.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../domain/entities/home_data.dart';
 import '../../domain/entities/novel.dart';
+import '../bookstore_labels.dart';
 import '../providers/bookstore_provider.dart';
 import '../widgets/novel_card.dart';
+import '../widgets/novel_carousel.dart';
 import '../../../../core/l10n/l10n.dart';
 
 class HomePage extends ConsumerWidget {
@@ -27,7 +29,10 @@ class HomePage extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(homeProvider.future),
+        onRefresh: () {
+          ref.invalidate(recommendationsProvider);
+          return ref.refresh(homeProvider.future);
+        },
         child: home.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => ListView(children: [
@@ -46,6 +51,7 @@ class HomePage extends ConsumerWidget {
               ],
               const _QuickEntries(),
               const SizedBox(height: 16),
+              const _Recommendations(),
               ..._section(context, context.l10n.homeFeatured, data.featured, null),
               ..._section(context, context.l10n.homePopular, data.popular, '/ranking/views'),
               ..._section(context, context.l10n.homeLatest, data.latestUpdates, '/ranking/latest'),
@@ -70,6 +76,40 @@ class HomePage extends ConsumerWidget {
           )),
       const SizedBox(height: 16),
     ];
+  }
+}
+
+/// "For you" (or popular picks when not personalized); nothing while it
+/// loads, when it is empty or when it fails.
+class _Recommendations extends ConsumerWidget {
+  const _Recommendations();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(recommendationsProvider);
+    final data = async.hasError ? null : async.valueOrNull;
+    // Without personal signals the list is just popular novels, which the
+    // home page already shows further down.
+    if (data == null || !data.personalized || data.items.isEmpty) return const SizedBox.shrink();
+    final l = context.l10n;
+    return Column(
+      key: const ValueKey('home-recommendations'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(title: l.homeRecommended),
+        NovelCarousel(
+          tiles: [
+            for (final item in data.items)
+              NovelCoverTile(
+                novel: item.novel,
+                subtitle: recommendationReasonLabel(item.reason, l),
+                onTap: () => context.push('/novel/${item.novel.id}'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
   }
 }
 

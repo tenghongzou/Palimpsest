@@ -1,4 +1,11 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
+import 'page_curl.dart';
 
 /// How page mode moves between pages.
 enum PageTurnEffect {
@@ -9,7 +16,11 @@ enum PageTurnEffect {
   slide,
 
   /// The new page slides over the old one, which stays put.
-  cover;
+  cover,
+
+  /// The page curls over from its edge like paper, following the finger
+  /// (see [CurlGeometry]).
+  curl;
 
   static PageTurnEffect parse(String value) =>
       PageTurnEffect.values.firstWhere((e) => e.name == value, orElse: () => PageTurnEffect.slide);
@@ -35,8 +46,12 @@ class PageTurnController {
 /// next chapter without a visible jump.
 ///
 /// Every page is drawn on an opaque [background] and in its own repaint
-/// boundary, so moving pages only re-composites. With the platform's reduce
-/// motion setting, every effect behaves like [PageTurnEffect.none].
+/// boundary, and page widgets are built once per [pageBuilder] change (not
+/// per animation frame), so moving pages only re-composites them. The curl
+/// clips the live pages and paints its shading and the page's back on top;
+/// the back shows a low-resolution snapshot of the page, taken while it is
+/// at rest. With the platform's reduce motion setting, every effect behaves
+/// like [PageTurnEffect.none].
 class PageTurnView extends StatefulWidget {
   final int page;
   final int pageCount;
@@ -71,13 +86,20 @@ class PageTurnView extends StatefulWidget {
 }
 
 class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderStateMixin {
-  static const _turnDuration = Duration(milliseconds: 300);
+  static const _slideDuration = Duration(milliseconds: 300);
+  static const _curlDuration = Duration(milliseconds: 350);
 
   /// Fraction of the width a drag must cover to turn without a fling.
   static const _turnThreshold = 0.3;
 
   /// Logical pixels per second that count as a fling.
   static const _flingVelocity = 400.0;
+
+  /// Page snapshots kept for the back of the curl.
+  static const _maxBacks = 3;
+
+  static const _shadowKey = ValueKey('page-curl-shadow');
+  static const _backKey = ValueKey('page-curl-back');
 
   /// The displacement of the current page in widths: below 0 the next page
   /// is coming in, above 0 the previous one.
@@ -90,6 +112,22 @@ class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderSt
   int _pending = 0;
   double _dragDx = 0;
   double _width = 1;
+  double _height = 1;
+
+  /// Where the curl lifts the page, and how far the finger has moved
+  /// vertically since the drag started (see [CurlGeometry.at]).
+  CurlCorner _curlCorner = CurlCorner.bottom;
+  double _curlDy = 0;
+  double _dragStartY = 0;
+
+  /// Built pages by index, for the current [PageTurnView.pageBuilder].
+  final Map<int, Widget> _pages = {};
+  final Map<int, GlobalKey> _boundaries = {};
+
+  /// Snapshots of pages for the back of the curl, taken for [_backsKey].
+  final Map<int, ui.Image> _backs = {};
+  Object? _backsKey;
+  Timer? _snapshotTimer;
 
   @override
   void initState() {
@@ -100,6 +138,9 @@ class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderSt
   @override
   void didUpdateWidget(PageTurnView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // The owner rebuilt: its pages may show something else now.
+    _pages.clear();
+    if (widget.contentKey != oldWidget.contentKey) _boundaries.clear();
     if (oldWidget.controller != widget.controller) {
       if (oldWidget.controller?._state == this) oldWidget.controller?._state = null;
       widget.controller?._state = this;
@@ -118,6 +159,8 @@ class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderSt
   @override
   void dispose() {
     if (widget.controller?._state == this) widget.controller?._state = null;
+    _snapshotTimer?.cancel();
+    _clearBacks();
     _offset.dispose();
     super.dispose();
   }
@@ -128,6 +171,8 @@ class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderSt
 
   PageTurnEffect get _effect =>
       MediaQuery.maybeDisableAnimationsOf(context) == true ? PageTurnEffect.none : widget.effect;
+
+  Duration get _turnDuration => _effect == PageTurnEffect.curl ? _curlDuration : _slideDuration;
 
   bool _canTurn(int direction) {
     if (_left) return false;
@@ -144,6 +189,9 @@ class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderSt
       return;
     }
     _pending = direction;
+    // Like lifting the page by its lower corner.
+    _curlCorner = CurlCorner.bottom;
+    _curlDy = 0;
     _offset.animateTo(-direction.toDouble(), duration: _turnDuration, curve: Curves.easeInOut);
   }
 
@@ -189,11 +237,18 @@ class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderSt
       }
     }
     _dragDx = 0;
+    final y = details.localPosition.dy;
+    if (_offset.value == 0) {
+      _curlCorner = CurlCorner.fromY(y, _height);
+      _curlDy = 0;
+    }
+    _dragStartY = y - _curlDy;
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
     final delta = details.primaryDelta ?? 0;
     _dragDx += delta;
+    _curlDy = details.localPosition.dy - _dragStartY;
     if (_effect == PageTurnEffect.none || _left) return;
     var next = _offset.value + delta / _width;
     if (next < 0 && !_canTurn(1)) next = 0;
@@ -241,12 +296,69 @@ class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderSt
         duration: Duration(milliseconds: ms.round().clamp(80, 400)), curve: Curves.easeOutCubic);
   }
 
+  // ---------------------------------------------------------------- snapshots
+
+  void _clearBacks() {
+    for (final image in _backs.values) {
+      image.dispose();
+    }
+    _backs.clear();
+  }
+
+  /// Takes a snapshot of the page at rest for the back of its curl, once it
+  /// has stayed put for a moment (so never during a turn).
+  void _scheduleSnapshot() {
+    if (_effect != PageTurnEffect.curl || _left) return;
+    if (!identical(_backsKey, widget.contentKey)) {
+      _clearBacks();
+      _backsKey = widget.contentKey;
+    }
+    if (_backs.containsKey(_page)) return;
+    final index = _page;
+    _snapshotTimer?.cancel();
+    _snapshotTimer = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      // After the next paint, so the page's layer is up to date.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _snapshot(index));
+      WidgetsBinding.instance.ensureVisualUpdate();
+    });
+  }
+
+  Future<void> _snapshot(int index) async {
+    if (!mounted || _isTurning || index != _page || _backs.containsKey(index)) return;
+    final boundary = _boundaries[index]?.currentContext?.findRenderObject();
+    if (boundary is! RenderRepaintBoundary || !boundary.attached) return;
+    final key = _backsKey;
+    // Shown faint and mirrored: half the device resolution is plenty.
+    final ratio = math.min(MediaQuery.devicePixelRatioOf(context) * 0.5, 1.5);
+    try {
+      final image = await boundary.toImage(pixelRatio: ratio);
+      if (!mounted || !identical(key, _backsKey)) {
+        image.dispose();
+        return;
+      }
+      _backs.remove(index)?.dispose();
+      _backs[index] = image;
+      while (_backs.length > _maxBacks) {
+        _backs.remove(_backs.keys.first)?.dispose();
+      }
+    } catch (_) {
+      // No snapshot: the back is plain paper.
+    }
+  }
+
   // ---------------------------------------------------------------- view
 
-  Widget _pageView(int index) => RepaintBoundary(
-        child: ColoredBox(
-          color: widget.background,
-          child: SizedBox.expand(child: widget.pageBuilder(context, index)),
+  /// The page at [index], built once per [PageTurnView.pageBuilder] (see
+  /// [didUpdateWidget]) so animation frames do not rebuild it.
+  Widget _pageView(int index) => _pages.putIfAbsent(
+        index,
+        () => RepaintBoundary(
+          key: _boundaries.putIfAbsent(index, GlobalKey.new),
+          child: ColoredBox(
+            color: widget.background,
+            child: SizedBox.expand(child: widget.pageBuilder(context, index)),
+          ),
         ),
       );
 
@@ -254,57 +366,85 @@ class _PageTurnViewState extends State<PageTurnView> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       _width = constraints.maxWidth <= 0 ? 1 : constraints.maxWidth;
+      _height = constraints.maxHeight <= 0 || !constraints.maxHeight.isFinite ? 1 : constraints.maxHeight;
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
         onHorizontalDragStart: _onDragStart,
         onHorizontalDragUpdate: _onDragUpdate,
         onHorizontalDragEnd: _onDragEnd,
         onHorizontalDragCancel: _onDragCancel,
-        child: ClipRect(
-          child: AnimatedBuilder(
-            animation: _offset,
-            builder: (context, _) => _buildPages(_offset.value),
+        // Animation frames repaint in here only, not the reader around it.
+        child: RepaintBoundary(
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: _offset,
+              builder: (context, _) => _buildPages(_offset.value),
+            ),
           ),
         ),
       );
     });
   }
 
+  static const _coverShadow = BoxDecoration(
+    boxShadow: [BoxShadow(color: Color(0x40000000), blurRadius: 16)],
+  );
+
   Widget _buildPages(double offset) {
     final w = _width;
     final key = widget.contentKey;
-    Widget positioned(int index, double dx, {bool shadow = false}) {
-      Widget child = _pageView(index);
-      if (shadow) {
-        child = DecoratedBox(
-          decoration: const BoxDecoration(
-            boxShadow: [BoxShadow(color: Color(0x40000000), blurRadius: 16)],
+    _pages.removeWhere((index, _) => (index - _page).abs() > 1);
+    // Every page has the same wrappers, moving or not, so a page keeps its
+    // elements (and its painted layer) when a turn starts or ends.
+    Widget slot(int index, double dx, {bool shadow = false, CurlGeometry? clip}) => Transform.translate(
+          key: ValueKey((key, index)),
+          offset: Offset(dx, 0),
+          child: DecoratedBox(
+            decoration: shadow ? _coverShadow : const BoxDecoration(),
+            child: ClipPath(
+              clipper: clip == null ? null : CurlClipper(clip),
+              clipBehavior: clip == null ? Clip.none : Clip.antiAlias,
+              child: _pageView(index),
+            ),
           ),
-          child: child,
         );
-      }
-      return Transform.translate(key: ValueKey((key, index)), offset: Offset(dx, 0), child: child);
-    }
 
-    // The same structure at rest and in motion, so the current page's
-    // widgets are kept (not rebuilt) when a drag starts.
     if (offset == 0) {
-      return IgnorePointer(ignoring: false, child: Stack(fit: StackFit.expand, children: [positioned(_page, 0)]));
+      _scheduleSnapshot();
+      return IgnorePointer(ignoring: false, child: Stack(fit: StackFit.expand, children: [slot(_page, 0)]));
     }
     final next = offset < 0;
     final neighbour = _page + (next ? 1 : -1);
     final List<Widget> children;
     switch (_effect) {
+      case PageTurnEffect.curl:
+        // Forward the current page curls away off the next one; back, the
+        // previous page uncurls back over the current one.
+        final curling = next ? _page : neighbour;
+        final under = next ? neighbour : _page;
+        final progress = next ? -offset : 1 - offset;
+        final geometry = CurlGeometry.at(Size(w, _height), progress, _curlCorner, dy: _curlDy);
+        final dark = widget.background.computeLuminance() < 0.3;
+        final back = identical(_backsKey, key) ? _backs[curling] : null;
+        children = [
+          slot(under, 0),
+          CustomPaint(key: _shadowKey, painter: CurlShadowPainter(geometry, dark: dark)),
+          slot(curling, 0, clip: geometry),
+          CustomPaint(
+            key: _backKey,
+            painter: CurlBackPainter(geometry, paper: widget.background, dark: dark, content: back),
+          ),
+        ];
       case PageTurnEffect.cover:
         children = [
-          positioned(_page, 0),
-          positioned(neighbour, next ? w + offset * w : -w + offset * w, shadow: true),
+          slot(_page, 0),
+          slot(neighbour, next ? w + offset * w : -w + offset * w, shadow: true),
         ];
       case PageTurnEffect.slide:
       case PageTurnEffect.none:
         children = [
-          positioned(_page, offset * w),
-          positioned(neighbour, offset * w + (next ? w : -w)),
+          slot(_page, offset * w),
+          slot(neighbour, offset * w + (next ? w : -w)),
         ];
     }
     // Pages in motion take no taps or long-presses.

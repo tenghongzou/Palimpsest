@@ -18,10 +18,25 @@ const maxSyncedDuration = 3600
 type BookshelfService struct {
 	bookshelfRepo *repository.BookshelfRepository
 	db            *gorm.DB
+	// onChange runs after a user's shelf or set of read novels changed.
+	onChange func(userID uuid.UUID)
 }
 
 func NewBookshelfService(bookshelfRepo *repository.BookshelfRepository, db *gorm.DB) *BookshelfService {
 	return &BookshelfService{bookshelfRepo: bookshelfRepo, db: db}
+}
+
+// OnChange registers a callback run after a user shelves or unshelves
+// novels or starts reading a novel, e.g. to drop cached recommendations.
+func (s *BookshelfService) OnChange(fn func(userID uuid.UUID)) *BookshelfService {
+	s.onChange = fn
+	return s
+}
+
+func (s *BookshelfService) changed(userID uuid.UUID) {
+	if s.onChange != nil {
+		s.onChange(userID)
+	}
 }
 
 // ShelfProgress summarises where the reader is in a shelved novel.
@@ -141,6 +156,7 @@ func (s *BookshelfService) Add(userID, novelID uuid.UUID, groupName string) (*mo
 	if err != nil {
 		return nil, err
 	}
+	s.changed(userID)
 	return item, nil
 }
 
@@ -153,7 +169,7 @@ func (s *BookshelfService) RemoveMany(userID uuid.UUID, novelIDs []uuid.UUID) er
 	if len(novelIDs) == 0 {
 		return nil
 	}
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var removed []model.BookshelfItem
 		err := tx.Clauses(clause.Returning{Columns: []clause.Column{{Name: "novel_id"}}}).
 			Where("user_id = ? AND novel_id IN ?", userID, novelIDs).Delete(&removed).Error
@@ -169,6 +185,10 @@ func (s *BookshelfService) RemoveMany(userID uuid.UUID, novelIDs []uuid.UUID) er
 		}
 		return nil
 	})
+	if err == nil {
+		s.changed(userID)
+	}
+	return err
 }
 
 // ItemUpdate changes a bookshelf entry; nil fields stay as they are.
@@ -241,10 +261,12 @@ func (s *BookshelfService) UpdateProgress(userID, novelID uuid.UUID, u ProgressU
 	}
 
 	var progress model.ReadingProgress
+	startedNovel := false
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("user_id = ? AND novel_id = ?", userID, novelID).First(&progress).Error
 		isNew := errors.Is(err, gorm.ErrRecordNotFound)
+		startedNovel = isNew
 		if err != nil && !isNew {
 			return err
 		}
@@ -296,6 +318,9 @@ func (s *BookshelfService) UpdateProgress(userID, novelID uuid.UUID, u ProgressU
 	})
 	if err != nil {
 		return nil, err
+	}
+	if startedNovel {
+		s.changed(userID)
 	}
 	return &progress, nil
 }
