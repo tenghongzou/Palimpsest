@@ -2277,6 +2277,13 @@ paths:
       operationId: adminStats
       summary: Dashboard overview counts
       security: [{ bearerAuth: [] }]
+      parameters:
+        - name: utc_offset
+          in: query
+          description: |
+            The client's UTC offset in minutes east of UTC (480 for UTC+8).
+            The `*_today` counts start at the client's local midnight. Defaults to UTC.
+          schema: { type: integer, minimum: -840, maximum: 840, default: 0 }
       responses:
         '200':
           description: Stats

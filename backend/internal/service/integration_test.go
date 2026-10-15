@@ -477,7 +477,7 @@ func TestAdminCatalogue(t *testing.T) {
 	if _, total, _ := svc.ListNovels(AdminNovelFilter{Query: "100%"}, 1, 10); total != 0 {
 		t.Errorf("LIKE wildcard not escaped: %d matches", total)
 	}
-	if stats, err := svc.Stats(); err != nil || stats.Novels != 1 {
+	if stats, err := svc.Stats(0); err != nil || stats.Novels != 1 {
 		t.Errorf("Stats = %+v, %v", stats, err)
 	}
 }

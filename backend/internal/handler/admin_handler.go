@@ -710,7 +710,8 @@ func (h *AdminHandler) UploadImage(c *gin.Context) {
 // ----------------------------------------------------------------- stats
 
 func (h *AdminHandler) StatsOverview(c *gin.Context) {
-	stats, err := h.AdminSvc.Stats()
+	// "Today" is the admin's local day.
+	stats, err := h.AdminSvc.Stats(utcOffsetParam(c))
 	if err != nil {
 		serviceError(c, err, 40401, "")
 		return

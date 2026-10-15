@@ -96,18 +96,23 @@ func (h *UserHandler) PutReadingSettings(c *gin.Context) {
 }
 
 func (h *UserHandler) ReadingStats(c *gin.Context) {
-	// utc_offset: the client's offset in minutes east of UTC; buckets follow
-	// its local days. Out-of-range or missing values fall back to UTC.
-	offset, err := strconv.Atoi(c.DefaultQuery("utc_offset", "0"))
-	if err != nil || offset < -14*60 || offset > 14*60 {
-		offset = 0
-	}
-	stats, err := h.userSvc.ReadingStats(currentUser(c), c.DefaultQuery("period", "daily"), offset)
+	// Buckets follow the client's local days.
+	stats, err := h.userSvc.ReadingStats(currentUser(c), c.DefaultQuery("period", "daily"), utcOffsetParam(c))
 	if err != nil {
 		serviceError(c, err, 40401, "user not found")
 		return
 	}
 	c.JSON(http.StatusOK, model.SuccessResponse(stats))
+}
+
+// utcOffsetParam reads utc_offset, the client's offset in minutes east of
+// UTC. Out-of-range or missing values fall back to UTC.
+func utcOffsetParam(c *gin.Context) int {
+	offset, err := strconv.Atoi(c.DefaultQuery("utc_offset", "0"))
+	if err != nil || offset < -14*60 || offset > 14*60 {
+		return 0
+	}
+	return offset
 }
 
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
