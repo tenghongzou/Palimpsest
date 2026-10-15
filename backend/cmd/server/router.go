@@ -18,18 +18,19 @@ import (
 )
 
 type Handlers struct {
-	Auth         *handler.AuthHandler
-	User         *handler.UserHandler
-	Novel        *handler.NovelHandler
-	Home         *handler.HomeHandler
-	Bookshelf    *handler.BookshelfHandler
-	Bookmark     *handler.BookmarkHandler
-	Community    *handler.CommunityHandler
-	Search       *handler.SearchHandler
-	Translation  *handler.TranslationHandler
-	Admin        *handler.AdminHandler
-	Notification *handler.NotificationHandler
-	Ranking      *service.RankingService
+	Auth           *handler.AuthHandler
+	User           *handler.UserHandler
+	Novel          *handler.NovelHandler
+	Home           *handler.HomeHandler
+	Bookshelf      *handler.BookshelfHandler
+	Bookmark       *handler.BookmarkHandler
+	Community      *handler.CommunityHandler
+	Search         *handler.SearchHandler
+	Translation    *handler.TranslationHandler
+	Admin          *handler.AdminHandler
+	Notification   *handler.NotificationHandler
+	Recommendation *handler.RecommendationHandler
+	Ranking        *service.RankingService
 	// Metrics records request metrics; nil disables them.
 	Metrics *middleware.HTTPMetrics
 }
@@ -82,8 +83,10 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 	// --- Public content routes ---
 	v1.GET("/home", h.Home.Home)
 	v1.GET("/banners", h.Home.Banners)
+	v1.GET("/recommendations", optionalAuth, h.Recommendation.Recommendations)
 	v1.GET("/novels", h.Novel.List)
 	v1.GET("/novels/:id", h.Novel.GetByID)
+	v1.GET("/novels/:id/similar", h.Recommendation.Similar)
 	v1.GET("/novels/:id/chapters", h.Novel.ListChapters)
 	v1.GET("/novels/:id/chapters/:chapterId", h.Novel.GetChapter)
 	v1.GET("/novels/:id/reviews", optionalAuth, h.Community.ListReviews)

@@ -97,10 +97,12 @@ func main() {
 	novelRepo := repository.NewNovelRepository(db)
 	bookshelfRepo := repository.NewBookshelfRepository(db)
 	cacheRepo := repository.NewCacheRepository(rdb)
+	recommendationRepo := repository.NewRecommendationRepository(db)
 
 	// --- Services ---
 	authSvc := service.NewAuthService(userRepo, cfg, mail.New(cfg))
-	bookshelfSvc := service.NewBookshelfService(bookshelfRepo, db)
+	recommendationSvc := service.NewRecommendationService(recommendationRepo, novelRepo, cacheRepo)
+	bookshelfSvc := service.NewBookshelfService(bookshelfRepo, db).OnChange(recommendationSvc.InvalidateUser)
 	searchSvc := service.NewSearchService(meiliClient, rdb, novelRepo)
 	rankingSvc := service.NewRankingService(rdb, novelRepo)
 	novelSvc := service.NewNovelService(novelRepo, cacheRepo, rankingSvc)
@@ -145,18 +147,19 @@ func main() {
 
 	// --- Router ---
 	handlers := &Handlers{
-		Auth:         authH,
-		User:         handler.NewUserHandler(userSvc, store),
-		Novel:        novelH,
-		Home:         handler.NewHomeHandler(homeSvc),
-		Bookshelf:    bookshelfH,
-		Bookmark:     handler.NewBookmarkHandler(bookmarkSvc),
-		Community:    handler.NewCommunityHandler(communitySvc),
-		Search:       searchH,
-		Translation:  translationH,
-		Admin:        adminH,
-		Notification: handler.NewNotificationHandler(notificationSvc),
-		Ranking:      rankingSvc,
+		Auth:           authH,
+		User:           handler.NewUserHandler(userSvc, store),
+		Novel:          novelH,
+		Home:           handler.NewHomeHandler(homeSvc),
+		Bookshelf:      bookshelfH,
+		Bookmark:       handler.NewBookmarkHandler(bookmarkSvc),
+		Community:      handler.NewCommunityHandler(communitySvc),
+		Search:         searchH,
+		Translation:    translationH,
+		Admin:          adminH,
+		Notification:   handler.NewNotificationHandler(notificationSvc),
+		Recommendation: handler.NewRecommendationHandler(recommendationSvc),
+		Ranking:        rankingSvc,
 	}
 	// --- Metrics (separate port, never exposed through the ingress) ---
 	var metricsSrv *http.Server
