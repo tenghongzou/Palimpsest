@@ -19,12 +19,16 @@ void main() {
       expect(settings.pageAnimation, 'slide');
     });
 
-    test('page animation: parsed, sent only when this app offers it, curl shown as cover', () {
+    test('page animation: parsed, curl kept, unknown values shown as slide and not sent', () {
       expect(ReadingSettings.fromJson(const {}).pageAnimation, 'slide');
       expect(ReadingSettings.fromJson(const {'page_animation': 'cover'}).toApiJson()['page_animation'], 'cover');
       final curl = ReadingSettings.fromJson(const {'page_animation': 'curl'});
-      expect(curl.effectivePageAnimation, 'cover');
-      expect(curl.toApiJson().containsKey('page_animation'), isFalse);
+      expect(curl.pageAnimation, 'curl');
+      expect(curl.effectivePageAnimation, 'curl');
+      expect(curl.toApiJson()['page_animation'], 'curl');
+      final unknown = ReadingSettings.fromJson(const {'page_animation': 'fold3d'});
+      expect(unknown.effectivePageAnimation, 'slide');
+      expect(unknown.toApiJson().containsKey('page_animation'), isFalse);
       expect(const ReadingSettings(pageAnimation: 'bogus').effectivePageAnimation, 'slide');
       expect(const ReadingSettings().copyWith(pageAnimation: 'none').pageAnimation, 'none');
     });

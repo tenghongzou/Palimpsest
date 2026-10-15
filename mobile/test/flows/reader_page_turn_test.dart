@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:palimpsest/features/reader/presentation/pages/reader_page.dart';
 import 'package:palimpsest/features/reader/presentation/providers/reader_provider.dart';
+import 'package:palimpsest/features/reader/presentation/widgets/page_curl.dart';
 import 'package:palimpsest/features/reader/presentation/widgets/page_turn_view.dart';
 
 import '../support/fake_api.dart';
@@ -35,6 +36,13 @@ int pageCount() => int.parse(_pageLabel.firstMatch(pageLabels().first)!.group(2)
 
 String readerChapter(WidgetTester tester) => tester.widget<ReaderPage>(find.byType(ReaderPage)).chapterId;
 
+final _curlBack = find.byKey(const ValueKey('page-curl-back'));
+final _curlShadow = find.byKey(const ValueKey('page-curl-shadow'));
+
+/// The curl on screen, or null when the page lies flat.
+CurlGeometry? curlGeometry(WidgetTester tester) =>
+    (tester.widget<CustomPaint>(_curlBack).painter! as CurlBackPainter).geometry;
+
 void main() {
   late TestEnv env;
 
@@ -60,7 +68,7 @@ void main() {
   }
 
   group('tap turning', () {
-    for (final animation in ['none', 'slide', 'cover']) {
+    for (final animation in ['none', 'slide', 'cover', 'curl']) {
       testWidgets('with $animation', (tester) async {
         useLongChapters(env.backend);
         await openPaged(tester, animation);
@@ -84,6 +92,17 @@ void main() {
             expect(pageLabels(), ['1 / $n', '2 / $n']);
             expect(tester.getTopLeft(find.text('1 / $n')).dx, restX);
             expect(tester.getTopLeft(find.text('2 / $n')).dx, greaterThan(restX));
+          case 'curl':
+            // The current page curls up over the next one, which lies
+            // underneath; neither moves.
+            expect(pageLabels(), ['2 / $n', '1 / $n']);
+            expect(tester.getTopLeft(find.text('1 / $n')).dx, restX);
+            expect(tester.getTopLeft(find.text('2 / $n')).dx, restX);
+            final curl = curlGeometry(tester)!;
+            // Lifted by the lower corner.
+            expect(curl.corner.dy, curl.size.height);
+            expect(curl.point.dy, lessThan(curl.size.height));
+            expect(_curlShadow, findsOneWidget);
         }
         await tester.pumpAndSettle();
         expect(pageLabels(), ['2 / $n']);
@@ -104,17 +123,26 @@ void main() {
       });
     }
 
-    testWidgets('reduce motion turns instantly whatever the setting', (tester) async {
-      tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
-      addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
-      useLongChapters(env.backend);
-      await openPaged(tester, 'slide');
-      final n = pageCount();
-      await tapAt(tester, 0.9);
-      await tester.pump();
-      expect(pageLabels(), ['2 / $n']);
-      await env.finish(tester);
-    });
+    for (final animation in ['slide', 'curl']) {
+      testWidgets('reduce motion turns instantly whatever the setting ($animation)', (tester) async {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+        useLongChapters(env.backend);
+        await openPaged(tester, animation);
+        final n = pageCount();
+        await tapAt(tester, 0.9);
+        await tester.pump();
+        expect(pageLabels(), ['2 / $n']);
+        expect(_curlBack, findsNothing);
+        // A swipe too.
+        await tester.drag(find.byType(PageTurnView), const Offset(-300, 0));
+        await tester.pump();
+        expect(pageLabels(), ['3 / $n']);
+        expect(_curlBack, findsNothing);
+        await env.finish(tester);
+      });
+    }
   });
 
   group('swipe turning', () {
@@ -189,6 +217,119 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
       expect(readerChapter(tester), chapterIds[0]);
+      await env.finish(tester);
+    });
+  });
+
+  group('curl', () {
+    testWidgets('a drag from the lower corner curls the page after the finger, then completes', (tester) async {
+      useLongChapters(env.backend);
+      await openPaged(tester, 'curl');
+      final n = pageCount();
+      final size = tester.getSize(find.byType(PageTurnView));
+      final origin = tester.getTopLeft(find.byType(PageTurnView));
+
+      final gesture = await tester.startGesture(origin + Offset(size.width * 0.9, size.height * 0.9));
+      await gesture.moveBy(const Offset(-30, 0));
+      await tester.pump();
+      double? lastFold;
+      for (var i = 0; i < 8; i++) {
+        await gesture.moveBy(const Offset(-40, -5));
+        await tester.pump(const Duration(milliseconds: 16));
+        final curl = curlGeometry(tester)!;
+        expect(curl.corner, Offset(size.width, size.height));
+        // Tilted: the corner has risen off the bottom edge.
+        expect(curl.point.dy, lessThan(size.height));
+        // The fold moves left with the finger.
+        if (lastFold != null) expect(curl.mid.dx, lessThan(lastFold));
+        lastFold = curl.mid.dx;
+      }
+      expect(pageLabels(), ['2 / $n', '1 / $n']);
+      final clip = tester.widget<ClipPath>(
+          find.ancestor(of: find.text('1 / $n'), matching: find.byType(ClipPath)).first);
+      expect(clip.clipper, isA<CurlClipper>());
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(pageLabels(), ['2 / $n']);
+      expect(_curlBack, findsNothing);
+      await env.finish(tester);
+    });
+
+    testWidgets('a short drag from the middle folds straight and settles back', (tester) async {
+      useLongChapters(env.backend);
+      await openPaged(tester, 'curl');
+      final n = pageCount();
+      final size = tester.getSize(find.byType(PageTurnView));
+      final origin = tester.getTopLeft(find.byType(PageTurnView));
+
+      final gesture = await tester.startGesture(origin + Offset(size.width * 0.7, size.height / 2));
+      await gesture.moveBy(const Offset(-30, 0));
+      await gesture.moveBy(const Offset(-60, 20));
+      await tester.pump();
+      final curl = curlGeometry(tester)!;
+      expect(curl.normal.dx, closeTo(1, 1e-9));
+      expect(curl.point.dy, curl.corner.dy);
+      expect(pageLabels(), ['2 / $n', '1 / $n']);
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      // On its way back.
+      expect(_curlBack, findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(pageLabels(), ['1 / $n']);
+      expect(_curlBack, findsNothing);
+      await env.finish(tester);
+    });
+
+    testWidgets('dragging back uncurls the previous page onto the current one', (tester) async {
+      useLongChapters(env.backend);
+      await openPaged(tester, 'curl');
+      final n = pageCount();
+      await tapAt(tester, 0.9);
+      await tester.pumpAndSettle();
+      expect(pageLabels(), ['2 / $n']);
+
+      final size = tester.getSize(find.byType(PageTurnView));
+      final origin = tester.getTopLeft(find.byType(PageTurnView));
+      final gesture = await tester.startGesture(origin + Offset(size.width * 0.2, size.height * 0.85));
+      await gesture.moveBy(const Offset(30, 0));
+      double? lastFold;
+      for (var i = 0; i < 8; i++) {
+        await gesture.moveBy(const Offset(40, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+        final curl = curlGeometry(tester)!;
+        // The fold moves right with the finger, flattening the previous page.
+        if (lastFold != null) expect(curl.mid.dx, greaterThan(lastFold));
+        lastFold = curl.mid.dx;
+      }
+      // The current page lies underneath, the previous one comes over it.
+      expect(pageLabels(), ['2 / $n', '1 / $n']);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(pageLabels(), ['1 / $n']);
+      expect(_curlBack, findsNothing);
+
+      // A fling back from the first page of the first chapter does nothing.
+      await tester.fling(find.byType(PageTurnView), const Offset(300, 0), 1500);
+      await tester.pumpAndSettle();
+      expect(pageLabels(), ['1 / $n']);
+      expect(readerChapter(tester), chapterIds[0]);
+      await env.finish(tester);
+    });
+
+    testWidgets('curls across a chapter edge into the next chapter', (tester) async {
+      useLongChapters(env.backend);
+      await openPaged(tester, 'curl', location: '/read/${chapterIds[0]}?at=end');
+      final n = pageCount();
+      expect(pageLabels(), ['$n / $n']);
+      await tapAt(tester, 0.9);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text(chapterTitles[1]), findsOneWidget);
+      expect(_curlBack, findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(readerChapter(tester), chapterIds[1]);
+      expect(pageLabels().single, startsWith('1 / '));
       await env.finish(tester);
     });
   });

@@ -116,7 +116,7 @@ void main() {
       n.dispose();
     });
 
-    test('a server-side curl shows as cover and is not overwritten by other changes', () async {
+    test('a server-side curl is used as is and kept when other settings change', () async {
       backend.api.on('GET', '/users/me/reading-settings', (_) => FakeResponse.ok({
             'font_size': 18,
             'line_height': 1.8,
@@ -129,7 +129,30 @@ void main() {
       final n = notifier();
       await n.syncWithServer();
       expect(n.state.pageAnimation, 'curl');
-      expect(n.state.effectivePageAnimation, 'cover');
+      expect(n.state.effectivePageAnimation, 'curl');
+
+      n.updateFontSize(22);
+      await Future<void>.delayed(ReaderSettingsNotifier.pushDelay + const Duration(milliseconds: 300));
+      final put = backend.api.calls('PUT', '/users/me/reading-settings').last.json;
+      expect(put['font_size'], 22);
+      expect(put['page_animation'], 'curl');
+      n.dispose();
+    });
+
+    test('an unknown server-side animation shows as slide and is not overwritten by other changes', () async {
+      backend.api.on('GET', '/users/me/reading-settings', (_) => FakeResponse.ok({
+            'font_size': 18,
+            'line_height': 1.8,
+            'theme': 'white',
+            'reading_mode': 'page',
+            'page_animation': 'fold3d',
+            'brightness': 100,
+            'updated_at': '2026-10-01T00:00:00Z',
+          }));
+      final n = notifier();
+      await n.syncWithServer();
+      expect(n.state.pageAnimation, 'fold3d');
+      expect(n.state.effectivePageAnimation, 'slide');
 
       n.updateFontSize(22);
       await Future<void>.delayed(ReaderSettingsNotifier.pushDelay + const Duration(milliseconds: 300));

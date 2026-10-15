@@ -72,6 +72,7 @@ class ReadingSettingsPanel extends ConsumerWidget {
                       ButtonSegment(value: 'none', label: Text(l.settingAnimationNone)),
                       ButtonSegment(value: 'slide', label: Text(l.settingAnimationSlide)),
                       ButtonSegment(value: 'cover', label: Text(l.settingAnimationCover)),
+                      ButtonSegment(value: 'curl', label: Text(l.settingAnimationCurl)),
                     ],
                     selected: {settings.effectivePageAnimation},
                     showSelectedIcon: false,
