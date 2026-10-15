@@ -1,18 +1,12 @@
 <template>
   <div
-    class="reader-content mx-auto"
-    :style="{
-      fontSize: `${settings.fontSize}px`,
-      lineHeight: settings.lineHeight,
-      letterSpacing: `${settings.letterSpacing}px`,
-      fontFamily: fontFamilyValue,
-      maxWidth: '800px',
-      padding: `24px ${settings.margin}px`,
-    }"
+    class="reader-content"
+    :class="paged ? 'reader-content--paged' : 'mx-auto'"
+    :style="rootStyle"
   >
     <h2 class="text-center mb-8 font-bold text-xl">{{ title }}</h2>
     <!-- Text is rendered as plain text nodes; chapter content is never treated as HTML. -->
-    <div class="text-justify" data-testid="reader-paragraphs">
+    <div class="text-justify" :data-testid="primary ? 'reader-paragraphs' : undefined">
       <p
         v-for="(p, i) in paragraphs"
         :key="i"
@@ -26,7 +20,7 @@
         class="para-comment para-comment--count"
         :aria-label="$t('reader.paragraph.countAria', { n: i + 1, count: commentCounts[i] })"
         :title="$t('reader.paragraph.countTitle', { count: commentCounts[i] }, commentCounts[i])"
-        data-testid="paragraph-comment-count"
+        :data-testid="primary ? 'paragraph-comment-count' : undefined"
         @click.stop="emit('openParagraphComments', i)"
       >{{ commentCounts[i] > 99 ? '99+' : commentCounts[i] }}</button><button
         v-else
@@ -34,10 +28,15 @@
         class="para-comment para-comment--add"
         :aria-label="$t('reader.paragraph.addAria', { n: i + 1 })"
         :title="$t('reader.paragraph.addTitle')"
-        data-testid="paragraph-comment-add"
+        :data-testid="primary ? 'paragraph-comment-add' : undefined"
         @click.stop="emit('openParagraphComments', i)"
       ><n-icon :component="ChatbubbleOutline" aria-hidden="true" /></button></template></p>
     </div>
+    <template v-if="paged">
+      <slot name="end" />
+      <!-- Marks the end of the column flow: its column is the last page. -->
+      <div class="reader-flow-end" data-flow-end />
+    </template>
   </div>
 </template>
 
@@ -47,8 +46,9 @@ import { ChatbubbleOutline } from '@vicons/ionicons5'
 import { FONT_FAMILIES } from '~/utils/readingSettings'
 import { splitParagraphs } from '~/utils/text'
 import type { ParagraphCounts } from '~/utils/paragraphComments'
+import type { PageLayout } from '~/utils/pagination'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   content: string
   title?: string
   /** Paragraph to briefly highlight (e.g. after jumping to a bookmark). */
@@ -67,7 +67,15 @@ const props = defineProps<{
     margin: number
     fontFamily: string
   }
-}>()
+  /**
+   * Page mode: lay the text out in columns of this geometry (one column per
+   * page) and show page `pageIndex`. Unset for scroll mode.
+   */
+  paged?: PageLayout | null
+  pageIndex?: number
+  /** False for the extra copies page mode renders while turning (no test ids). */
+  primary?: boolean
+}>(), { highlight: null, activeParagraph: null, commentCounts: null, paged: null, pageIndex: 0, primary: true })
 
 const emit = defineEmits<{
   openParagraphComments: [index: number]
@@ -75,9 +83,45 @@ const emit = defineEmits<{
 
 const fontFamilyValue = computed(() => (FONT_FAMILIES[props.settings.fontFamily] ?? FONT_FAMILIES.system).css)
 const paragraphs = computed(() => splitParagraphs(props.content))
+
+const rootStyle = computed(() => {
+  const s = props.settings
+  const typography = {
+    fontSize: `${s.fontSize}px`,
+    lineHeight: s.lineHeight,
+    letterSpacing: `${s.letterSpacing}px`,
+    fontFamily: fontFamilyValue.value,
+  }
+  const p = props.paged
+  if (!p) return { ...typography, maxWidth: '800px', padding: `24px ${s.margin}px` }
+  return {
+    ...typography,
+    left: `${p.insetLeft}px`,
+    top: `${p.contentTop}px`,
+    width: `${p.columnWidth}px`,
+    height: `${p.contentHeight}px`,
+    columnWidth: `${p.columnWidth}px`,
+    columnGap: `${p.columnGap}px`,
+    transform: `translate3d(${-(props.pageIndex ?? 0) * p.pageWidth}px, 0, 0)`,
+  }
+})
 </script>
 
 <style scoped>
+/* Page mode: a fixed-height column flow; overflowing columns continue to the right. */
+.reader-content--paged {
+  position: absolute;
+  column-fill: auto;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+.reader-content--paged h2 {
+  margin-top: 0.4em;
+}
+.reader-flow-end {
+  height: 1px;
+}
 .reader-paragraph {
   transition: background-color 0.6s;
   border-radius: 4px;

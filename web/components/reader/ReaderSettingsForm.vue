@@ -63,6 +63,14 @@
         <n-radio-button value="page">{{ $t('reader.settings.modePage') }}</n-radio-button>
       </n-radio-group>
     </div>
+    <div v-if="s.readingMode === 'page'" class="flex items-center justify-between gap-4" data-testid="page-animation-setting">
+      <span class="flex-shrink-0">{{ $t('reader.settings.pageAnimation') }}</span>
+      <n-radio-group :value="s.pageAnimation" size="small" @update:value="set('pageAnimation', $event)">
+        <n-radio-button v-for="a in PAGE_ANIMATIONS" :key="a" :value="a" :data-testid="`page-animation-${a}`">
+          {{ $t(`reader.settings.animations.${a}`) }}
+        </n-radio-button>
+      </n-radio-group>
+    </div>
     <div class="flex items-center justify-between gap-4">
       <span>{{ $t('reader.settings.autoChapter') }}</span>
       <n-switch :value="s.autoChapter" @update:value="set('autoChapter', $event)" />
@@ -79,7 +87,7 @@
 
 <script setup lang="ts">
 import { NSlider, NSelect, NSwitch, NRadioGroup, NRadioButton, NButton } from 'naive-ui'
-import { FONT_FAMILIES, READER_THEMES, SETTING_LIMITS as L, type ReaderSettings } from '~/utils/readingSettings'
+import { FONT_FAMILIES, PAGE_ANIMATIONS, READER_THEMES, SETTING_LIMITS as L, type ReaderSettings } from '~/utils/readingSettings'
 
 const { t } = useI18n()
 const readerStore = useReaderStore()

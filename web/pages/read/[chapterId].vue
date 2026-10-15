@@ -18,7 +18,45 @@
     </div>
 
     <n-spin :show="loading" class="min-h-screen">
-      <template v-if="chapter">
+      <template v-if="chapter && pageMode">
+        <ReaderPager
+          ref="pager"
+          :content="displayContent"
+          :title="translatedTitle || chapter.title"
+          :settings="settings"
+          :background="themeBackground"
+          :page-animation="settings.pageAnimation"
+          :highlight="highlightParagraph"
+          :active-paragraph="showParagraphComments ? paragraphTarget : null"
+          :comment-counts="markerCounts"
+          @position="onPagerPosition"
+          @boundary="onPagerBoundary"
+          @toggle-toolbar="showToolbar = !showToolbar"
+          @open-paragraph-comments="openParagraphComments"
+        >
+          <template #status>
+            <span v-if="offline" class="opacity-60" data-testid="offline-notice">{{ $t('reader.offlineNotice') }}</span>
+            <span v-else-if="translatedContent" class="opacity-60">
+              {{ $t('reader.translate.showing') }}
+              <n-button text size="tiny" type="primary" @click.stop="translatedContent = null">{{ $t('reader.translate.showOriginal') }}</n-button>
+            </span>
+          </template>
+          <template #end>
+            <!-- Copies of this render on the pages shown while turning, hence no test ids. -->
+            <div class="text-center pt-6 pb-2 space-y-4 reader-chapter-end">
+              <div class="text-xs opacity-50">{{ $t('reader.page.endOfChapter') }}</div>
+              <div class="flex justify-center flex-wrap gap-3">
+                <n-button size="small" :disabled="!prevChapter" @click.stop="goPrevChapter">{{ $t('reader.prevChapter') }}</n-button>
+                <n-button size="small" @click.stop="openComments">{{ $t('reader.toolbar.comments') }}</n-button>
+                <n-button size="small" type="primary" :disabled="!nextChapter" @click.stop="goNextChapter">
+                  {{ nextChapter ? $t('reader.nextChapter') : $t('reader.lastChapter') }}
+                </n-button>
+              </div>
+            </div>
+          </template>
+        </ReaderPager>
+      </template>
+      <template v-else-if="chapter">
         <div v-if="offline" class="text-center text-xs text-gray-500 pt-2" data-testid="offline-notice">
           {{ $t('reader.offlineNotice') }}
         </div>
@@ -181,6 +219,10 @@ import type { LocalBookmark } from '~/utils/localDb'
 import type { ApiComment } from '~/types/models'
 import { paragraphExcerpt, paragraphsAligned, threadPanel } from '~/utils/paragraphComments'
 import { splitParagraphs } from '~/utils/text'
+import { READER_THEMES } from '~/utils/readingSettings'
+import { pageKeyDirection, pageScrollOffset, type TurnDirection } from '~/utils/pagination'
+import type ReaderPager from '~/components/reader/ReaderPager.vue'
+import type { PagerPosition } from '~/components/reader/ReaderPager.vue'
 
 definePageMeta({ layout: 'reader' })
 
@@ -196,7 +238,7 @@ const chapterId = computed(() => route.params.chapterId as string)
 
 const {
   chapter, chapterList, loading, error, offline, settings, prevChapter, nextChapter, timer,
-  goNextChapter, goPrevChapter, saveProgress,
+  goNextChapter, goPrevChapter, goToChapter, saveProgress,
 } = useReader(chapterId)
 const { translating, translateChapter } = useTranslation()
 const bookmarks = useBookmarks()
@@ -224,6 +266,11 @@ const addingBookmark = ref(false)
 const chapterBookmarked = computed(() => novelBookmarks.value.some(b => b.chapter_id === chapter.value?.id))
 
 useHead({ title: () => chapter.value?.title ?? t('reader.loadingTitle') })
+
+/** Page mode lays the chapter out in pages (ReaderPager); scroll mode is one long page. */
+const pageMode = computed(() => settings.value.readingMode === 'page')
+const pager = ref<InstanceType<typeof ReaderPager> | null>(null)
+const themeBackground = computed(() => (READER_THEMES[settings.value.theme] ?? READER_THEMES.white).bg)
 
 const displayContent = computed(() => translatedContent.value || chapter.value?.content || '')
 const displayParagraphs = computed(() => splitParagraphs(displayContent.value))
@@ -311,8 +358,16 @@ function paragraphElements(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-p]'))
 }
 
-/** The first paragraph whose bottom edge is below the top of the viewport. */
+/**
+ * Scroll mode: the first paragraph whose bottom edge is below the top of the
+ * viewport. Page mode keeps the position up to date from the pager instead.
+ */
 function measurePosition() {
+  if (pageMode.value) return
+  measureScrollPosition()
+}
+
+function measureScrollPosition() {
   const els = paragraphElements()
   const top = 72
   const hit = els.find(el => el.getBoundingClientRect().bottom > top)
@@ -334,10 +389,16 @@ const onScroll = useThrottleFn(() => {
 }, 200)
 
 function scrollToParagraph(index: number, highlight = true) {
-  const el = document.querySelector<HTMLElement>(`[data-p="${index}"]`)
-  if (!el) return
-  el.scrollIntoView({ block: 'start' })
-  window.scrollBy(0, -72)
+  if (pageMode.value) {
+    // Opens the page the paragraph starts on.
+    pager.value?.goToParagraph(index)
+  }
+  else {
+    const el = document.querySelector<HTMLElement>(`[data-p="${index}"]`)
+    if (!el) return
+    el.scrollIntoView({ block: 'start' })
+    window.scrollBy(0, -72)
+  }
   currentParagraph.value = index
   if (highlight) {
     highlightParagraph.value = index
@@ -364,6 +425,10 @@ if (import.meta.client) {
   useEventListener(window, 'keydown', (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null
     if (target?.closest('input, textarea, [contenteditable]')) return
+    if (pageMode.value) {
+      onPageKey(e)
+      return
+    }
     if (e.key === 'ArrowRight') goNextChapter()
     else if (e.key === 'ArrowLeft') goPrevChapter()
   })
@@ -387,6 +452,7 @@ watch(() => chapter.value?.id, async (id) => {
   await nextTick()
   const p = Number(route.query.p)
   if (Number.isInteger(p) && p > 0) scrollToParagraph(p)
+  else if (pageMode.value) pager.value?.goToPage(route.query.end === '1' ? 'last' : 0)
   else window.scrollTo(0, 0)
   measurePosition()
   void saveProgress(position())
@@ -408,29 +474,47 @@ watch(() => chapter.value?.id, async (id) => {
 
 // ----------------------------------------------------- page mode, toolbar
 
-function onContentClick(e: MouseEvent) {
-  if (settings.value.readingMode !== 'page') {
-    showToolbar.value = !showToolbar.value
-    return
-  }
-  const x = e.clientX / window.innerWidth
-  if (x < 1 / 3) pageBy(-1)
-  else if (x > 2 / 3) pageBy(1)
-  else showToolbar.value = !showToolbar.value
+function onContentClick() {
+  // Page mode: the pager handles taps (thirds) and emits toggle-toolbar.
+  if (pageMode.value) return
+  showToolbar.value = !showToolbar.value
 }
 
-function pageBy(direction: 1 | -1) {
-  const atBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4
-  if (direction === 1 && atBottom) {
-    if (settings.value.autoChapter && nextChapter.value) goNextChapter()
-    return
-  }
-  if (direction === -1 && window.scrollY <= 0) {
-    if (settings.value.autoChapter && prevChapter.value) goPrevChapter()
-    return
-  }
-  window.scrollBy({ top: direction * (window.innerHeight - 80) })
+function onPagerPosition(pos: PagerPosition) {
+  currentParagraph.value = pos.paragraph
+  scrollOffset.value = pageScrollOffset(pos.page, pos.pageCount)
+  timer?.activity()
+  void saveProgressSoon()
 }
+
+/** Turning past the first/last page opens the neighbouring chapter (on its last page going back). */
+function onPagerBoundary(direction: TurnDirection) {
+  if (!settings.value.autoChapter) return
+  if (direction === 1 && nextChapter.value) goNextChapter()
+  else if (direction === -1 && prevChapter.value) goToChapter(prevChapter.value, { end: '1' })
+}
+
+const anyDrawerOpen = computed(() => showSettings.value || showChapterList.value || showBookmarks.value
+  || showComments.value || showParagraphComments.value || showTranslate.value)
+
+function onPageKey(e: KeyboardEvent) {
+  if (e.ctrlKey || e.metaKey || e.altKey || anyDrawerOpen.value) return
+  const direction = pageKeyDirection(e)
+  if (!direction) return
+  // Space on a focused button presses it.
+  if (e.key === ' ' && (e.target as HTMLElement | null)?.closest('button, a, [role="button"]')) return
+  e.preventDefault()
+  pager.value?.turnPage(direction)
+}
+
+// Switching modes keeps the reading position.
+watch(pageMode, async (paged) => {
+  if (paged) measureScrollPosition()
+  const index = currentParagraph.value
+  await nextTick()
+  if (index > 0) scrollToParagraph(index, false)
+  else if (!paged) window.scrollTo(0, 0)
+})
 
 // Keep the screen on while reading when the browser supports it.
 let wakeLock: { release: () => Promise<void> } | null = null
