@@ -56,8 +56,10 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     final l = context.l10n;
     return Scaffold(
       appBar: AppBar(title: Text(l.passwordChangeTitle)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      body: ReadableInset(
+        maxWidth: ReadableWidths.form + 48,
+        builder: (context, inset) => SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 24 + inset, vertical: 24),
         child: Form(
           key: _formKey,
           autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
@@ -99,6 +101,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

@@ -223,7 +223,7 @@ pnpm dev          # http://localhost:3000
 
 ### 4. 啟動 Flutter App
 
-`mobile/` 已包含 Android 與 iOS 原生專案（以 Flutter 3.47.2 產生，與 CI 相同版本；套件名稱 `cc.palimpsest.palimpsest`）。請使用 Flutter 3.47.x：
+`mobile/` 已包含 Android、iOS 與桌面版（Windows、macOS、Linux）原生專案（以 Flutter 3.47.2 產生，與 CI 相同版本；套件名稱 `cc.palimpsest.palimpsest`）。請使用 Flutter 3.47.x：
 
 ```bash
 cd mobile
@@ -231,9 +231,7 @@ flutter pub get
 flutter run
 ```
 
-之後要支援桌面版時，再執行 `flutter create --platforms=windows,macos,linux .`。
-
-App 預設連到 `http://10.0.2.2:8080/api/v1`（Android 模擬器對應的主機位址）。其他環境請用 `--dart-define` 覆寫：
+App 在 Android 上預設連到 `http://10.0.2.2:8080/api/v1`（Android 模擬器對應的主機位址），桌面版與 iOS 模擬器預設連到 `http://localhost:8080/api/v1`。其他環境請用 `--dart-define` 覆寫：
 
 ```bash
 flutter run --dart-define=API_BASE_URL=http://localhost:8080/api/v1
@@ -256,6 +254,43 @@ keyPassword=...
 
 > [!NOTE]
 > `android/gradle.properties` 關閉了 Kotlin 增量編譯：專案與 pub 快取位於不同磁碟時（Windows 常見），增量快取會讓建置失敗。
+
+#### 桌面版（Windows / macOS / Linux）
+
+```bash
+cd mobile
+flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8080/api/v1   # 或 -d macos、-d linux
+flutter build windows --release --dart-define=API_BASE_URL=https://api.palimpsest.cc/api/v1
+flutter build macos --release --dart-define=API_BASE_URL=https://api.palimpsest.cc/api/v1
+flutter build linux --release --dart-define=API_BASE_URL=https://api.palimpsest.cc/api/v1
+```
+
+| 平台 | 建置需求 | 輸出 |
+|------|----------|------|
+| Windows | Visual Studio 2022（「使用 C++ 的桌面開發」工作負載） | `build/windows/x64/runner/Release/`（整個資料夾一起發佈） |
+| macOS | Xcode（只能在 macOS 上建置） | `build/macos/Build/Products/Release/Palimpsest.app` |
+| Linux | `clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev` | `build/linux/x64/release/bundle/` |
+
+- **本地資料庫**：sqflite 沒有 Windows／Linux 實作，這兩個平台改用 `sqflite_common_ffi`（啟動時設定 `databaseFactory`），SQLite 本身由 `package:sqlite3` 的 build hook 自動下載並打包（Windows 為 `sqlite3.dll`），不需要另外安裝。資料庫位於使用者的 Application Support 資料夾（Windows：`%APPDATA%\cc.palimpsest\palimpsest\palimpsest.db`）。Android、iOS、macOS 仍使用原本的 sqflite。
+- **版面**：視窗寬度 ≥ 840 時，首頁／書架／我的改用左側 NavigationRail（≥ 1200 時展開並顯示文字）；詳情、個人、設定與登入表單限制最大寬度並置中，閱讀器內文欄寬最多 800（捲動與翻頁模式皆同）。
+- **頭像上傳**：桌面版以檔案對話框選擇圖片；超過 2 MB 的圖片會先在本機縮小到 512 px 再上傳。
+- **視窗**：標題「Palimpsest」，預設 1280×800，最小 800×600。圖示由 `assets/icon/app_icon.png` 產生：`python tool/gen_desktop_icons.py`（需要 Pillow）。
+
+#### 鍵盤快捷鍵
+
+所有平台只要有實體鍵盤即可使用；焦點在文字輸入框時不會觸發（Esc 只會離開輸入框）。
+
+| 範圍 | 按鍵 | 動作 |
+|------|------|------|
+| 全域 | `Ctrl+F`（macOS 為 `Cmd+F`）、`/` | 開啟搜尋 |
+| 全域 | `Esc` | 關閉對話框／底部面板；否則返回上一頁 |
+| 全域 | `Alt+←` | 返回上一頁 |
+| 閱讀器 | `←` `→`、`PageUp` `PageDown` | 上一頁／下一頁（翻頁模式）；捲動一個畫面（捲動模式） |
+| 閱讀器 | `Space`／`Shift+Space` | 下一頁／上一頁（或捲動一個畫面） |
+| 閱讀器 | `↑` `↓` | 捲動一小段（翻頁模式為翻頁） |
+| 閱讀器 | `[` `]`、`Ctrl+←` `Ctrl+→` | 上一章／下一章 |
+| 閱讀器 | `Esc` | 關閉工具列與設定面板；沒有開啟時離開閱讀器 |
+| 閱讀器 | 滑鼠滾輪 | 翻頁模式下每一格翻一頁 |
 
 ### 從 OpenAPI 產生型別
 
@@ -309,7 +344,7 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 
 | 變數 | 預設值 |
 |------|--------|
-| `API_BASE_URL` | `http://10.0.2.2:8080/api/v1` |
+| `API_BASE_URL` | Android：`http://10.0.2.2:8080/api/v1`；其他平台：`http://localhost:8080/api/v1` |
 
 ---
 
@@ -421,7 +456,7 @@ flutter test integration_test           # 需要連接裝置或模擬器
 |----------|----------|------|
 | [`backend.yml`](.github/workflows/backend.yml) | `backend/**` | `go build`、`go vet`，並以 PostgreSQL 服務容器執行 `go test ./...`（含整合測試） |
 | [`web.yml`](.github/workflows/web.yml) | `web/**`、`shared/**` | Node + pnpm：Vitest、`pnpm typecheck`（vue-tsc）、正式建置 |
-| [`flutter.yml`](.github/workflows/flutter.yml) | `mobile/**`、`shared/**` | Flutter 3.47.2：`flutter analyze`、檢查 SQLite Schema 產生檔、`flutter test`，並建置 release APK 上傳為 artifact |
+| [`flutter.yml`](.github/workflows/flutter.yml) | `mobile/**`、`shared/**` | Flutter 3.47.2：`flutter analyze`、檢查 SQLite Schema 產生檔、`flutter test`，並建置 release APK、Windows 與 Linux 版上傳為 artifact |
 | [`docker.yml`](.github/workflows/docker.yml) | `backend/**`、`web/**` | 建置後端與 Web 映像檔；PR 只建置，`main` 與 `v*` 標籤會推送到 GHCR |
 
 ---
@@ -498,7 +533,8 @@ Pod 帶有 `prometheus.io/scrape` 註解，以註解自動探索的 Prometheus �
 | Flutter 書城、閱讀器、書架、搜尋、個人頁 | ✅ | 閱讀器含上下章、目錄、書籤、翻譯、留言；新增排行、分類、閱讀紀錄、設定頁 |
 | Flutter 離線閱讀 | ✅ | 章節快取、整本下載與下載管理、離線進度與書籤同步；本機 Schema 由共用 SQL 產生 |
 | Flutter 頭像上傳、翻頁模式、螢幕常亮 | ✅ | 翻頁模式點擊左右翻頁，翻到章節首尾可自動換章 |
-| Flutter 原生平台專案目錄 | ✅ | Android、iOS（桌面版待 Phase 3） |
+| Flutter 原生平台專案目錄 | ✅ | Android、iOS、Windows、macOS、Linux |
+| Flutter 桌面版 | ✅ | 寬視窗側邊欄（NavigationRail）＋主內容、限制閱讀寬度、全面鍵盤快捷鍵與滑鼠滾輪翻頁；Windows／Linux 以 FFI 使用 SQLite |
 | Docker 映像檔、Kubernetes 部署設定 | ✅ | Kustomize：staging（含叢集內依賴）與 production overlay |
 | 監控與告警 | ✅ | Prometheus 指標（獨立埠）、ServiceMonitor 與告警規則 |
 | 資料庫備份 | ✅ | staging 叢集內 PostgreSQL 每晚備份、保留 7 天；正式環境依託管服務的備份機制 |

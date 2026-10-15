@@ -4519,7 +4519,13 @@ export interface operations {
     };
     adminStats: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description The client's UTC offset in minutes east of UTC (480 for UTC+8).
+                 *     The `*_today` counts start at the client's local midnight. Defaults to UTC.
+                 */
+                utc_offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;

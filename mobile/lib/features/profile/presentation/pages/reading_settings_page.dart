@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/adaptive_layout.dart';
 import '../../../reader/presentation/providers/reader_provider.dart';
 import '../../../reader/presentation/widgets/reading_settings_panel.dart';
 import '../../../../core/l10n/l10n.dart';
@@ -34,8 +35,9 @@ class _ReadingSettingsPageState extends ConsumerState<ReadingSettingsPage> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: ReadableInset(
+        builder: (context, inset) => ListView(
+        padding: EdgeInsets.symmetric(horizontal: 16 + inset, vertical: 16),
         children: [
           Container(
             padding: EdgeInsets.symmetric(horizontal: settings.margin.toDouble(), vertical: 16),
@@ -53,6 +55,7 @@ class _ReadingSettingsPageState extends ConsumerState<ReadingSettingsPage> {
           const SizedBox(height: 16),
           const ReadingSettingsPanel(),
         ],
+      ),
       ),
     );
   }

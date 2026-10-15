@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/l10n.dart';
 import '../../../../core/network/api_error.dart';
+import '../../../../core/widgets/adaptive_layout.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -54,8 +55,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     return Scaffold(
       appBar: AppBar(title: Text(l.authRegister)),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+        child: ReadableInset(
+          maxWidth: ReadableWidths.form + 48,
+          builder: (context, inset) => SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: 24 + inset, vertical: 24),
           child: Form(
             key: _formKey,
             autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
@@ -135,6 +138,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

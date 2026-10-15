@@ -1,3 +1,7 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,7 +23,9 @@ class SettingsPage extends ConsumerWidget {
     final language = ref.watch(appLanguageProvider);
     return Scaffold(
       appBar: AppBar(title: Text(l.settings)),
-      body: ListView(
+      body: ReadableInset(
+        builder: (context, inset) => ListView(
+        padding: EdgeInsets.symmetric(horizontal: inset),
         children: [
           if (user != null) ...[
             _SectionTitle(l.settingsProfile),
@@ -88,6 +94,7 @@ class SettingsPage extends ConsumerWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -119,7 +126,9 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  /// Picks a photo, scaled down so it stays well under the server's 2 MB limit.
+  /// Picks a photo, scaled down so it stays well under the server's 2 MB
+  /// limit. On desktop the picker is a file dialog that cannot scale, so
+  /// large files are scaled here.
   Future<void> _pickAvatar(BuildContext context, WidgetRef ref) async {
     final XFile? picked;
     try {
@@ -130,12 +139,37 @@ class SettingsPage extends ConsumerWidget {
     }
     if (picked == null) return;
     try {
-      final bytes = await picked.readAsBytes();
-      final updated = await ref.read(userRepositoryProvider).uploadAvatar(bytes, picked.name);
+      final (bytes, name) = await _fitAvatar(await picked.readAsBytes(), picked.name);
+      final updated = await ref.read(userRepositoryProvider).uploadAvatar(bytes, name);
       ref.read(authStateProvider.notifier).updateUser(updated);
       if (context.mounted) showSnack(context, context.l10n.settingsAvatarUpdated);
     } catch (e) {
       if (context.mounted) showSnack(context, describeError(e, context.l10n));
+    }
+  }
+
+  /// Re-encodes an image over the server's limit as a PNG at most 512 px on
+  /// its longer side.
+  static Future<(Uint8List, String)> _fitAvatar(Uint8List bytes, String name) async {
+    const limit = 2 << 20;
+    const side = 512;
+    if (bytes.length <= limit) return (bytes, name);
+    final codec = await ui.instantiateImageCodecWithSize(
+      await ui.ImmutableBuffer.fromUint8List(bytes),
+      getTargetSize: (width, height) {
+        final scale = math.min(1.0, side / math.max(width, height));
+        return ui.TargetImageSize(width: (width * scale).round(), height: (height * scale).round());
+      },
+    );
+    try {
+      final image = (await codec.getNextFrame()).image;
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      if (png == null) return (bytes, name);
+      final dot = name.lastIndexOf('.');
+      return (png.buffer.asUint8List(), '${dot > 0 ? name.substring(0, dot) : name}.png');
+    } finally {
+      codec.dispose();
     }
   }
 

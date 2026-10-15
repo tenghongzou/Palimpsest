@@ -38,9 +38,9 @@ mobile/android/local.properties
 mobile/ios/Pods/
 mobile/ios/.symlinks/
 mobile/ios/Flutter/flutter_export_environment.sh
-mobile/linux/flutter/
-mobile/macos/Flutter/
-mobile/windows/flutter/
+mobile/linux/flutter/ephemeral/
+mobile/macos/Flutter/ephemeral/
+mobile/windows/flutter/ephemeral/
 
 # Test
 coverage/

@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,8 +36,9 @@ class HomePage extends ConsumerWidget {
             const SizedBox(height: 8),
             Center(child: OutlinedButton(onPressed: () => ref.invalidate(homeProvider), child: Text(context.l10n.commonRetry))),
           ]),
-          data: (data) => ListView(
-            padding: const EdgeInsets.all(16),
+          data: (data) => ReadableInset(
+            builder: (context, inset) => ListView(
+            padding: EdgeInsets.symmetric(horizontal: 16 + inset, vertical: 16),
             children: [
               if (data.banners.isNotEmpty) ...[
                 _BannerCarousel(banners: data.banners),
@@ -50,6 +52,7 @@ class HomePage extends ConsumerWidget {
               ..._section(context, context.l10n.homeNewArrivals, data.newArrivals, '/novels?sort_by=new'),
               ..._section(context, context.l10n.homeCompleted, data.completed, '/ranking/completed'),
             ],
+          ),
           ),
         ),
       ),
@@ -120,10 +123,15 @@ class _BannerCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 140,
-      child: PageView(
+      // Mouse drags swipe the banners too (desktop).
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(dragDevices: PointerDeviceKind.values.toSet()),
+        child: PageView(
         controller: PageController(viewportFraction: 0.92),
         children: banners
-            .map((b) => GestureDetector(
+            .map((b) => MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
                   onTap: () => _open(context, b),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -151,8 +159,9 @@ class _BannerCarousel extends StatelessWidget {
                       ),
                     ),
                   ),
-                ))
+                )))
             .toList(),
+        ),
       ),
     );
   }

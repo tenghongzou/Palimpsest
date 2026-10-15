@@ -91,7 +91,9 @@ class ReadingSettingsPanel extends ConsumerWidget {
             final selected = settings.theme == t;
             return Tooltip(
               message: _themeLabel(t, l),
-              child: GestureDetector(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
                 onTap: () => notifier.updateTheme(t),
                 child: Container(
                   width: 36,
@@ -106,6 +108,7 @@ class ReadingSettingsPanel extends ConsumerWidget {
                   ),
                   child: Center(child: Text(l.settingThemeSample, style: TextStyle(color: c.text, fontSize: 14))),
                 ),
+              ),
               ),
             );
           }).toList(),

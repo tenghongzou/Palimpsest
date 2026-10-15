@@ -256,6 +256,13 @@ func (s *AdminService) DeleteBanner(id uuid.UUID) error {
 
 // ------------------------------------------------------------------ stats
 
+// startOfLocalDay is the instant the day containing now began for a client
+// utcOffsetMinutes east of UTC.
+func startOfLocalDay(now time.Time, utcOffsetMinutes int) time.Time {
+	local := now.In(time.FixedZone("", utcOffsetMinutes*60))
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, local.Location())
+}
+
 // AdminStats is the admin dashboard overview.
 type AdminStats struct {
 	Users           int64 `json:"users"`
@@ -270,9 +277,11 @@ type AdminStats struct {
 	ReadsToday      int64 `json:"reads_today"`
 }
 
-func (s *AdminService) Stats() (*AdminStats, error) {
+// Stats counts the overview; "today" starts at local midnight for a client
+// utcOffsetMinutes east of UTC.
+func (s *AdminService) Stats(utcOffsetMinutes int) (*AdminStats, error) {
 	st := &AdminStats{}
-	today := time.Now().Truncate(24 * time.Hour)
+	today := startOfLocalDay(time.Now(), utcOffsetMinutes)
 	counts := []struct {
 		dst *int64
 		q   *gorm.DB

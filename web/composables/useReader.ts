@@ -36,8 +36,9 @@ export function useReader(chapterId: Ref<string> | string) {
 
   const resolvedId = computed(() => typeof chapterId === 'string' ? chapterId : chapterId.value)
 
-  async function fetchAndCache(id: string): Promise<ChapterDetail> {
-    const res = await apiFetch<ApiResponse<ChapterDetail>>(`/chapters/${id}`)
+  /** countView is false for background prefetches, which are not reads. */
+  async function fetchAndCache(id: string, countView = true): Promise<ChapterDetail> {
+    const res = await apiFetch<ApiResponse<ChapterDetail>>(`/chapters/${id}`, countView ? {} : { params: { count_view: 'false' } })
     await withDb((db) => {
       saveChapter(db, res.data)
       enforceCacheLimit(db)
@@ -80,7 +81,7 @@ export function useReader(chapterId: Ref<string> | string) {
     const next = nextChapter.value
     if (!next || offline.value) return
     if (await readDb(db => getChapter(db, next.id))) return
-    fetchAndCache(next.id).catch(() => {})
+    fetchAndCache(next.id, false).catch(() => {})
   }
 
   async function loadChapter(id?: string) {

@@ -93,8 +93,9 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
             ref.invalidate(chapterListProvider(novelId));
             ref.invalidate(reviewsProvider(novelId));
           },
-          child: ListView(
-            padding: const EdgeInsets.all(16),
+          child: ReadableInset(
+            builder: (context, inset) => ListView(
+            padding: EdgeInsets.symmetric(horizontal: 16 + inset, vertical: 16),
             children: [
               _buildHeader(novel),
               const SizedBox(height: 16),
@@ -109,6 +110,7 @@ class _NovelDetailPageState extends ConsumerState<NovelDetailPage> {
               const SizedBox(height: 24),
               ReviewSection(novelId: novelId),
             ],
+          ),
           ),
         ),
       ),

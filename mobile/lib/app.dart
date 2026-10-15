@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/keyboard/app_shortcuts.dart';
 import 'core/l10n/l10n.dart';
 import 'core/router/app_router.dart';
 import 'core/sync/sync_service.dart';
@@ -98,6 +99,8 @@ class _PalimpsestAppState extends ConsumerState<PalimpsestApp> with WidgetsBindi
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       routerConfig: router,
+      // Search, back and Esc from the keyboard on every page.
+      builder: (context, child) => AppShortcuts(router: router, child: child ?? const SizedBox.shrink()),
       debugShowCheckedModeBanner: false,
       // Null follows the device's languages.
       locale: locale,

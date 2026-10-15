@@ -47,7 +47,7 @@ const CARDS: { key: keyof ApiAdminStats, to?: string }[] = [
 async function load() {
   loading.value = true
   try {
-    const res = await apiFetch<ApiResponse<ApiAdminStats>>('/admin/stats')
+    const res = await apiFetch<ApiResponse<ApiAdminStats>>('/admin/stats', { params: { utc_offset: -new Date().getTimezoneOffset() } })
     stats.value = res.data
   }
   catch (error) {

@@ -87,9 +87,14 @@ class SyncService {
 
   /// Starts uploading whenever connectivity comes back.
   void listenForConnectivity() {
-    _connectivity ??= Connectivity().onConnectivityChanged.listen((results) {
-      if (results.any((r) => r != ConnectivityResult.none)) unawaited(pushPending());
-    });
+    _connectivity ??= Connectivity().onConnectivityChanged.listen(
+      (results) {
+        if (results.any((r) => r != ConnectivityResult.none)) unawaited(pushPending());
+      },
+      // No connectivity service (e.g. Linux without NetworkManager): offline
+      // changes then go up with the next progress report or sign-in.
+      onError: (Object _) {},
+    );
   }
 
   void dispose() => _connectivity?.cancel();

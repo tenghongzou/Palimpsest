@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/l10n.dart';
 import '../../../../core/network/api_error.dart';
+import '../../../../core/widgets/adaptive_layout.dart';
 import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -52,8 +53,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+          child: ReadableInset(
+            maxWidth: ReadableWidths.form + 48,
+            builder: (context, inset) => SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 24 + inset, vertical: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -117,6 +120,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),
