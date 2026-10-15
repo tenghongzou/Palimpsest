@@ -1,4 +1,5 @@
 import '../../../core/l10n/l10n.dart';
+import '../domain/entities/recommendation.dart';
 
 /// Labels for the API's novel sort orders, rankings and statuses.
 
@@ -36,4 +37,12 @@ String novelStatusLabel(String? status, AppLocalizations l) => switch (status) {
       'completed' => l.statusCompleted,
       'hiatus' => l.statusHiatus,
       _ => status,
+    };
+
+/// The line under a recommended novel saying why it is there.
+String recommendationReasonLabel(RecommendationReason reason, AppLocalizations l) => switch (reason.type) {
+      RecommendationReasonType.category => l.recommendReasonCategory(reason.value),
+      RecommendationReasonType.tag => l.recommendReasonTag(reason.value),
+      RecommendationReasonType.author => l.recommendReasonAuthor(reason.value),
+      RecommendationReasonType.popular => l.recommendReasonPopular,
     };

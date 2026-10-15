@@ -1,11 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/pagination/paged_notifier.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/novel_repository.dart';
 import '../../domain/entities/home_data.dart';
 import '../../domain/entities/novel.dart';
+import '../../domain/entities/recommendation.dart';
 
 final homeProvider = FutureProvider<HomeData>((ref) async {
   return ref.read(novelRepositoryProvider).getHome();
+});
+
+/// The home page's "for you" list. Fetched again when the signed-in account
+/// changes (signing in or out changes what the server recommends).
+final recommendationsProvider = FutureProvider<Recommendations>((ref) async {
+  ref.watch(authStateProvider.select((s) => s.valueOrNull?.id));
+  return ref.read(novelRepositoryProvider).getRecommendations();
+});
+
+/// Novels similar to a novel, for its detail page.
+final similarNovelsProvider = FutureProvider.autoDispose.family<List<Novel>, String>((ref, novelId) async {
+  return ref.read(novelRepositoryProvider).getSimilarNovels(novelId);
 });
 
 final novelDetailProvider = FutureProvider.family<Novel, String>((ref, id) async {
