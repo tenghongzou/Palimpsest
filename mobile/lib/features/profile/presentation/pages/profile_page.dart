@@ -31,8 +31,9 @@ class ProfilePage extends ConsumerWidget {
               ref.invalidate(readingStatsProvider);
               await ref.read(authStateProvider.notifier).refreshUser();
             },
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+            child: ReadableInset(
+              builder: (context, inset) => ListView(
+              padding: EdgeInsets.symmetric(horizontal: 16 + inset, vertical: 16),
               children: [
                 _UserCard(user: user),
                 const SizedBox(height: 16),
@@ -64,6 +65,7 @@ class ProfilePage extends ConsumerWidget {
                 ),
               ],
             ),
+            ),
           );
         },
       ),
@@ -81,7 +83,9 @@ class ProfilePage extends ConsumerWidget {
   }
 
   Widget _buildNotLoggedIn(BuildContext context) {
-    return ListView(
+    return ReadableInset(
+      builder: (context, inset) => ListView(
+      padding: EdgeInsets.symmetric(horizontal: inset),
       children: [
         const SizedBox(height: 48),
         EmptyState(
@@ -113,6 +117,7 @@ class ProfilePage extends ConsumerWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }

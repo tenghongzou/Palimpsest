@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,6 +67,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   static const _maxCountedGap = Duration(minutes: 10);
 
   final _scroll = ScrollController();
+
+  /// Holds keyboard focus while reading, so the reader's keys reach it.
+  final _keyboardFocus = FocusNode(debugLabel: 'reader');
+
+  /// When the mouse wheel last turned a page (page mode).
+  DateTime _lastWheelTurn = DateTime.fromMillisecondsSinceEpoch(0);
   bool _showToolbar = false;
   bool _showSettings = false;
   Chapter? _chapter;
@@ -150,6 +157,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     if (!_leaving) _report(disposing: true);
     _setWakelock(false);
     _scroll.dispose();
+    _keyboardFocus.dispose();
     super.dispose();
   }
 
@@ -257,6 +265,78 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     } else {
       _toggleToolbar();
     }
+  }
+
+  // --------------------------------------------------------------- keyboard
+
+  /// The reader's keys. Left/Right, Page Up/Down and Space (Shift+Space
+  /// back) turn pages in page mode or scroll by a screen in scroll mode;
+  /// Up/Down scroll a little (turn pages in page mode); `[`/`]` and
+  /// Ctrl+Left/Right open the previous/next chapter; Esc hides the toolbars,
+  /// else leaves the reader. Sheets and dialogs handle Esc themselves.
+  Map<ShortcutActivator, VoidCallback> _keyBindings(Chapter chapter, bool pageMode) {
+    void page(int direction) => pageMode ? _turns.turn(direction) : _scrollByScreen(direction);
+    void line(int direction) => pageMode ? _turns.turn(direction) : _scrollBy(direction * 80.0);
+    void chapterStep(int direction) {
+      final target = direction > 0 ? chapter.nextChapter : chapter.prevChapter;
+      if (target != null) _openChapter(target.id);
+    }
+
+    return {
+      const SingleActivator(LogicalKeyboardKey.arrowLeft): () => page(-1),
+      const SingleActivator(LogicalKeyboardKey.arrowRight): () => page(1),
+      const SingleActivator(LogicalKeyboardKey.pageUp): () => page(-1),
+      const SingleActivator(LogicalKeyboardKey.pageDown): () => page(1),
+      const SingleActivator(LogicalKeyboardKey.space): () => page(1),
+      const SingleActivator(LogicalKeyboardKey.space, shift: true): () => page(-1),
+      const SingleActivator(LogicalKeyboardKey.arrowUp): () => line(-1),
+      const SingleActivator(LogicalKeyboardKey.arrowDown): () => line(1),
+      const SingleActivator(LogicalKeyboardKey.bracketLeft): () => chapterStep(-1),
+      const SingleActivator(LogicalKeyboardKey.bracketRight): () => chapterStep(1),
+      const SingleActivator(LogicalKeyboardKey.arrowLeft, control: true): () => chapterStep(-1),
+      const SingleActivator(LogicalKeyboardKey.arrowRight, control: true): () => chapterStep(1),
+      const SingleActivator(LogicalKeyboardKey.escape): () => _onEscape(chapter),
+    };
+  }
+
+  void _onEscape(Chapter chapter) {
+    if (_showToolbar) {
+      setState(() {
+        _showToolbar = false;
+        _showSettings = false;
+      });
+    } else {
+      _close(chapter);
+    }
+  }
+
+  /// Scrolls the text (scroll mode) by [delta] pixels.
+  void _scrollBy(double delta) {
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    final target = (position.pixels + delta).clamp(position.minScrollExtent, position.maxScrollExtent);
+    if (target == position.pixels) return;
+    _scroll.animateTo(target, duration: const Duration(milliseconds: 150), curve: Curves.easeOut);
+  }
+
+  /// Scrolls by most of a screen, keeping a little overlap in view.
+  void _scrollByScreen(int direction) {
+    if (!_scroll.hasClients) return;
+    _scrollBy(direction * _scroll.position.viewportDimension * 0.9);
+  }
+
+  /// The mouse wheel turns pages in page mode, one page per notch.
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    final delta = event.scrollDelta.dy != 0 ? event.scrollDelta.dy : event.scrollDelta.dx;
+    if (delta == 0) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (_) {
+      // Smooth-scrolling wheels send bursts of small events.
+      final now = DateTime.now();
+      if (now.difference(_lastWheelTurn) < const Duration(milliseconds: 250)) return;
+      _lastWheelTurn = now;
+      _turns.turn(delta > 0 ? 1 : -1);
+    });
   }
 
   /// A page turn within the chapter finished.
@@ -494,8 +574,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     final dim = (100 - settings.brightness.clamp(10, 100)) / 100 * 0.7;
     final pageMode = settings.readingMode == 'page';
     _pageModeActive = pageMode && chapterAsync.hasValue;
+    final loaded = chapterAsync.valueOrNull;
 
-    return Scaffold(
+    return CallbackShortcuts(
+      bindings: loaded == null ? const <ShortcutActivator, VoidCallback>{} : _keyBindings(loaded, pageMode),
+      child: Focus(
+        focusNode: _keyboardFocus,
+        autofocus: true,
+        child: Scaffold(
       backgroundColor: theme.background,
       body: chapterAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -521,6 +607,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
               IgnorePointer(child: Container(color: Colors.black.withValues(alpha: dim))),
             if (_showToolbar) ..._buildToolbars(chapter, theme),
           ],
+        ),
+      ),
         ),
       ),
     );
@@ -581,9 +669,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         ? ref.watch(paragraphCountsProvider(chapter.id)).valueOrNull ?? const <int, int>{}
         : const <int, int>{};
 
-    return SingleChildScrollView(
+    // On wide windows the text keeps a readable width, centred; the scroll
+    // view still spans the window so the wheel works anywhere.
+    return LayoutBuilder(builder: (context, constraints) => SingleChildScrollView(
       controller: _scroll,
-      padding: EdgeInsets.symmetric(horizontal: margin + 16, vertical: 60),
+      padding: EdgeInsets.symmetric(
+          horizontal: margin + 16 + ReadableInset.insetFor(constraints.maxWidth, ReadableWidths.reader),
+          vertical: 60),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -635,7 +727,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
           ),
         ],
       ),
-    );
+    ));
   }
 
   /// A paragraph; long-press opens its comments. Commented paragraphs end
@@ -690,7 +782,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   /// Measures and styles shared by every page of the current layout.
   _PageLayout _pageLayout(BuildContext context, BoxConstraints constraints, ReadingSettings settings, ReaderTheme theme) {
     final mq = MediaQuery.of(context);
-    final side = settings.margin.toDouble() + 16;
+    // A readable, centred text column on wide windows.
+    final side =
+        settings.margin.toDouble() + 16 + ReadableInset.insetFor(constraints.maxWidth, ReadableWidths.reader);
     final padding = EdgeInsets.fromLTRB(side, mq.padding.top + 36, side, mq.padding.bottom + 36);
     final fontSize = settings.fontSize.toDouble();
     var base = DefaultTextStyle.of(context).style;
@@ -788,7 +882,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
           if (mounted) _prefetchNeighbours(chapter);
         });
       }
-      return PageTurnView(
+      return Listener(
+        onPointerSignal: _onPointerSignal,
+        child: PageTurnView(
         controller: _turns,
         page: _page,
         pageCount: pagination.length,
@@ -805,6 +901,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
           }
           return _buildNeighbourPage(layout, chapter, index < 0 ? -1 : 1);
         },
+        ),
       );
     });
   }
@@ -1135,7 +1232,9 @@ class _ParagraphCommentBubble extends StatelessWidget {
     return Semantics(
       button: true,
       label: context.l10n.readerParagraphCommentCount(count),
-      child: GestureDetector(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Padding(
@@ -1160,6 +1259,7 @@ class _ParagraphCommentBubble extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

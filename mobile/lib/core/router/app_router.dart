@@ -22,6 +22,16 @@ import '../../features/reader/presentation/pages/reader_page.dart';
 import '../../features/bookshelf/presentation/pages/bookshelf_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../widgets/adaptive_layout.dart';
+
+/// A top-level tab, inside [AppNavShell]. On wide windows tabs switch
+/// without a transition so the navigation rail stays put.
+Page<void> _tabPage(BuildContext context, GoRouterState state, int index, Widget page) {
+  final child = AppNavShell(selectedIndex: index, child: page);
+  return isWideLayout(context)
+      ? NoTransitionPage<void>(key: state.pageKey, name: state.name, child: child)
+      : MaterialPage<void>(key: state.pageKey, name: state.name, child: child);
+}
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -30,7 +40,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/',
         name: 'home',
-        builder: (context, state) => const HomePage(),
+        pageBuilder: (context, state) => _tabPage(context, state, 0, const HomePage()),
       ),
       GoRoute(
         path: '/login',
@@ -99,7 +109,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/bookshelf',
         name: 'bookshelf',
-        builder: (context, state) => const BookshelfPage(),
+        pageBuilder: (context, state) => _tabPage(context, state, 1, const BookshelfPage()),
       ),
       GoRoute(
         path: '/bookmarks',
@@ -119,7 +129,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         name: 'profile',
-        builder: (context, state) => const ProfilePage(),
+        pageBuilder: (context, state) => _tabPage(context, state, 2, const ProfilePage()),
       ),
       GoRoute(
         path: '/notifications',

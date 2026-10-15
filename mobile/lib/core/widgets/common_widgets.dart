@@ -1,33 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import '../l10n/l10n.dart';
 
-/// Bottom navigation shared by the three top-level tabs.
-class AppBottomNav extends StatelessWidget {
-  final int selectedIndex;
-
-  const AppBottomNav({super.key, required this.selectedIndex});
-
-  static const _paths = ['/', '/bookshelf', '/profile'];
-
-  @override
-  Widget build(BuildContext context) {
-    final l = context.l10n;
-    return NavigationBar(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: (index) {
-        if (index != selectedIndex) context.go(_paths[index]);
-      },
-      destinations: [
-        NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: l.navHome),
-        NavigationDestination(icon: const Icon(Icons.book_outlined), selectedIcon: const Icon(Icons.book), label: l.navBookshelf),
-        NavigationDestination(
-            icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person), label: l.navProfile),
-      ],
-    );
-  }
-}
+// AppBottomNav, AppNavShell and the readable-width helpers.
+export 'adaptive_layout.dart';
 
 /// A novel cover with a placeholder when there is no image.
 class NovelCover extends StatelessWidget {
