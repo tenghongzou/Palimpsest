@@ -1,6 +1,11 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' show databaseFactoryFfi, sqfliteFfiInit;
 
 import 'offline_store.dart';
 import 'sqlite_migrator.dart';
@@ -20,9 +25,27 @@ class DatabaseHelper {
     return _opening!;
   }
 
+  /// sqflite has no Windows or Linux plugin; there it runs on SQLite through
+  /// FFI (`sqflite_common_ffi`, with SQLite bundled by `package:sqlite3`).
+  static bool get usesFfi => !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
+  static bool _ffiReady = false;
+
+  /// Points sqflite's global [databaseFactory] at the FFI implementation on
+  /// Windows and Linux. Call before any database is opened (main does).
+  static void ensureFactory() {
+    if (_ffiReady || !usesFfi) return;
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    _ffiReady = true;
+  }
+
   static Future<Database> _initDatabase() async {
-    final path = join(await getDatabasesPath(), 'palimpsest.db');
-    return open(databaseFactory, path);
+    ensureFactory();
+    // The FFI factory's default databases path is relative to the working
+    // directory; desktop apps keep data in the per-user app support folder.
+    final dir = usesFfi ? (await getApplicationSupportDirectory()).path : await getDatabasesPath();
+    return open(databaseFactory, join(dir, 'palimpsest.db'));
   }
 
   /// Opens [path] and applies the shared SQLite migrations

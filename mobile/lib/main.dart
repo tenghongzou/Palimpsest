@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
+import 'core/database/database_helper.dart';
 import 'core/sync/sync_service.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/profile/presentation/providers/app_language_provider.dart';
@@ -8,6 +9,8 @@ import 'features/reader/presentation/providers/reader_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // SQLite through FFI on Windows and Linux, before anything opens the DB.
+  DatabaseHelper.ensureFactory();
   // Read before the first frame so the app opens in the chosen language.
   final language = await AppLanguage.load();
   final container = ProviderContainer(overrides: [
