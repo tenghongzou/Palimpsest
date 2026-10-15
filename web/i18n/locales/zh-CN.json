@@ -84,7 +84,8 @@
     "noChapters": "尚无章节",
     "addedToBookshelf": "已加入书架",
     "alreadyInBookshelf": "这本书已经在书架上了",
-    "addToBookshelfFailed": "加入书架失败"
+    "addToBookshelfFailed": "加入书架失败",
+    "similar": "相似作品"
   },
   "language": {
     "label": "语言",
@@ -509,6 +510,13 @@
         "song": "宋体",
         "kai": "楷体",
         "serif": "衬线"
+      },
+      "pageAnimation": "翻页动画",
+      "animations": {
+        "none": "无",
+        "slide": "平移",
+        "cover": "覆盖",
+        "curl": "仿真"
       }
     },
     "paragraph": {
@@ -558,6 +566,11 @@
       "englishUnavailable": "暂时没有可用的英文翻译服务，请稍后再试，或改选繁体／简体中文。",
       "unavailable": "翻译服务暂时无法使用，请稍后再试。",
       "failed": "翻译失败，请稍后再试。"
+    },
+    "page": {
+      "indicator": "{current} / {total}",
+      "indicatorAria": "第 {current} 页，共 {total} 页",
+      "endOfChapter": "本章完"
     }
   },
   "comments": {
@@ -763,7 +776,8 @@
       "popular": "热门推荐",
       "latest": "最新更新",
       "new": "新书上架",
-      "completed": "完结精选"
+      "completed": "完结精选",
+      "recommended": "为你推荐"
     }
   },
   "about": {
@@ -932,6 +946,14 @@
       "changed": "密码已变更，请使用新密码重新登录",
       "wrongCurrent": "当前密码不正确",
       "failed": "变更失败，请稍后再试"
+    }
+  },
+  "recommend": {
+    "reason": {
+      "category": "因为你喜欢{name}",
+      "tag": "你常看的“{name}”",
+      "author": "{name} 的作品",
+      "popular": "热门推荐"
     }
   }
 }

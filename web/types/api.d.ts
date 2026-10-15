@@ -383,6 +383,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Novels recommended for the caller
+         * @description Signed in, novels are scored against the categories, tags and authors
+         *     of the caller's bookshelf, reading history (last 90 days) and reviews
+         *     rated 4 or more; novels the caller has shelved, read or reviewed are
+         *     left out.
+         *     Anonymous callers, and users with no signals yet, get popular novels
+         *     (`personalized` false). Cached per user for 10 minutes.
+         */
+        get: operations["getRecommendations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novelId}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Published novels similar to this one
+         * @description Ranked by shared categories, shared tags and the same author, then
+         *     popularity; the novel itself is excluded. Cached for 10 minutes.
+         */
+        get: operations["getSimilarNovels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/banners": {
         parameters: {
             query?: never;
@@ -1892,6 +1938,25 @@ export interface components {
             /** Format: date-time */
             end_at?: string;
         };
+        Recommendations: {
+            /** @description False when the list is popular novels (anonymous caller or no signals yet). */
+            personalized: boolean;
+            items: components["schemas"]["Recommendation"][];
+        };
+        Recommendation: {
+            novel: components["schemas"]["Novel"];
+            reason: components["schemas"]["RecommendationReason"];
+        };
+        /**
+         * @description Why the novel is recommended, for the client to phrase in its UI
+         *     language. `value` is the category name (category), tag name (tag) or
+         *     author name (author); empty for popular.
+         */
+        RecommendationReason: {
+            /** @enum {string} */
+            type: "category" | "tag" | "author" | "popular";
+            value: string;
+        };
         HomePage: {
             banners: components["schemas"]["Banner"][];
             featured: components["schemas"]["Novel"][];
@@ -2758,6 +2823,58 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    getRecommendations: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recommendations, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Recommendations"];
+                    };
+                };
+            };
+        };
+    };
+    getSimilarNovels: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                novelId: components["parameters"]["NovelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Similar novels, most similar first (may be empty) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["Novel"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
     listBanners: {
