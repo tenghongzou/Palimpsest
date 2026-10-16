@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:palimpsest/core/widgets/brand_logo.dart';
 import 'package:palimpsest/features/bookshelf/presentation/pages/bookshelf_page.dart';
 import 'package:palimpsest/features/bookstore/presentation/pages/home_page.dart';
 import 'package:palimpsest/features/profile/presentation/pages/profile_page.dart';
@@ -32,6 +33,10 @@ void main() {
       await env.pumpApp(tester); // the 800x600 test window
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
+      // The home app bar shows the horizontal logo instead of a text title.
+      final appBarLogo = tester.widget<BrandLogo>(find.descendant(of: find.byType(AppBar), matching: find.byType(BrandLogo)));
+      expect(appBarLogo.variant, BrandLogoVariant.horizontal);
+      expect(find.bySemanticsLabel('Palimpsest'), findsOneWidget);
       await env.finish(tester);
     });
 
@@ -42,6 +47,12 @@ void main() {
       final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
       expect(rail.extended, isFalse);
       expect(rail.selectedIndex, 0);
+      // The compact rail's header is the square mark alone.
+      final railLogo = tester.widget<BrandLogo>(find.descendant(of: find.byType(NavigationRail), matching: find.byType(BrandLogo)));
+      expect(railLogo.variant, BrandLogoVariant.mark);
+      // The rail carries the logo, so the home app bar shows a plain title.
+      expect(find.descendant(of: find.byType(AppBar), matching: find.byType(BrandLogo)), findsNothing);
+      expect(find.descendant(of: find.byType(AppBar), matching: find.text('首頁')), findsOneWidget);
       // Same destinations and labels as the bottom bar.
       expect(find.descendant(of: find.byType(NavigationRail), matching: find.text('書架')), findsOneWidget);
       expect(find.descendant(of: find.byType(NavigationRail), matching: find.text('我的')), findsOneWidget);
@@ -66,6 +77,9 @@ void main() {
       useWindow(tester, const Size(1400, 900));
       await env.pumpApp(tester);
       expect(tester.widget<NavigationRail>(find.byType(NavigationRail)).extended, isTrue);
+      // The extended rail's header is the horizontal logo.
+      final railLogo = tester.widget<BrandLogo>(find.descendant(of: find.byType(NavigationRail), matching: find.byType(BrandLogo)));
+      expect(railLogo.variant, BrandLogoVariant.horizontal);
       await env.finish(tester);
     });
 

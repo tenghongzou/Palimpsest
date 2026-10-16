@@ -43,6 +43,7 @@ dependencies:
   logger: ^2.2.0
   image_picker: 1.2.3
   wakelock_plus: 1.8.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +56,7 @@ dev_dependencies:
   json_serializable: ^6.8.0
   riverpod_generator: ^2.4.0
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 flutter:
   uses-material-design: true
@@ -62,6 +64,7 @@ flutter:
   generate: true
   assets:
     - assets/
+    - assets/brand/
 
 # App icon generation: `dart run flutter_launcher_icons`
 # NOTE: v0.14.4 also rewrites ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS
@@ -78,3 +81,26 @@ flutter_launcher_icons:
   adaptive_icon_foreground_inset: 0
   ios: true
   remove_alpha_ios: true
+
+# Native launch screen: `dart run flutter_native_splash:create`
+# Sources live in assets/splash/ (not bundled), made by tool/gen_splash.py
+# from shared/brand: the
+# mark from png/logo-mark-1024.png, the branding from wordmark.svg in the
+# light (#1F2937) and dark (#F5F0E0) wordmark colours. The Android 12 icon is
+# the mark at 560/1152 px so it stays inside the 768 px circle mask.
+# NOTE: v2.4.8 also re-indents ios/Runner/Info.plist and adds UIStatusBarHidden
+# (false, the default) — revert that file after running.
+flutter_native_splash:
+  color: "#F5F0E0"
+  color_dark: "#18181C"
+  image: assets/splash/splash_icon.png
+  branding: assets/splash/branding.png
+  branding_dark: assets/splash/branding_dark.png
+  branding_bottom_padding: 24
+  android_12:
+    color: "#F5F0E0"
+    color_dark: "#18181C"
+    image: assets/splash/splash_icon_android12.png
+    branding: assets/splash/branding.png
+    branding_dark: assets/splash/branding_dark.png
+  web: false
