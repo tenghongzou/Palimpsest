@@ -9,7 +9,7 @@
   <style>
     html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Noto Sans SC", sans-serif; background: #f5f7fa; color: #333; }
     main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; text-align: center; }
-    img { width: 72px; height: 72px; margin-bottom: 16px; }
+    img { height: 48px; width: auto; max-width: 100%; margin-bottom: 24px; }
     h1 { font-size: 20px; margin: 0 0 8px; }
     p { margin: 0 0 20px; color: #666; max-width: 420px; line-height: 1.6; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
@@ -22,7 +22,7 @@
   <!-- Served by the service worker when a page cannot load offline. It cannot
        use the app's i18n, so it carries its own copy in the three UI languages. -->
   <main data-testid="offline-page">
-    <img src="/icon-192.png" alt="">
+    <img src="/logo-horizontal.svg" alt="Palimpsest" width="225" height="48">
     <h1 id="title">目前處於離線狀態</h1>
     <p id="body">這個頁面需要網路連線。已下載的章節仍可在書架中離線閱讀。</p>
     <div class="actions">

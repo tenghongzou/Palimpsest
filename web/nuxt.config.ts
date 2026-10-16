@@ -124,7 +124,8 @@ export default defineNuxtConfig({
     injectManifest: {
       // Hashed build output (incl. the sql.js wasm), public icons and the offline page.
       globPatterns: ['_nuxt/**/*.{js,css,wasm,woff2}', '*.{png,svg,ico}', 'offline/index.html'],
-      globIgnores: ['_nuxt/builds/latest.json'],
+      // og-image.png is only fetched by link-preview crawlers.
+      globIgnores: ['_nuxt/builds/latest.json', 'og-image.png'],
       maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       additionalManifestEntries: [
         // Rendered by the server (ssr: false, so it carries no user data); served

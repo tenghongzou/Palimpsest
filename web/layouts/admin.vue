@@ -5,6 +5,7 @@
       <n-dialog-provider>
         <n-layout has-sider class="min-h-screen">
           <n-layout-sider
+            v-model:collapsed="collapsed"
             bordered
             collapse-mode="width"
             :collapsed-width="64"
@@ -13,7 +14,13 @@
             class="min-h-screen"
             content-style="padding: 12px 0;"
           >
-            <div class="text-center py-4 font-bold text-lg">{{ $t('admin.layout.brand') }}</div>
+            <NuxtLink to="/admin" class="admin-brand flex flex-col items-center gap-1 py-3" data-testid="admin-brand">
+              <BrandLogo v-if="collapsed" variant="mark" :height="32" />
+              <template v-else>
+                <BrandLogo variant="horizontal" :height="28" />
+                <span class="text-xs font-semibold tracking-widest uppercase text-gray-400">{{ $t('admin.layout.brand') }}</span>
+              </template>
+            </NuxtLink>
             <n-menu
               :options="menuOptions"
               :value="activeMenu"
@@ -54,6 +61,9 @@ const authStore = useAuthStore()
 const { t } = useI18n()
 const { naiveLocale, naiveDateLocale } = useNaiveLocale()
 
+// The sider shows the full logo, or just the mark once collapsed to 64px.
+const collapsed = ref(false)
+
 const MENU = [
   { labelKey: 'admin.menu.dashboard', key: '/admin' },
   { labelKey: 'admin.menu.novels', key: '/admin/novels' },
@@ -84,3 +94,9 @@ async function handleLogout() {
   router.push('/login')
 }
 </script>
+
+<style scoped>
+.admin-brand:hover {
+  text-decoration: none;
+}
+</style>

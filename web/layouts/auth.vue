@@ -5,7 +5,11 @@
       <div class="min-h-screen flex items-center justify-center bg-gray-50">
         <div class="w-full max-w-md px-4">
           <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">Palimpsest</h1>
+            <h1 class="m-0 flex justify-center">
+              <NuxtLink to="/" class="inline-flex" data-testid="brand-home">
+                <BrandLogo variant="stacked" :height="112" />
+              </NuxtLink>
+            </h1>
             <p class="text-gray-500 mt-2">{{ $t('layout.auth.subtitle') }}</p>
             <LanguageSwitcher class="mt-3" />
           </div>
