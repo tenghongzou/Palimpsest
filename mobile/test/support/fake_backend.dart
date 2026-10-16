@@ -87,7 +87,8 @@ Map<String, dynamic> notificationJson(
       if (params != null) 'params': params,
     };
 
-/// A top-level comment (optionally on a paragraph) with [replies].
+/// A top-level comment (optionally on a paragraph) with [replies]; [status]
+/// is omitted (approved) unless given.
 Map<String, dynamic> commentJson(
   String id,
   String content, {
@@ -96,6 +97,7 @@ Map<String, dynamic> commentJson(
   String? parentId,
   String user = userId,
   List<Map<String, dynamic>> replies = const [],
+  String? status,
 }) =>
     {
       'id': id,
@@ -108,6 +110,7 @@ Map<String, dynamic> commentJson(
       'liked_by_me': false,
       'user': {'id': user, 'username': 'reader1', 'nickname': user == userId ? '讀者一號' : '路人'},
       'replies': replies,
+      if (status != null) 'status': status,
       'created_at': DateTime.now().toUtc().toIso8601String(),
     };
 
@@ -123,15 +126,38 @@ class FakeBackend {
   final List<Map<String, dynamic>> comments = [];
 
   /// The `status` new comments get; anything but approved is held back
-  /// (kept in [heldComments], not listed or counted).
+  /// (kept in [heldComments]): never counted, and listed only to its author
+  /// when signed in, like the server.
   String commentStatus = 'approved';
   final List<Map<String, dynamic>> heldComments = [];
 
   /// Public reviews of [novelId], and the `status` created or edited ones
-  /// get; held ones move to [heldReviews].
+  /// get; held ones move to [heldReviews] (listed only to their author).
   final List<Map<String, dynamic>> reviews = [];
   String reviewStatus = 'approved';
   final List<Map<String, dynamic>> heldReviews = [];
+
+  static bool _signedIn(FakeRequest r) => r.headers['Authorization'] != null;
+
+  /// The caller's own held items when signed in (others' never).
+  static Iterable<Map<String, dynamic>> _ownHeld(FakeRequest r, List<Map<String, dynamic>> held) =>
+      _signedIn(r) ? held.where((x) => x['user_id'] == userId) : const [];
+
+  /// Top-level comments of [chapterId] visible to the caller, each with its
+  /// visible replies (seeded `replies` plus posted ones with its parent_id).
+  List<Map<String, dynamic>> _threads(FakeRequest r, String chapterId) {
+    final visible = [...comments, ..._ownHeld(r, heldComments)].where((c) => c['chapter_id'] == chapterId).toList();
+    return [
+      for (final c in visible.where((c) => c['parent_id'] == null))
+        {
+          ...c,
+          'replies': [
+            ...(c['replies'] as List? ?? const []),
+            ...visible.where((x) => x['parent_id'] == c['id']),
+          ],
+        },
+    ];
+  }
   final List<Map<String, dynamic>> progressUpdates = [];
   final Set<String> bookshelf = {};
 
@@ -189,7 +215,15 @@ class FakeBackend {
             },
           ]))
       ..on('GET', '/rankings/:type', (r) => FakeResponse.ok(page([novelJson()])))
-      ..on('GET', '/novels/:id/reviews', (_) => FakeResponse.ok(page(reviews)))
+      ..on('GET', '/novels/:id/reviews', (r) => FakeResponse.ok(page([..._ownHeld(r, heldReviews), ...reviews])))
+      ..on('DELETE', '/reviews/:id', (r) {
+        final before = reviews.length + heldReviews.length;
+        reviews.removeWhere((x) => x['id'] == r.params['id']);
+        heldReviews.removeWhere((x) => x['id'] == r.params['id']);
+        return before == reviews.length + heldReviews.length
+            ? FakeResponse.error(404, 40403, 'review not found')
+            : FakeResponse.ok(null);
+      })
       ..on('POST', '/novels/:id/reviews', (r) {
         if ([...reviews, ...heldReviews].any((x) => x['user_id'] == userId)) {
           return FakeResponse.error(409, 40901, 'already reviewed');
@@ -224,8 +258,7 @@ class FakeBackend {
       })
       ..on('GET', '/chapters/:id/comments', (r) {
         final paragraph = r.query['paragraph_index'];
-        return FakeResponse.ok(page(comments
-            .where((c) => c['chapter_id'] == r.params['id'])
+        return FakeResponse.ok(page(_threads(r, r.params['id']!)
             .where((c) => paragraph == null || c['paragraph_index'] == paragraph)
             .toList()));
       })
@@ -244,11 +277,22 @@ class FakeBackend {
       })
       ..on('GET', '/comments/:id', (r) {
         final id = r.params['id'];
-        for (final c in comments) {
-          final replies = (c['replies'] as List? ?? const []).cast<Map<String, dynamic>>();
-          if (c['id'] == id || replies.any((x) => x['id'] == id)) return FakeResponse.ok(c);
+        for (final chapter in chapterIds) {
+          for (final c in _threads(r, chapter)) {
+            final replies = (c['replies'] as List).cast<Map<String, dynamic>>();
+            if (c['id'] == id || replies.any((x) => x['id'] == id)) return FakeResponse.ok(c);
+          }
         }
         return FakeResponse.error(404, 40405, 'comment not found');
+      })
+      ..on('DELETE', '/comments/:id', (r) {
+        final id = r.params['id'];
+        final before = comments.length + heldComments.length;
+        comments.removeWhere((x) => x['id'] == id);
+        heldComments.removeWhere((x) => x['id'] == id);
+        return before == comments.length + heldComments.length
+            ? FakeResponse.error(404, 40405, 'comment not found')
+            : FakeResponse.ok(null);
       })
       ..on('POST', '/chapters/:id/comments', (r) {
         final comment = {
