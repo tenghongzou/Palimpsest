@@ -56,6 +56,9 @@
         {{ $t('admin.moderationQueue.aiChecked') }}
       </n-tag>
       <span v-else class="text-xs text-gray-400">{{ $t('admin.moderationQueue.aiNotChecked') }}</span>
+      <span v-if="item.moderation.reviewed_at" class="text-xs text-gray-500" data-testid="moderation-reviewed">
+        {{ $t('admin.moderationQueue.reviewedAt', { time: dateTime(item.moderation.reviewed_at) }) }}
+      </span>
     </div>
 
     <div class="flex flex-wrap gap-2 pt-1">

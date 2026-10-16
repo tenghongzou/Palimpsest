@@ -24,10 +24,12 @@ describe('pending moderation', () => {
     expect(result.items.map(r => r.id)).toEqual(['b', 'a'])
   })
 
-  it('does not list a review awaiting moderation', () => {
+  it('lists a review awaiting moderation on top for its author', () => {
     const items = [review('a')]
     const result = withCreatedReview(items, review('new', 'pending'))
-    expect(result).toEqual({ items, added: false })
+    expect(result.added).toBe(true)
+    expect(result.items.map(r => [r.id, r.status])).toEqual([['new', 'pending'], ['a', 'approved']])
+    expect(items.map(r => r.id)).toEqual(['a'])
   })
 
   it('puts a published comment on top', () => {
@@ -44,11 +46,31 @@ describe('pending moderation', () => {
     expect(result.items[0]!.replies).toEqual([])
   })
 
-  it('does not list a comment or reply awaiting moderation', () => {
+  it('lists a comment awaiting moderation on top for its author', () => {
     const items = [comment('a')]
-    expect(withCreatedComment(items, comment('new', { status: 'pending' }))).toEqual({ items, added: false })
+    const result = withCreatedComment(items, comment('new', { status: 'pending', paragraph_index: 2 }))
+    expect(result.added).toBe(true)
+    expect(result.items.map(c => [c.id, c.status])).toEqual([['new', 'pending'], ['a', 'approved']])
+    expect(result.items[0]!.paragraph_index).toBe(2)
+  })
+
+  it('appends a pending reply to its thread without counting it', () => {
+    const items = [comment('a', { replies: [comment('old', { parent_id: 'a' })] })]
     const reply = withCreatedComment(items, comment('r', { parent_id: 'a', status: 'pending' }))
     expect(reply.added).toBe(false)
-    expect(reply.items[0]!.replies).toEqual([])
+    expect(reply.items[0]!.replies!.map(r => [r.id, r.status])).toEqual([['old', 'approved'], ['r', 'pending']])
+    expect(items[0]!.replies).toHaveLength(1)
+  })
+
+  it('does not duplicate a reply already in its thread', () => {
+    const items = [comment('a', { replies: [comment('r', { parent_id: 'a', status: 'pending' })] })]
+    const reply = withCreatedComment(items, comment('r', { parent_id: 'a', status: 'pending' }))
+    expect(reply.items[0]!.replies!.map(r => r.id)).toEqual(['r'])
+  })
+
+  it('leaves the list unchanged for a reply whose thread is not loaded', () => {
+    const items = [comment('a')]
+    const reply = withCreatedComment(items, comment('r', { parent_id: 'zz', status: 'pending' }))
+    expect(reply).toEqual({ items, added: false })
   })
 })

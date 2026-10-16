@@ -38,6 +38,9 @@ test('a blocked term holds a comment for moderation until an admin approves it',
   let commentId: string | undefined
   const readerContext = await browser.newContext({ storageState: USER_STATE })
   const reader = await readerContext.newPage()
+  // Signed out: pending content must never be listed for anyone but its author.
+  const guestContext = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+  const guest = await guestContext.newPage()
 
   try {
     // Add the term from the terms tab; a second add is rejected.
@@ -51,7 +54,7 @@ test('a blocked term holds a comment for moderation until an admin approves it',
     await page.getByRole('button', { name: '新增', exact: true }).click()
     await expect(page.getByText(`「${term}」已存在`)).toBeVisible()
 
-    // The reader's comment is held back with a notice instead of being listed.
+    // The reader's comment is held back: a notice, and only its author sees it, tagged 審核中.
     const novel = await pickNovel(reader, 1)
     const [first] = await chaptersOf(reader, novel.id)
     const text = `E2E 審核留言 ${term}`
@@ -66,7 +69,26 @@ test('a blocked term holds a comment for moderation until an admin approves it',
     commentId = body.data.id
     expect(body.data.status).toBe('pending')
     await expect(reader.getByText('已送出，內容將在審核後公開')).toBeVisible()
-    await expect(panel.getByTestId('comment-item').filter({ hasText: text })).toHaveCount(0)
+    const own = panel.getByTestId('comment-item').filter({ hasText: text })
+    await expect(own).toBeVisible()
+    await expect(own.getByTestId('pending-tag')).toHaveText('審核中')
+    await expect(own.getByTestId('comment-like')).toHaveCount(0)
+    await expect(own.getByTestId('comment-reply')).toHaveCount(0)
+    await expect(own.getByTestId('comment-report')).toHaveCount(0)
+
+    // After a reload the list endpoint still returns it to the author.
+    await reader.reload()
+    await reader.getByTestId('reader-comments').click()
+    await expect(reader.getByTestId('chapter-comments').getByTestId('comment-item').filter({ hasText: text }).getByTestId('pending-tag')).toBeVisible()
+
+    // A signed-out visitor does not see it.
+    const guestList = guest.waitForResponse(r => r.url().includes(`/chapters/${first!.id}/comments?`) && r.request().method() === 'GET')
+    await guest.goto(`/read/${first!.id}`)
+    await expect(guest.getByTestId('reader-paragraphs').locator('p').first()).toBeVisible()
+    await guest.getByTestId('reader-comments').click()
+    expect((await guestList).ok()).toBe(true)
+    await expect(guest.getByTestId('chapter-comments')).toBeVisible()
+    await expect(guest.getByTestId('chapter-comments').getByText(text)).toHaveCount(0)
 
     // The admin finds it in the pending queue with the matched term and approves it.
     await page.goto('/admin/moderation')
@@ -77,14 +99,20 @@ test('a blocked term holds a comment for moderation until an admin approves it',
     await item.getByRole('button', { name: '通過' }).click()
     await expect(item).toHaveCount(0)
 
-    // Now it is public.
+    // Now it is public, without the tag.
     await reader.reload()
     await reader.getByTestId('reader-comments').click()
-    await expect(reader.getByTestId('chapter-comments').getByTestId('comment-item').filter({ hasText: text })).toBeVisible()
+    const published = reader.getByTestId('chapter-comments').getByTestId('comment-item').filter({ hasText: text })
+    await expect(published).toBeVisible()
+    await expect(published.getByTestId('pending-tag')).toHaveCount(0)
+    await guest.reload()
+    await guest.getByTestId('reader-comments').click()
+    await expect(guest.getByTestId('chapter-comments').getByTestId('comment-item').filter({ hasText: text })).toBeVisible()
   }
   finally {
     if (commentId) await api(reader, 'DELETE', `/comments/${commentId}`).catch(() => {})
     await readerContext.close()
+    await guestContext.close()
     if (termId !== undefined) await api(page, 'DELETE', `/admin/moderation/terms/${termId}`).catch(() => {})
   }
 })

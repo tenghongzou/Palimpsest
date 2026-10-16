@@ -1,5 +1,5 @@
 <template>
-  <div class="flex gap-3">
+  <div class="flex gap-3" :class="{ 'comment-entry--pending': pending }" :data-status="comment.status">
     <n-avatar :src="comment.user?.avatar_url || undefined" :size="compact ? 24 : 32" round class="flex-shrink-0">
       <template v-if="!comment.user?.avatar_url">{{ name.slice(0, 1) }}</template>
     </n-avatar>
@@ -8,20 +8,24 @@
         <span class="comment-author font-medium">{{ name }}</span>
         <span>{{ comment.created_at ? formatRelativeTime(comment.created_at) : '' }}</span>
         <n-tag v-if="comment.paragraph_index != null && !hideParagraph" size="tiny" :bordered="false">{{ $t('reader.paragraph.label', { n: comment.paragraph_index + 1 }) }}</n-tag>
+        <n-tag v-if="pending" size="tiny" type="warning" :bordered="false" :title="$t('community.pendingHint')" data-testid="pending-tag">{{ $t('community.pendingTag') }}</n-tag>
       </div>
-      <div class="text-sm mt-1 whitespace-pre-wrap break-words" data-testid="comment-content">{{ comment.content }}</div>
+      <div class="comment-body text-sm mt-1 whitespace-pre-wrap break-words" data-testid="comment-content">{{ comment.content }}</div>
       <div class="flex items-center gap-3 mt-1">
-        <n-button text size="tiny" :type="comment.liked_by_me ? 'primary' : 'default'" data-testid="comment-like" @click="emit('like')">
-          {{ comment.liked_by_me ? $t('community.liked') : $t('community.like') }} {{ comment.like_count || '' }}
-        </n-button>
-        <n-button text size="tiny" @click="emit('reply')">{{ $t('comments.reply') }}</n-button>
+        <!-- Pending content is not public yet: no likes, replies or reports. -->
+        <template v-if="!pending">
+          <n-button text size="tiny" :type="comment.liked_by_me ? 'primary' : 'default'" data-testid="comment-like" @click="emit('like')">
+            {{ comment.liked_by_me ? $t('community.liked') : $t('community.like') }} {{ comment.like_count || '' }}
+          </n-button>
+          <n-button text size="tiny" data-testid="comment-reply" @click="emit('reply')">{{ $t('comments.reply') }}</n-button>
+        </template>
         <n-popconfirm v-if="canDelete" @positive-click="emit('remove')">
           <template #trigger>
             <n-button text size="tiny" type="error">{{ $t('common.delete') }}</n-button>
           </template>
           {{ compact ? $t('comments.confirmDeleteReply') : $t('comments.confirmDeleteThread') }}
         </n-popconfirm>
-        <n-button v-else text size="tiny" @click="emit('report')">{{ $t('community.report.action') }}</n-button>
+        <n-button v-else-if="!pending" text size="tiny" data-testid="comment-report" @click="emit('report')">{{ $t('community.report.action') }}</n-button>
       </div>
     </div>
   </div>
@@ -47,6 +51,7 @@ const emit = defineEmits<{
 }>()
 
 const { t, formatRelativeTime } = useFormat()
+const pending = computed(() => isPendingModeration(props.comment))
 const name = computed(() => props.comment.user?.nickname || props.comment.user?.username || t('comments.anonymous'))
 </script>
 
@@ -55,5 +60,8 @@ const name = computed(() => props.comment.user?.nickname || props.comment.user?.
 .comment-author {
   color: inherit;
   opacity: 0.85;
+}
+.comment-entry--pending .comment-body {
+  opacity: 0.65;
 }
 </style>

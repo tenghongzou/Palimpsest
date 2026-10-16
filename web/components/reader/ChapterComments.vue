@@ -179,6 +179,8 @@ async function showThread(thread: ApiComment) {
 }
 
 function startReply(c: ApiComment) {
+  // Threads awaiting moderation are not public, so they take no replies.
+  if (isPendingModeration(c)) return
   if (!isLoggedIn.value) {
     message.info(t('auth.loginFirst'))
     return

@@ -484,6 +484,7 @@
       "noFlags": "No flags",
       "aiChecked": "AI checked",
       "aiNotChecked": "Not AI checked",
+      "reviewedAt": "Reviewed {time}",
       "aiShort": "AI",
       "autoCheck": "Automated check",
       "flagWithDetail": "{label}: {detail}",
@@ -739,7 +740,9 @@
         "other": "Other"
       }
     },
-    "pendingModeration": "Submitted. It will be visible once it has been reviewed."
+    "pendingModeration": "Submitted. It will be visible once it has been reviewed.",
+    "pendingTag": "Under review",
+    "pendingHint": "Only you can see this until it is approved."
   },
   "reviews": {
     "title": "Reviews",

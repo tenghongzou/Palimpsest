@@ -484,6 +484,7 @@
       "noFlags": "無標記",
       "aiChecked": "AI 已檢查",
       "aiNotChecked": "AI 未檢查",
+      "reviewedAt": "已處理 {time}",
       "aiShort": "AI",
       "autoCheck": "自動審核",
       "flagWithDetail": "{label}：{detail}",
@@ -739,7 +740,9 @@
         "other": "其他"
       }
     },
-    "pendingModeration": "已送出，內容將在審核後公開"
+    "pendingModeration": "已送出，內容將在審核後公開",
+    "pendingTag": "審核中",
+    "pendingHint": "僅你自己看得到，審核通過後公開"
   },
   "reviews": {
     "title": "書評",
