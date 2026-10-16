@@ -63,3 +63,14 @@ func ConvertChinese(text, from, to string) (string, error) {
 	}
 	return cc.Convert(text)
 }
+
+// ToSimplified maps Traditional characters to Simplified ones (OpenCC t2s)
+// and leaves everything else alone. Several Traditional characters can map to
+// one Simplified character, so it suits comparing text regardless of script.
+func ToSimplified(text string) (string, error) {
+	cc, err := converter("t2s")
+	if err != nil {
+		return "", err
+	}
+	return cc.Convert(text)
+}

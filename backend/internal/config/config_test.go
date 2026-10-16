@@ -120,3 +120,36 @@ func TestLoadRejectsWeakSecretInRelease(t *testing.T) {
 		}
 	}
 }
+
+func TestModerationAIConfig(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	cfg, _ := Load()
+	if cfg.Moderation.AIEnabled || cfg.Moderation.AIModel != "claude-haiku-5-5" {
+		t.Errorf("without a key: %+v", cfg.Moderation)
+	}
+
+	t.Setenv("ANTHROPIC_API_KEY", "sk-test")
+	cfg, _ = Load()
+	if !cfg.Moderation.AIEnabled {
+		t.Error("AI review is off although a key is set")
+	}
+
+	t.Setenv("MODERATION_AI_ENABLED", "false")
+	t.Setenv("MODERATION_AI_MODEL", "claude-other")
+	cfg, _ = Load()
+	if cfg.Moderation.AIEnabled || cfg.Moderation.AIModel != "claude-other" {
+		t.Errorf("disabled: %+v", cfg.Moderation)
+	}
+}
+
+func TestRateLimitSwitch(t *testing.T) {
+	cfg, _ := Load()
+	if cfg.Server.RateLimitDisabled {
+		t.Error("rate limits are off by default")
+	}
+	t.Setenv("RATE_LIMIT_ENABLED", "false")
+	cfg, _ = Load()
+	if !cfg.Server.RateLimitDisabled {
+		t.Error("RATE_LIMIT_ENABLED=false did not disable rate limits")
+	}
+}

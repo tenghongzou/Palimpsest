@@ -61,12 +61,9 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 	// API v1: 60 req/min per IP for anonymous clients, 120 req/min per user
 	// when authenticated, 300 req/min for admins.
 	v1 := r.Group("/api/v1")
-	v1.Use(middleware.GlobalRateLimiter(rdb, cfg, middleware.GlobalLimits{Public: 60, User: 120, Admin: 300}, time.Minute))
-	// Full-text search is the most expensive public query.
-	searchLimit := middleware.RateLimiterWithRedis(rdb, "search", 30, time.Minute)
-	translationLimit := middleware.RateLimiterWithRedis(rdb, "translation", 20, time.Minute)
-	// Each credential endpoint gets its own tight per-IP quota against brute forcing.
-	credentialLimit := middleware.RateLimiterWithRedis(rdb, "", 5, time.Minute)
+	limits := rateLimits(cfg, rdb)
+	v1.Use(limits.global)
+	searchLimit, translationLimit, credentialLimit := limits.search, limits.translation, limits.credential
 	optionalAuth := middleware.OptionalAuth(cfg)
 
 	// --- Auth routes (public) ---
@@ -239,13 +236,43 @@ func setupRouter(cfg *config.Config, rdb *redis.Client, h *Handlers) *gin.Engine
 		admin.PUT("/reviews/:reviewId", h.Admin.ModerateReview)
 		admin.GET("/reports", h.Admin.ListReports)
 		admin.PUT("/reports/:reportId", h.Admin.ResolveReport)
+		admin.GET("/moderation/queue", h.Admin.ModerationQueue)
+		admin.PUT("/moderation/:type/:id", h.Admin.Moderate)
+		admin.GET("/moderation/terms", h.Admin.ListModerationTerms)
+		admin.POST("/moderation/terms", h.Admin.CreateModerationTerm)
+		admin.DELETE("/moderation/terms/:termId", h.Admin.DeleteModerationTerm)
 
 		// Notifications
 		admin.POST("/notifications/broadcast", h.Notification.Broadcast)
 
 		// Stats
 		admin.GET("/stats", h.Admin.StatsOverview)
+		admin.GET("/stats/trends", h.Admin.StatsTrends)
+		admin.GET("/stats/top-novels", h.Admin.StatsTopNovels)
+		admin.GET("/stats/categories", h.Admin.StatsCategories)
 	}
 
 	return r
+}
+
+// rateLimiters are the request quotas of the API.
+type rateLimiters struct {
+	global, search, translation, credential gin.HandlerFunc
+}
+
+// rateLimits builds the quotas; with RATE_LIMIT_ENABLED=false (load tests)
+// they all let every request through.
+func rateLimits(cfg *config.Config, rdb *redis.Client) rateLimiters {
+	if cfg.Server.RateLimitDisabled {
+		pass := func(c *gin.Context) { c.Next() }
+		return rateLimiters{pass, pass, pass, pass}
+	}
+	return rateLimiters{
+		global: middleware.GlobalRateLimiter(rdb, cfg, middleware.GlobalLimits{Public: 60, User: 120, Admin: 300}, time.Minute),
+		// Full-text search is the most expensive public query.
+		search:      middleware.RateLimiterWithRedis(rdb, "search", 30, time.Minute),
+		translation: middleware.RateLimiterWithRedis(rdb, "translation", 20, time.Minute),
+		// Each credential endpoint gets its own tight per-IP quota against brute forcing.
+		credential: middleware.RateLimiterWithRedis(rdb, "", 5, time.Minute),
+	}
 }

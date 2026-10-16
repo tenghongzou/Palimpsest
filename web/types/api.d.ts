@@ -212,7 +212,10 @@ export interface paths {
         };
         /**
          * List approved reviews of a novel
-         * @description With a bearer token, `liked_by_me` marks reviews the caller liked.
+         * @description With a bearer token, `liked_by_me` marks reviews the caller liked, and
+         *     the caller's own review is included while it is `pending` (held by
+         *     moderation), so authors still see it. Other users' pending reviews
+         *     are never listed.
          */
         get: operations["listReviews"];
         put?: never;
@@ -233,7 +236,10 @@ export interface paths {
         };
         /**
          * List a chapter's top-level comments with their replies
-         * @description With a bearer token, `liked_by_me` marks comments the caller liked.
+         * @description Approved comments and replies. With a bearer token, `liked_by_me`
+         *     marks comments the caller liked, and the caller's own `pending`
+         *     comments and replies (held by moderation) are included too; other
+         *     users' pending ones never are.
          */
         get: operations["listComments"];
         put?: never;
@@ -316,7 +322,8 @@ export interface paths {
          * @description Returns the thread's top-level comment with its replies, whether the id
          *     is the top-level comment or one of the replies (e.g. `comment_id` of a
          *     `comment_reply` notification). With a bearer token, `liked_by_me`
-         *     marks comments the caller liked.
+         *     marks comments the caller liked, and the caller's own `pending`
+         *     comments count as visible (others' answer 404).
          */
         get: operations["getCommentThread"];
         put?: never;
@@ -1410,7 +1417,9 @@ export interface paths {
          * Reviews and comments awaiting moderation or flagged by automated checks
          * @description `pending` lists content held back from the public by automated
          *     moderation, oldest first. `flagged` lists published content with at
-         *     least one moderation flag, highest score first.
+         *     least one moderation flag, highest score first, until an admin decides
+         *     on it (any decision sets `moderation.reviewed_at`; editing a review
+         *     checks it afresh).
          */
         get: operations["adminModerationQueue"];
         put?: never;
@@ -1976,6 +1985,11 @@ export interface components {
             ai_checked: boolean;
             /** Format: date-time */
             checked_at?: string;
+            /**
+             * Format: date-time
+             * @description When an admin last approved, rejected or hid the content
+             */
+            reviewed_at?: string;
         };
         ModerationItem: {
             /** @enum {string} */

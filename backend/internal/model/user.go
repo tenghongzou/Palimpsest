@@ -24,7 +24,7 @@ type User struct {
 	LastLoginAt      *time.Time `json:"last_login_at,omitempty"`
 	// PasswordChangedAt invalidates reset and refresh tokens issued before it.
 	PasswordChangedAt *time.Time     `json:"-"`
-	CreatedAt         time.Time      `json:"created_at"`
+	CreatedAt         time.Time      `gorm:"index:idx_users_created_at" json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
 }

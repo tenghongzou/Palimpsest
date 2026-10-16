@@ -21,5 +21,6 @@ func All() []interface{} {
 		&Banner{},
 		&Notification{},
 		&UserDevice{},
+		&ModerationTerm{},
 	}
 }
