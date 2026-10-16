@@ -262,7 +262,8 @@ func (s *BookshelfService) UpdateProgress(userID, novelID uuid.UUID, u ProgressU
 
 	var progress model.ReadingProgress
 	startedNovel := false
-	err = s.db.Transaction(func(tx *gorm.DB) error {
+	err = s.updateProgressTx(func(tx *gorm.DB) error {
+		progress = model.ReadingProgress{}
 		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("user_id = ? AND novel_id = ?", userID, novelID).First(&progress).Error
 		isNew := errors.Is(err, gorm.ErrRecordNotFound)
@@ -323,6 +324,18 @@ func (s *BookshelfService) UpdateProgress(userID, novelID uuid.UUID, u ProgressU
 		s.changed(userID)
 	}
 	return &progress, nil
+}
+
+// updateProgressTx runs fn in a transaction. Two first reports of a novel
+// (e.g. two devices syncing at once) both find no row to lock and both
+// insert; the loser hits the unique index, and is retried once, when the
+// winner's row exists and is locked like any update.
+func (s *BookshelfService) updateProgressTx(fn func(tx *gorm.DB) error) error {
+	err := s.db.Transaction(fn)
+	if err != nil && IsUniqueViolation(err) {
+		err = s.db.Transaction(fn)
+	}
+	return err
 }
 
 // addHistoryDuration adds reading time to the latest history entry of a
