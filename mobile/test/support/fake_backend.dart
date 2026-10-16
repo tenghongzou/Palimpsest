@@ -121,6 +121,17 @@ class FakeBackend {
   final FakeApi api = FakeApi();
   final Map<String, Map<String, dynamic>> bookmarks = {};
   final List<Map<String, dynamic>> comments = [];
+
+  /// The `status` new comments get; anything but approved is held back
+  /// (kept in [heldComments], not listed or counted).
+  String commentStatus = 'approved';
+  final List<Map<String, dynamic>> heldComments = [];
+
+  /// Public reviews of [novelId], and the `status` created or edited ones
+  /// get; held ones move to [heldReviews].
+  final List<Map<String, dynamic>> reviews = [];
+  String reviewStatus = 'approved';
+  final List<Map<String, dynamic>> heldReviews = [];
   final List<Map<String, dynamic>> progressUpdates = [];
   final Set<String> bookshelf = {};
 
@@ -178,7 +189,39 @@ class FakeBackend {
             },
           ]))
       ..on('GET', '/rankings/:type', (r) => FakeResponse.ok(page([novelJson()])))
-      ..on('GET', '/novels/:id/reviews', (_) => FakeResponse.ok(page([])))
+      ..on('GET', '/novels/:id/reviews', (_) => FakeResponse.ok(page(reviews)))
+      ..on('POST', '/novels/:id/reviews', (r) {
+        if ([...reviews, ...heldReviews].any((x) => x['user_id'] == userId)) {
+          return FakeResponse.error(409, 40901, 'already reviewed');
+        }
+        final review = {
+          'id': 'rev1ew00-0000-4000-8000-00000000000${reviews.length + heldReviews.length}',
+          'user_id': userId,
+          'novel_id': r.params['id'],
+          'title': r.json['title'],
+          'content': r.json['content'],
+          'rating': r.json['rating'],
+          'like_count': 0,
+          'liked_by_me': false,
+          'status': reviewStatus,
+          'user': {'id': userId, 'username': 'reader1', 'nickname': '讀者一號'},
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+        };
+        (reviewStatus == 'approved' ? reviews : heldReviews).add(review);
+        return FakeResponse.ok(review, status: 201);
+      })
+      ..on('PUT', '/reviews/:id', (r) {
+        final review = [...reviews, ...heldReviews].where((x) => x['id'] == r.params['id']).firstOrNull;
+        if (review == null) return FakeResponse.error(404, 40403, 'review not found');
+        for (final key in ['title', 'content', 'rating']) {
+          review[key] = r.json[key];
+        }
+        review['status'] = reviewStatus;
+        reviews.remove(review);
+        heldReviews.remove(review);
+        (reviewStatus == 'approved' ? reviews : heldReviews).add(review);
+        return FakeResponse.ok(review);
+      })
       ..on('GET', '/chapters/:id/comments', (r) {
         final paragraph = r.query['paragraph_index'];
         return FakeResponse.ok(page(comments
@@ -209,7 +252,7 @@ class FakeBackend {
       })
       ..on('POST', '/chapters/:id/comments', (r) {
         final comment = {
-          'id': 'c0mment0-0000-4000-8000-00000000000${comments.length}',
+          'id': 'c0mment0-0000-4000-8000-00000000000${comments.length + heldComments.length}',
           'user_id': userId,
           'chapter_id': r.params['id'],
           'content': r.json['content'],
@@ -219,9 +262,10 @@ class FakeBackend {
           'liked_by_me': false,
           'user': {'id': userId, 'username': 'reader1', 'nickname': '讀者一號'},
           'replies': [],
+          'status': commentStatus,
           'created_at': DateTime.now().toUtc().toIso8601String(),
         };
-        comments.add(comment);
+        (commentStatus == 'approved' ? comments : heldComments).add(comment);
         return FakeResponse.ok(comment, status: 201);
       })
       // Unread novel: 200 with data null (older servers answered 404).

@@ -117,13 +117,23 @@ class ReviewSection extends ConsumerWidget {
     );
     if (input == null) return;
     final repo = ref.read(communityRepositoryProvider);
+    final notifier = ref.read(reviewsProvider(novelId).notifier);
     try {
-      if (existing == null) {
-        await repo.createReview(novelId, title: input.title, content: input.content, rating: input.rating);
-      } else {
-        await repo.updateReview(existing.id, title: input.title, content: input.content, rating: input.rating);
+      final saved = existing == null
+          ? await repo.createReview(novelId, title: input.title, content: input.content, rating: input.rating)
+          : await repo.updateReview(existing.id, title: input.title, content: input.content, rating: input.rating);
+      if (saved.status.isHeld) {
+        // Held for moderation. A new review stays out of the list; an edited
+        // one stays in place for its author, marked as under review (the
+        // server's list no longer includes it, so no refresh).
+        if (existing != null) {
+          final held = saved.user == null ? saved.withUser(existing.user) : saved;
+          notifier.updateItems((items) => items.map((x) => x.id == existing.id ? held : x).toList());
+        }
+        if (context.mounted) showSnack(context, context.l10n.moderationPendingSubmitted);
+        return;
       }
-      await ref.read(reviewsProvider(novelId).notifier).refresh();
+      await notifier.refresh();
       if (context.mounted) {
         showSnack(context, existing == null ? context.l10n.reviewPublished : context.l10n.reviewUpdated);
       }
@@ -166,6 +176,10 @@ class _ReviewTile extends StatelessWidget {
               children: [
                 StarRating(rating: review.rating),
                 const SizedBox(width: 8),
+                if (review.status.isHeld) ...[
+                  _PendingBadge(key: ValueKey('review-pending-${review.id}')),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: Text(
                     '${userName.isEmpty ? context.l10n.anonymousReader : userName} · '
@@ -212,6 +226,24 @@ class _ReviewTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Marks the author's own review that awaits moderation.
+class _PendingBadge extends StatelessWidget {
+  const _PendingBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(color: scheme.tertiaryContainer, borderRadius: BorderRadius.circular(4)),
+      child: Text(
+        context.l10n.moderationPendingBadge,
+        style: TextStyle(fontSize: 11, color: scheme.onTertiaryContainer),
       ),
     );
   }

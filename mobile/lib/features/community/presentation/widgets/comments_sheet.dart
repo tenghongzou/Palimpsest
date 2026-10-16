@@ -95,6 +95,10 @@ class CommentsSheet extends ConsumerStatefulWidget {
 
 class _CommentsSheetState extends ConsumerState<CommentsSheet> {
   final _input = TextEditingController();
+
+  /// The sheet's own messenger: snack bars shown on the page's messenger
+  /// would sit behind the sheet.
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
   Comment? _replyTo;
   bool _posting = false;
 
@@ -114,6 +118,13 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     return false;
   }
 
+  /// Shows [message] inside the sheet, above its input.
+  void _snack(String message) {
+    _messenger.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   /// Paragraph bubbles count top-level comments, so refresh them after a change.
   void _countsChanged() => ref.invalidate(paragraphCountsProvider(widget.chapterId));
 
@@ -129,7 +140,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     setState(() => _posting = true);
     try {
       final parent = _replyTo;
-      await ref.read(communityRepositoryProvider).createComment(
+      final created = await ref.read(communityRepositoryProvider).createComment(
             widget.chapterId,
             text,
             parentId: parent?.id,
@@ -137,11 +148,17 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
           );
       _input.clear();
       if (mounted) setState(() => _replyTo = null);
+      // Held for moderation: not public yet, so the list, the pinned thread
+      // and the paragraph counts stay as they are.
+      if (created.status.isHeld) {
+        if (mounted) _snack(context.l10n.moderationPendingSubmitted);
+        return;
+      }
       if (parent == null) _countsChanged();
       _threadChanged();
       await ref.read(commentsProvider(_query).notifier).refresh();
     } catch (e) {
-      if (mounted) showSnack(context, context.l10n.commentPostFailed(describeError(e, context.l10n)));
+      if (mounted) _snack(context.l10n.commentPostFailed(describeError(e, context.l10n)));
     } finally {
       if (mounted) setState(() => _posting = false);
     }
@@ -157,7 +174,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       ref.read(commentsProvider(_query).notifier).updateItems((items) => items.map(apply).toList());
       _threadChanged();
     } catch (e) {
-      if (mounted) showSnack(context, describeError(e, context.l10n));
+      if (mounted) _snack(describeError(e, context.l10n));
     }
   }
 
@@ -168,7 +185,7 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
       _threadChanged();
       await ref.read(commentsProvider(_query).notifier).refresh();
     } catch (e) {
-      if (mounted) showSnack(context, describeError(e, context.l10n));
+      if (mounted) _snack(describeError(e, context.l10n));
     }
   }
 
@@ -238,94 +255,108 @@ class _CommentsSheetState extends ConsumerState<CommentsSheet> {
     final quote = widget.paragraphText;
     final scheme = Theme.of(context).colorScheme;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-          child: Row(
-            children: [
-              Text(paragraph == null ? context.l10n.chapterComments : context.l10n.paragraphComments(paragraph + 1),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-              const Spacer(),
-              IconButton(tooltip: context.l10n.commonClose, icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-            ],
-          ),
-        ),
-        if (paragraph != null && quote != null && quote.isNotEmpty)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            padding: const EdgeInsets.only(left: 10),
-            decoration: BoxDecoration(border: Border(left: BorderSide(color: scheme.outlineVariant, width: 3))),
-            child: Text(
-              quote,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+    return ScaffoldMessenger(
+      key: _messenger,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        // The input pads itself above the keyboard.
+        resizeToAvoidBottomInset: false,
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+              child: Row(
+                children: [
+                  Text(paragraph == null ? context.l10n.chapterComments : context.l10n.paragraphComments(paragraph + 1),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(tooltip: context.l10n.commonClose, icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                ],
+              ),
             ),
-          ),
-        const Divider(height: 1),
-        Expanded(
-          child: PagedListView<Comment>(
-            state: state,
-            onLoadMore: notifier.loadMore,
-            onRefresh: notifier.refresh,
-            header: _focusHeader(userId),
-            empty: Text(paragraph == null ? context.l10n.commentsEmpty : context.l10n.commentsParagraphEmpty),
-            itemBuilder: (context, c, _) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [_thread(c, userId), const Divider(height: 1)],
-            ),
-          ),
-        ),
-        if (_replyTo != null)
-          Container(
-            color: scheme.surfaceContainerHighest,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(context.l10n.commentReplyingTo(_replyTo!.user?.displayName ?? ''),
-                      overflow: TextOverflow.ellipsis),
+            if (paragraph != null && quote != null && quote.isNotEmpty)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.only(left: 10),
+                decoration: BoxDecoration(border: Border(left: BorderSide(color: scheme.outlineVariant, width: 3))),
+                child: Text(
+                  quote,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
                 ),
-                IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _replyTo = null)),
-              ],
+              ),
+            const Divider(height: 1),
+            Expanded(
+              child: PagedListView<Comment>(
+                state: state,
+                onLoadMore: notifier.loadMore,
+                onRefresh: notifier.refresh,
+                header: _focusHeader(userId),
+                empty: Text(paragraph == null ? context.l10n.commentsEmpty : context.l10n.commentsParagraphEmpty),
+                itemBuilder: (context, c, _) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [_thread(c, userId), const Divider(height: 1)],
+                ),
+              ),
             ),
-          ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 8, 8 + MediaQuery.of(context).viewInsets.bottom),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _input,
-                    maxLength: 2000,
-                    minLines: 1,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: paragraph == null || _replyTo != null
-                          ? context.l10n.commentHint
-                          : context.l10n.commentParagraphHint,
-                      counterText: '',
-                      border: const OutlineInputBorder(),
-                      isDense: true,
+          ],
+        ),
+        // Here rather than in the body so snack bars show above the input.
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_replyTo != null)
+              Container(
+                color: scheme.surfaceContainerHighest,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(context.l10n.commentReplyingTo(_replyTo!.user?.displayName ?? ''),
+                          overflow: TextOverflow.ellipsis),
                     ),
-                  ),
+                    IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _replyTo = null)),
+                  ],
                 ),
-                IconButton(
-                  tooltip: context.l10n.commentSend,
-                  icon: _posting
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.send),
-                  onPressed: _posting ? null : _post,
+              ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(12, 8, 8, 8 + MediaQuery.of(context).viewInsets.bottom),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        maxLength: 2000,
+                        minLines: 1,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: paragraph == null || _replyTo != null
+                              ? context.l10n.commentHint
+                              : context.l10n.commentParagraphHint,
+                          counterText: '',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: context.l10n.commentSend,
+                      icon: _posting
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.send),
+                      onPressed: _posting ? null : _post,
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
