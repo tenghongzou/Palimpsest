@@ -331,6 +331,21 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 | `SMTP_USERNAME` / `SMTP_PASSWORD` | （空） | SMTP 帳密 |
 | `SMTP_FROM` | `Palimpsest <no-reply@palimpsest.local>` | 寄件者 |
 | `WEB_BASE_URL` | `http://localhost:3000` | Web 前端的公開網址，用於信中的重設密碼連結 |
+| `RATE_LIMIT_ENABLED` | `true` | 設為 `false` 時關閉所有限流（只用於壓力測試） |
+| `ANTHROPIC_API_KEY` | （空） | 書評與留言的 AI 輔助審核（Anthropic Messages API）。未設定時只執行規則審核 |
+| `MODERATION_AI_ENABLED` | 有 Key 時為 `true` | 設為 `false` 可在有 Key 時關閉 AI 審核 |
+| `MODERATION_AI_MODEL` | `claude-haiku-5-5` | AI 審核使用的模型 |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | 覆寫 Anthropic API 位址（測試或代理用） |
+
+#### 內容審核
+
+新增或修改的書評、新留言會先經過規則檢查，結果（`score` 0–1 與 `flags`）存在 `moderation` 欄位，只有管理員看得到：
+
+- **詞庫**（`/admin/moderation/terms`，預設為空）：比對時忽略大小寫、全形／半形、繁簡差異與夾雜的空白標點；純英文詞只比對完整單字。`block` 級的詞直接把內容轉為 `pending`（待審），`flag` 級只標記。
+- **其他規則**：連結、聯絡方式（Email、電話、「加賴」、LINE ID、微信、vx、QQ 等）、大量重複字詞、全大寫英文。各規則的風險合併成分數，分數 ≥ 0.8 時同樣轉為 `pending`。
+- `pending` 的內容不公開、不計入評分與留言數，只有作者本人看得到（狀態顯示為 `pending`），作者可以刪除；待審留言不能被回覆，被擱置的回覆在核准後才通知對方。
+- **AI 審核**（選用）：設定 `ANTHROPIC_API_KEY` 後，內容建立後在背景送交 AI 判斷（最多 4 個同時進行、每次 20 秒逾時），不影響回應速度；結果併入 `moderation`（`ai_*` 標記），AI 分數 ≥ 0.85 時把已公開的內容撤回 `pending`。AI 失敗只記錄日誌。
+- 管理員在 `/admin/moderation/queue` 處理：`pending` 依時間先後列出待審內容；`flagged` 依分數列出已公開但有標記的內容。任何處理（核准、退回、隱藏）都會記錄 `moderation.reviewed_at`，項目即離開 `flagged` 佇列。
 
 ### Web（`web/nuxt.config.ts`）
 
@@ -404,6 +419,8 @@ cd mobile && dart run build_runner build   # 產生 json_serializable 模型
 | 管理員 | `/admin/novels`、`/admin/chapters`、`/admin/novels/:id/chapters/batch`、`POST /admin/uploads` | 小說、章節、封面上傳 |
 | 管理員 | `/admin/categories`、`/admin/banners` | 分類、輪播 |
 | 管理員 | `/admin/users`、`/admin/reviews`、`/admin/reports`、`/admin/stats` | 用戶、審核、檢舉、統計 |
+| 管理員 | `GET /admin/stats/trends`、`/admin/stats/top-novels`、`/admin/stats/categories` | 每日趨勢、熱門小說、分類閱讀統計（依 `utc_offset` 的當地日期） |
+| 管理員 | `GET /admin/moderation/queue`、`PUT /admin/moderation/:type/:id`、`/admin/moderation/terms` | 內容審核佇列、審核決定、審核詞庫 |
 
 受保護的端點需帶上 `Authorization: Bearer <access_token>`。完整規格見 [`shared/api-spec/openapi.yaml`](shared/api-spec/openapi.yaml)，`go test ./cmd/server` 會檢查規格與 Router 是否一致。
 
