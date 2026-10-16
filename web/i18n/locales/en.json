@@ -144,7 +144,8 @@
       "reports": "Reports",
       "categories": "Categories",
       "banners": "Banners",
-      "announcements": "Announcements"
+      "announcements": "Announcements",
+      "moderation": "Moderation"
     },
     "image": {
       "urlPlaceholder": "Image URL",
@@ -160,7 +161,8 @@
     "moderation": {
       "approved": "Approved",
       "rejected": "Rejected",
-      "hidden": "Hidden"
+      "hidden": "Hidden",
+      "pending": "Pending"
     },
     "reports": {
       "status": {
@@ -246,7 +248,46 @@
         "chapters": "Total chapters",
         "reviews": "Reviews",
         "comments": "Comments",
-        "pending_reports": "Pending reports"
+        "pending_reports": "Pending reports",
+        "pending_moderation": "Awaiting moderation"
+      },
+      "today": "Today",
+      "lastDays": "Last {n} days",
+      "series": {
+        "active_readers": "Active readers",
+        "reads": "Chapter reads",
+        "new_users": "New users",
+        "reading_hours": "Reading hours",
+        "new_reviews": "New reviews",
+        "new_comments": "New comments",
+        "bookshelf_adds": "Bookshelf adds"
+      },
+      "trends": {
+        "title": "Activity trends",
+        "engagement": "Engagement",
+        "total": "Total {value}",
+        "avgPerDay": "{value} per day on average",
+        "hours": "{n} h",
+        "returningRate": "Returning readers",
+        "returningRateHelp": "Share of the readers active 8–14 days ago who read again in the last 7 days.",
+        "empty": "No activity in this period",
+        "loadFailed": "Could not load the trends"
+      },
+      "topNovels": {
+        "title": "Top novels",
+        "novel": "Novel",
+        "reads": "Reads",
+        "readers": "Readers",
+        "bookshelfAdds": "Bookshelf adds",
+        "empty": "No reads in this period",
+        "loadFailed": "Could not load the top novels"
+      },
+      "categories": {
+        "title": "Reads by category",
+        "value": "{reads} reads · {readers} readers",
+        "note": "A novel in several categories counts once for each.",
+        "empty": "No reads in this period",
+        "loadFailed": "Could not load the category stats"
       }
     },
     "users": {
@@ -407,6 +448,80 @@
       "updateFailed": "Couldn't update",
       "delete": "Delete chapter",
       "confirmDelete": "Delete chapter {n}, \"{title}\"?"
+    },
+    "moderationQueue": {
+      "tabs": {
+        "pending": "Pending",
+        "flagged": "Flagged",
+        "terms": "Terms"
+      },
+      "help": {
+        "pending": "Reviews and comments held back by automated checks, oldest first. Approving publishes them.",
+        "flagged": "Published content with automated flags, highest risk first."
+      },
+      "allTypes": "All",
+      "total": "{n} in total",
+      "select": "Select",
+      "selectPage": "Select page",
+      "selected": "{n} selected",
+      "batchApprove": "Approve selected",
+      "batchReject": "Reject selected",
+      "confirmBatchReject": "Reject the {n} selected items? They will not be published.",
+      "batchDone": "{n} handled",
+      "batchPartial": "{ok} handled, {failed} failed",
+      "confirm": {
+        "rejected": "Reject this {type}? It will not be published.",
+        "hidden": "Hide this {type}?"
+      },
+      "gone": "This item no longer exists",
+      "empty": {
+        "pending": "Nothing awaits moderation",
+        "flagged": "No flagged content"
+      },
+      "expand": "Show more",
+      "collapse": "Show less",
+      "risk": "Risk",
+      "noFlags": "No flags",
+      "aiChecked": "AI checked",
+      "aiNotChecked": "Not AI checked",
+      "reviewedAt": "Reviewed {time}",
+      "aiShort": "AI",
+      "autoCheck": "Automated check",
+      "flagWithDetail": "{label}: {detail}",
+      "flags": {
+        "blocked_term": "Blocked term",
+        "flagged_term": "Flagged term",
+        "link": "Link",
+        "contact_info": "Contact info",
+        "repetition": "Repetition",
+        "shouting": "Shouting",
+        "ai_harassment": "AI: harassment",
+        "ai_hate": "AI: hate",
+        "ai_sexual": "AI: sexual",
+        "ai_spam": "AI: spam",
+        "ai_violence": "AI: violence",
+        "ai_other": "AI: other"
+      },
+      "severities": {
+        "block": "Hold",
+        "flag": "Flag"
+      },
+      "severityHelp": {
+        "block": "Reviews and comments containing the term are held until an admin approves them under Pending.",
+        "flag": "Content is published as usual but listed under Flagged for review.",
+        "matching": "Matching ignores case, full/half width and Traditional/Simplified variants."
+      },
+      "term": "Term",
+      "severity": "Action",
+      "createdAt": "Added",
+      "termPlaceholder": "Word or phrase to check",
+      "addTerm": "Add",
+      "termRequired": "Enter a term",
+      "termTooLong": "At most {max} characters",
+      "termExists": "\"{term}\" already exists",
+      "termAdded": "Added \"{term}\"",
+      "termDeleted": "Deleted \"{term}\"",
+      "termsEmpty": "No terms yet"
     }
   },
   "auth": {
@@ -624,7 +739,10 @@
         "inappropriate": "Inappropriate content",
         "other": "Other"
       }
-    }
+    },
+    "pendingModeration": "Submitted. It will be visible once it has been reviewed.",
+    "pendingTag": "Under review",
+    "pendingHint": "Only you can see this until it is approved."
   },
   "reviews": {
     "title": "Reviews",

@@ -16,6 +16,7 @@ type Config struct {
 	CORS        CORSConfig
 	Translation TranslationConfig
 	Mail        MailConfig
+	Moderation  ModerationConfig
 	// WebBaseURL is the public address of the web app, used in emailed links.
 	WebBaseURL string
 }
@@ -28,6 +29,16 @@ type MailConfig struct {
 	Username string
 	Password string
 	From     string
+}
+
+// ModerationConfig configures the optional AI review of reviews and
+// comments. It runs only when an Anthropic API key is set.
+type ModerationConfig struct {
+	AIEnabled bool
+	AIAPIKey  string
+	AIModel   string
+	// AIBaseURL overrides the Anthropic API address (for tests or proxies).
+	AIBaseURL string
 }
 
 type TranslationConfig struct {
@@ -49,6 +60,9 @@ type ServerConfig struct {
 	// TrustedProxies are the proxies whose X-Forwarded-For header is believed
 	// when determining the client IP (used for rate limiting).
 	TrustedProxies []string
+	// RateLimitDisabled turns every rate limit off (RATE_LIMIT_ENABLED=false),
+	// for load testing only.
+	RateLimitDisabled bool
 }
 
 type DatabaseConfig struct {
@@ -103,6 +117,7 @@ func Load() (*Config, error) {
 			MetricsPort: os.Getenv("METRICS_PORT"),
 			TrustedProxies: parseList(getEnv("TRUSTED_PROXIES",
 				"127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16")),
+			RateLimitDisabled: getEnv("RATE_LIMIT_ENABLED", "true") == "false",
 		},
 		DB: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -149,8 +164,16 @@ func Load() (*Config, error) {
 			Password: getEnv("SMTP_PASSWORD", ""),
 			From:     getEnv("SMTP_FROM", "Palimpsest <no-reply@palimpsest.local>"),
 		},
+		Moderation: ModerationConfig{
+			AIAPIKey:  os.Getenv("ANTHROPIC_API_KEY"),
+			AIModel:   getEnv("MODERATION_AI_MODEL", "claude-haiku-5-5"),
+			AIBaseURL: getEnv("ANTHROPIC_BASE_URL", ""),
+		},
 		WebBaseURL: strings.TrimRight(getEnv("WEB_BASE_URL", "http://localhost:3000"), "/"),
 	}
+
+	// AI review is on whenever a key is set, unless explicitly disabled.
+	cfg.Moderation.AIEnabled = cfg.Moderation.AIAPIKey != "" && getEnv("MODERATION_AI_ENABLED", "true") != "false"
 
 	if cfg.Server.Mode == "release" {
 		if cfg.JWT.Secret == defaultJWTSecret || len(cfg.JWT.Secret) < 32 {

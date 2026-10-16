@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"sort"
@@ -84,5 +86,25 @@ func TestOpenAPISpecMatchesRouter(t *testing.T) {
 		if !inRouter[r] {
 			t.Errorf("route %s is in openapi.yaml but not registered", r)
 		}
+	}
+}
+
+func TestRateLimitsCanBeDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	limits := rateLimits(&config.Config{Server: config.ServerConfig{RateLimitDisabled: true}}, nil)
+	r := gin.New()
+	r.GET("/x", limits.global, limits.search, limits.translation, limits.credential, func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	// Far above every quota, and without Redis.
+	for i := 0; i < 100; i++ {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/x", nil))
+		if w.Code != http.StatusNoContent {
+			t.Fatalf("request %d: status %d", i+1, w.Code)
+		}
+	}
+	if enabled := rateLimits(&config.Config{}, nil); enabled.credential == nil || enabled.global == nil {
+		t.Error("limits missing when enabled")
 	}
 }

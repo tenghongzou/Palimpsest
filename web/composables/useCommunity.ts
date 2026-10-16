@@ -22,6 +22,43 @@ export function normalizeRating(value: number | null | undefined): number {
   return Math.min(5, Math.max(0.5, Math.round(n * 2) / 2))
 }
 
+/**
+ * True for content held back by automated moderation: it is only public once
+ * an admin approves it. List endpoints return the caller's own pending items
+ * (never other users'), shown with a 「審核中」 tag and without the public
+ * actions (like, reply, report).
+ */
+export function isPendingModeration(item: { status?: string | null }): boolean {
+  return item.status === 'pending'
+}
+
+/**
+ * The review list with a newly created review on top, replacing a stale copy.
+ * Reviews awaiting moderation are listed too: the author sees their own.
+ */
+export function withCreatedReview(items: ApiReview[], review: ApiReview): { items: ApiReview[], added: boolean } {
+  return { items: [review, ...items.filter(r => r.id !== review.id)], added: true }
+}
+
+/**
+ * The comment list with a newly created comment: replies are appended to
+ * their loaded thread, top-level comments go first. Comments awaiting
+ * moderation are listed too: the author sees their own. `added` is true for
+ * a new top-level comment.
+ */
+export function withCreatedComment(items: ApiComment[], comment: ApiComment): { items: ApiComment[], added: boolean } {
+  const created = { ...comment, replies: comment.replies ?? [] }
+  if (created.parent_id) {
+    return {
+      items: items.map(c => c.id === created.parent_id
+        ? { ...c, replies: [...(c.replies ?? []).filter(r => r.id !== created.id), created] }
+        : c),
+      added: false,
+    }
+  }
+  return { items: [created, ...items.filter(c => c.id !== created.id)], added: true }
+}
+
 export function useReviews(novelId: MaybeRefOrGetter<string>) {
   const authStore = useAuthStore()
   const items = ref<ApiReview[]>([])
@@ -46,13 +83,15 @@ export function useReviews(novelId: MaybeRefOrGetter<string>) {
     }
   }
 
+  /** Posts a review and lists it (pending ones too); check isPendingModeration() on the result before announcing it. */
   async function create(input: ApiReviewInput): Promise<ApiReview> {
     const res = await apiFetch<ApiResponse<ApiReview>>(`/novels/${toValue(novelId)}/reviews`, {
       method: 'POST',
       body: { ...input, rating: normalizeRating(input.rating) },
     })
-    items.value = [res.data, ...items.value.filter(r => r.id !== res.data.id)]
-    pagination.value.total++
+    const next = withCreatedReview(items.value, res.data)
+    items.value = next.items
+    if (next.added) pagination.value.total++
     return res.data
   }
 
@@ -118,6 +157,7 @@ export function useComments(chapterId: MaybeRefOrGetter<string>, options: UseCom
     }
   }
 
+  /** Posts a comment or reply and lists it (pending ones too); check isPendingModeration() on the result before announcing it. */
   async function create(input: NewComment): Promise<ApiComment> {
     const p = paragraph()
     // Replies inherit their thread's paragraph on the server.
@@ -129,14 +169,9 @@ export function useComments(chapterId: MaybeRefOrGetter<string>, options: UseCom
       body,
     })
     const comment = { ...res.data, replies: res.data.replies ?? [] }
-    if (comment.parent_id) {
-      const parent = items.value.find(c => c.id === comment.parent_id)
-      if (parent) parent.replies = [...(parent.replies ?? []), comment]
-    }
-    else {
-      items.value = [comment, ...items.value]
-      pagination.value.total++
-    }
+    const next = withCreatedComment(items.value, comment)
+    items.value = next.items
+    if (next.added) pagination.value.total++
     return comment
   }
 

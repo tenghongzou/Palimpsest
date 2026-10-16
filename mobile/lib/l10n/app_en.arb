@@ -246,6 +246,8 @@
   "reviewPublished": "Review published",
   "reviewUpdated": "Review updated",
   "reviewAlreadyExists": "You've already reviewed this novel. You can edit your review instead.",
+  "moderationPendingSubmitted": "Submitted. It will be public once approved by a moderator.",
+  "moderationPendingBadge": "Under review",
   "submitFailed": "Couldn't submit: {error}",
   "commonEdit": "Edit",
   "reviewEdit": "Edit review",

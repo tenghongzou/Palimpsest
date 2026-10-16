@@ -144,7 +144,8 @@
       "reports": "檢舉處理",
       "categories": "分類管理",
       "banners": "橫幅管理",
-      "announcements": "系統公告"
+      "announcements": "系統公告",
+      "moderation": "內容審核"
     },
     "image": {
       "urlPlaceholder": "圖片網址",
@@ -160,7 +161,8 @@
     "moderation": {
       "approved": "已通過",
       "rejected": "已拒絕",
-      "hidden": "已隱藏"
+      "hidden": "已隱藏",
+      "pending": "待審核"
     },
     "reports": {
       "status": {
@@ -246,7 +248,46 @@
         "chapters": "章節總數",
         "reviews": "書評數",
         "comments": "留言數",
-        "pending_reports": "待處理檢舉"
+        "pending_reports": "待處理檢舉",
+        "pending_moderation": "待審核內容"
+      },
+      "today": "今日",
+      "lastDays": "近 {n} 天",
+      "series": {
+        "active_readers": "活躍讀者",
+        "reads": "閱讀章節數",
+        "new_users": "新用戶",
+        "reading_hours": "閱讀時數",
+        "new_reviews": "新書評",
+        "new_comments": "新留言",
+        "bookshelf_adds": "加入書架"
+      },
+      "trends": {
+        "title": "活躍趨勢",
+        "engagement": "互動",
+        "total": "合計 {value}",
+        "avgPerDay": "日均 {value}",
+        "hours": "{n} 小時",
+        "returningRate": "讀者回訪率",
+        "returningRateHelp": "前一週（8–14 天前）有閱讀的讀者中，最近 7 天再次閱讀的比例。",
+        "empty": "這段期間沒有活動資料",
+        "loadFailed": "無法載入趨勢資料"
+      },
+      "topNovels": {
+        "title": "熱門作品",
+        "novel": "作品",
+        "reads": "閱讀數",
+        "readers": "讀者數",
+        "bookshelfAdds": "加入書架",
+        "empty": "這段期間沒有閱讀紀錄",
+        "loadFailed": "無法載入熱門作品"
+      },
+      "categories": {
+        "title": "分類分布",
+        "value": "{reads} 次閱讀 · {readers} 位讀者",
+        "note": "作品屬於多個分類時，每個分類各計一次。",
+        "empty": "這段期間沒有閱讀紀錄",
+        "loadFailed": "無法載入分類統計"
       }
     },
     "users": {
@@ -407,6 +448,80 @@
       "updateFailed": "更新失敗",
       "delete": "刪除章節",
       "confirmDelete": "確定要刪除第 {n} 章「{title}」嗎？"
+    },
+    "moderationQueue": {
+      "tabs": {
+        "pending": "待審核",
+        "flagged": "已標記",
+        "terms": "敏感詞"
+      },
+      "help": {
+        "pending": "自動審核暫緩公開的書評與留言，依送出時間排列。通過後即公開。",
+        "flagged": "已公開但被自動檢查標記的內容，依風險分數由高到低排列。"
+      },
+      "allTypes": "全部",
+      "total": "共 {n} 則",
+      "select": "選取",
+      "selectPage": "全選本頁",
+      "selected": "已選 {n} 則",
+      "batchApprove": "批次通過",
+      "batchReject": "批次拒絕",
+      "confirmBatchReject": "確定拒絕選取的 {n} 則內容嗎？拒絕後不會公開。",
+      "batchDone": "已處理 {n} 則",
+      "batchPartial": "已處理 {ok} 則，{failed} 則失敗",
+      "confirm": {
+        "rejected": "確定拒絕這則{type}嗎？拒絕後不會公開。",
+        "hidden": "確定隱藏這則{type}嗎？"
+      },
+      "gone": "這則內容已不存在",
+      "empty": {
+        "pending": "目前沒有待審核的內容",
+        "flagged": "沒有被標記的內容"
+      },
+      "expand": "展開",
+      "collapse": "收合",
+      "risk": "風險",
+      "noFlags": "無標記",
+      "aiChecked": "AI 已檢查",
+      "aiNotChecked": "AI 未檢查",
+      "reviewedAt": "已處理 {time}",
+      "aiShort": "AI",
+      "autoCheck": "自動審核",
+      "flagWithDetail": "{label}：{detail}",
+      "flags": {
+        "blocked_term": "送審詞",
+        "flagged_term": "標記詞",
+        "link": "含連結",
+        "contact_info": "聯絡方式",
+        "repetition": "重複內容",
+        "shouting": "大量大寫或驚嘆號",
+        "ai_harassment": "AI：騷擾",
+        "ai_hate": "AI：仇恨",
+        "ai_sexual": "AI：色情",
+        "ai_spam": "AI：垃圾訊息",
+        "ai_violence": "AI：暴力",
+        "ai_other": "AI：其他"
+      },
+      "severities": {
+        "block": "送審",
+        "flag": "標記"
+      },
+      "severityHelp": {
+        "block": "含有此詞的書評與留言會暫緩公開，待管理員在「待審核」通過後才公開。",
+        "flag": "內容照常公開，但會列入「已標記」供複查。",
+        "matching": "比對時不分大小寫、全形半形與繁簡字。"
+      },
+      "term": "詞語",
+      "severity": "處理方式",
+      "createdAt": "新增時間",
+      "termPlaceholder": "輸入要檢查的詞語",
+      "addTerm": "新增",
+      "termRequired": "請輸入詞語",
+      "termTooLong": "最多 {max} 字",
+      "termExists": "「{term}」已存在",
+      "termAdded": "已新增「{term}」",
+      "termDeleted": "已刪除「{term}」",
+      "termsEmpty": "尚未設定敏感詞"
     }
   },
   "auth": {
@@ -624,7 +739,10 @@
         "inappropriate": "不當內容",
         "other": "其他"
       }
-    }
+    },
+    "pendingModeration": "已送出，內容將在審核後公開",
+    "pendingTag": "審核中",
+    "pendingHint": "僅你自己看得到，審核通過後公開"
   },
   "reviews": {
     "title": "書評",

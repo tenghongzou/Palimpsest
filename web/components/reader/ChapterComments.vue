@@ -179,6 +179,8 @@ async function showThread(thread: ApiComment) {
 }
 
 function startReply(c: ApiComment) {
+  // Threads awaiting moderation are not public, so they take no replies.
+  if (isPendingModeration(c)) return
   if (!isLoggedIn.value) {
     message.info(t('auth.loginFirst'))
     return
@@ -192,7 +194,7 @@ async function post() {
   posting.value = true
   try {
     const isReply = !!replyTo.value
-    await create({
+    const comment = await create({
       content: draft.value,
       ...(replyTo.value ? { parent_id: replyTo.value.id } : {}),
       ...(!replyTo.value && !isParagraphMode.value && attachParagraph.value ? { paragraph_index: props.currentParagraph } : {}),
@@ -200,8 +202,13 @@ async function post() {
     draft.value = ''
     replyTo.value = null
     attachParagraph.value = false
-    message.success(isReply ? t('comments.replyPosted') : t('comments.posted'))
-    if (!isReply) emit('changed')
+    if (isPendingModeration(comment)) {
+      message.info(t('community.pendingModeration'))
+    }
+    else {
+      message.success(isReply ? t('comments.replyPosted') : t('comments.posted'))
+      if (!isReply) emit('changed')
+    }
   }
   catch (e) {
     message.error(describeError(t, e, { 400: t('comments.invalid'), 404: t('reader.chapterNotFound') }, t('comments.postFailed')))

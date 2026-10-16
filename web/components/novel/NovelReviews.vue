@@ -50,7 +50,14 @@
 
     <n-spin :show="loading">
       <div class="space-y-4">
-        <div v-for="r in items" :key="r.id" class="border-b border-gray-100 pb-4 last:border-0" data-testid="review-item">
+        <div
+          v-for="r in items"
+          :key="r.id"
+          class="border-b border-gray-100 pb-4 last:border-0"
+          :class="{ 'review-item--pending': isPending(r) }"
+          :data-status="r.status"
+          data-testid="review-item"
+        >
           <div class="flex items-center gap-3">
             <n-avatar :src="r.user?.avatar_url || undefined" :size="32" round>
               <template v-if="!r.user?.avatar_url">{{ (r.user?.nickname || r.user?.username || $t('comments.anonymous')).slice(0, 1) }}</template>
@@ -60,14 +67,25 @@
                 <span class="text-sm font-medium">{{ r.user?.nickname || r.user?.username || $t('comments.anonymous') }}</span>
                 <n-rate :value="r.rating" readonly allow-half size="small" />
                 <n-tag v-if="r.user_id === userId" size="tiny" type="info" :bordered="false">{{ $t('reviews.mine') }}</n-tag>
+                <n-tag v-if="isPending(r)" size="tiny" type="warning" :bordered="false" :title="$t('community.pendingHint')" data-testid="pending-tag">{{ $t('community.pendingTag') }}</n-tag>
               </div>
               <div class="text-xs text-gray-400">{{ r.created_at ? formatRelativeTime(r.created_at) : '' }}</div>
             </div>
           </div>
-          <div class="mt-2 font-semibold" data-testid="review-item-title">{{ r.title }}</div>
-          <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap break-words">{{ r.content }}</div>
+          <div class="review-body">
+            <div class="mt-2 font-semibold" data-testid="review-item-title">{{ r.title }}</div>
+            <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap break-words">{{ r.content }}</div>
+          </div>
           <div class="flex items-center gap-3 mt-2">
-            <n-button text size="small" :type="r.liked_by_me ? 'primary' : 'default'" data-testid="review-like" @click="like(r)">
+            <!-- Pending reviews are not public yet: no likes or reports. -->
+            <n-button
+              v-if="!isPending(r)"
+              text
+              size="small"
+              :type="r.liked_by_me ? 'primary' : 'default'"
+              data-testid="review-like"
+              @click="like(r)"
+            >
               {{ r.liked_by_me ? $t('community.liked') : $t('community.like') }} {{ r.like_count || '' }}
             </n-button>
             <template v-if="r.user_id === userId">
@@ -79,7 +97,7 @@
                 {{ $t('reviews.confirmDelete') }}
               </n-popconfirm>
             </template>
-            <n-button v-else-if="isLoggedIn" text size="small" data-testid="review-report" @click="openReport(r.id)">{{ $t('community.report.action') }}</n-button>
+            <n-button v-else-if="isLoggedIn && !isPending(r)" text size="small" data-testid="review-report" @click="openReport(r.id)">{{ $t('community.report.action') }}</n-button>
           </div>
         </div>
         <div v-if="!loading && items.length === 0" class="text-center text-sm text-gray-400 py-6">
@@ -120,6 +138,9 @@ const saving = ref(false)
 const form = reactive({ rating: 5, title: '', content: '' })
 const canSave = computed(() => form.rating >= 0.5 && form.title.trim() && form.content.trim())
 
+/** Pending reviews (only the author's own are listed) are not public yet. */
+const isPending = isPendingModeration
+
 const reportOpen = ref(false)
 const reportTarget = ref<string | null>(null)
 
@@ -136,12 +157,14 @@ async function save() {
   const input = { rating: form.rating, title: form.title.trim(), content: form.content.trim() }
   try {
     if (editingId.value) {
-      await update(editingId.value, input)
-      message.success(t('reviews.updated'))
+      const review = await update(editingId.value, input)
+      if (isPendingModeration(review)) message.info(t('community.pendingModeration'))
+      else message.success(t('reviews.updated'))
     }
     else {
-      await create(input)
-      message.success(t('reviews.published'))
+      const review = await create(input)
+      if (isPendingModeration(review)) message.info(t('community.pendingModeration'))
+      else message.success(t('reviews.published'))
     }
     editorOpen.value = false
     emit('changed')
@@ -194,3 +217,9 @@ function openReport(id: string) {
 watch(sort, () => load())
 onMounted(() => load())
 </script>
+
+<style scoped>
+.review-item--pending .review-body {
+  opacity: 0.65;
+}
+</style>

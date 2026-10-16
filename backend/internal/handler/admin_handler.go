@@ -34,6 +34,8 @@ type AdminDeps struct {
 	SearchSvc    *service.SearchService
 	// Notifications, when set, tells bookshelf readers about new chapters.
 	Notifications *service.NotificationService
+	// ModerationSvc keeps the moderation terms.
+	ModerationSvc *service.ModerationService
 	Store         storage.Store
 	DB            *gorm.DB
 	Redis         *redis.Client
@@ -533,7 +535,7 @@ func (h *AdminHandler) ModerateReview(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Status string `json:"status" binding:"required,oneof=approved rejected hidden"`
+		Status string `json:"status" binding:"required,oneof=pending approved rejected hidden"`
 	}
 	if !bindJSON(c, &req) {
 		return

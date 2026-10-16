@@ -275,6 +275,8 @@ type AdminStats struct {
 	PendingReports  int64 `json:"pending_reports"`
 	ActiveReaders7d int64 `json:"active_readers_7d"`
 	ReadsToday      int64 `json:"reads_today"`
+	// PendingModeration counts reviews and comments held for moderation.
+	PendingModeration int64 `json:"pending_moderation"`
 }
 
 // Stats counts the overview; "today" starts at local midnight for a client
@@ -302,5 +304,10 @@ func (s *AdminService) Stats(utcOffsetMinutes int) (*AdminStats, error) {
 			return nil, err
 		}
 	}
+	pending, err := PendingModeration(s.db)
+	if err != nil {
+		return nil, err
+	}
+	st.PendingModeration = pending
 	return st, nil
 }

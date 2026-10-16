@@ -8,6 +8,7 @@ import '../../../../core/widgets/common_widgets.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/community_repository.dart';
 import '../../domain/entities/community.dart';
+import 'pending_badge.dart';
 import 'report_dialog.dart';
 import '../../../../core/l10n/l10n.dart';
 
@@ -18,7 +19,8 @@ final reviewsProvider = StateNotifierProvider.autoDispose
 });
 
 /// Reviews of a novel for its detail page: list, write or edit your own,
-/// like, delete and report.
+/// like, delete and report. The server also lists the signed in user's own
+/// review while it is held for moderation, so it still counts as "mine".
 class ReviewSection extends ConsumerWidget {
   final String novelId;
 
@@ -117,16 +119,22 @@ class ReviewSection extends ConsumerWidget {
     );
     if (input == null) return;
     final repo = ref.read(communityRepositoryProvider);
+    final notifier = ref.read(reviewsProvider(novelId).notifier);
     try {
-      if (existing == null) {
-        await repo.createReview(novelId, title: input.title, content: input.content, rating: input.rating);
-      } else {
-        await repo.updateReview(existing.id, title: input.title, content: input.content, rating: input.rating);
-      }
-      await ref.read(reviewsProvider(novelId).notifier).refresh();
-      if (context.mounted) {
-        showSnack(context, existing == null ? context.l10n.reviewPublished : context.l10n.reviewUpdated);
-      }
+      final saved = existing == null
+          ? await repo.createReview(novelId, title: input.title, content: input.content, rating: input.rating)
+          : await repo.updateReview(existing.id, title: input.title, content: input.content, rating: input.rating);
+      // Held for moderation: the list still includes it for its author,
+      // marked as under review.
+      await notifier.refresh();
+      if (!context.mounted) return;
+      final l = context.l10n;
+      showSnack(
+        context,
+        saved.status.isHeld
+            ? l.moderationPendingSubmitted
+            : (existing == null ? l.reviewPublished : l.reviewUpdated),
+      );
     } catch (e) {
       if (!context.mounted) return;
       final l = context.l10n;
@@ -135,6 +143,8 @@ class ReviewSection extends ConsumerWidget {
   }
 }
 
+/// One review. A held one (the author's own, under review) is muted and
+/// offers no like or report; the author can still edit and delete it.
 class _ReviewTile extends StatelessWidget {
   final Review review;
   final bool isMine;
@@ -155,8 +165,13 @@ class _ReviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final userName = review.user?.displayName ?? '';
+    final held = review.status.isHeld;
+    final canReport = !isMine && !held;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Card(
+      key: ValueKey('review-${review.id}'),
       margin: const EdgeInsets.only(bottom: 8),
+      elevation: held ? 0 : null,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 4, 4),
         child: Column(
@@ -166,6 +181,10 @@ class _ReviewTile extends StatelessWidget {
               children: [
                 StarRating(rating: review.rating),
                 const SizedBox(width: 8),
+                if (held) ...[
+                  PendingBadge(key: ValueKey('review-pending-${review.id}')),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: Text(
                     '${userName.isEmpty ? context.l10n.anonymousReader : userName} · '
@@ -178,44 +197,49 @@ class _ReviewTile extends StatelessWidget {
             ),
             if (review.title.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(review.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(review.title, style: TextStyle(fontWeight: FontWeight.bold, color: held ? muted : null)),
             ],
             const SizedBox(height: 4),
-            Text(review.content, maxLines: 6, overflow: TextOverflow.ellipsis),
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: onLike,
-                  icon: Icon(review.likedByMe ? Icons.thumb_up : Icons.thumb_up_outlined, size: 16),
-                  label: Text('${review.likeCount}'),
-                ),
-                const Spacer(),
-                PopupMenuButton<String>(
-                  tooltip: context.l10n.commonMore,
-                  icon: const Icon(Icons.more_horiz, size: 18),
-                  onSelected: (v) {
-                    if (v == 'edit') {
-                      onEdit();
-                    } else if (v == 'delete') {
-                      onDelete();
-                    } else {
-                      onReport();
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    if (isMine) PopupMenuItem(value: 'edit', child: Text(context.l10n.commonEdit)),
-                    if (isMine) PopupMenuItem(value: 'delete', child: Text(context.l10n.commonDelete)),
-                    if (!isMine) PopupMenuItem(value: 'report', child: Text(context.l10n.report)),
-                  ],
-                ),
-              ],
-            ),
+            Text(review.content, maxLines: 6, overflow: TextOverflow.ellipsis, style: held ? TextStyle(color: muted) : null),
+            if (!held || isMine)
+              Row(
+                children: [
+                  if (!held)
+                    TextButton.icon(
+                      onPressed: onLike,
+                      icon: Icon(review.likedByMe ? Icons.thumb_up : Icons.thumb_up_outlined, size: 16),
+                      label: Text('${review.likeCount}'),
+                    ),
+                  const Spacer(),
+                  PopupMenuButton<String>(
+                    tooltip: context.l10n.commonMore,
+                    icon: const Icon(Icons.more_horiz, size: 18),
+                    onSelected: (v) {
+                      if (v == 'edit') {
+                        onEdit();
+                      } else if (v == 'delete') {
+                        onDelete();
+                      } else {
+                        onReport();
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (isMine) PopupMenuItem(value: 'edit', child: Text(context.l10n.commonEdit)),
+                      if (isMine) PopupMenuItem(value: 'delete', child: Text(context.l10n.commonDelete)),
+                      if (canReport) PopupMenuItem(value: 'report', child: Text(context.l10n.report)),
+                    ],
+                  ),
+                ],
+              )
+            else
+              const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
 }
+
 
 /// Read-only stars in half steps.
 class StarRating extends StatelessWidget {

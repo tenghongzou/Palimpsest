@@ -212,7 +212,10 @@ export interface paths {
         };
         /**
          * List approved reviews of a novel
-         * @description With a bearer token, `liked_by_me` marks reviews the caller liked.
+         * @description With a bearer token, `liked_by_me` marks reviews the caller liked, and
+         *     the caller's own review is included while it is `pending` (held by
+         *     moderation), so authors still see it. Other users' pending reviews
+         *     are never listed.
          */
         get: operations["listReviews"];
         put?: never;
@@ -233,7 +236,10 @@ export interface paths {
         };
         /**
          * List a chapter's top-level comments with their replies
-         * @description With a bearer token, `liked_by_me` marks comments the caller liked.
+         * @description Approved comments and replies. With a bearer token, `liked_by_me`
+         *     marks comments the caller liked, and the caller's own `pending`
+         *     comments and replies (held by moderation) are included too; other
+         *     users' pending ones never are.
          */
         get: operations["listComments"];
         put?: never;
@@ -316,7 +322,8 @@ export interface paths {
          * @description Returns the thread's top-level comment with its replies, whether the id
          *     is the top-level comment or one of the replies (e.g. `comment_id` of a
          *     `comment_reply` notification). With a bearer token, `liked_by_me`
-         *     marks comments the caller liked.
+         *     marks comments the caller liked, and the caller's own `pending`
+         *     comments count as visible (others' answer 404).
          */
         get: operations["getCommentThread"];
         put?: never;
@@ -1345,6 +1352,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/stats/trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Daily activity series for the dashboard charts */
+        get: operations["adminStatsTrends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/stats/top-novels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Most-read novels over the last days */
+        get: operations["adminStatsTopNovels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/stats/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads per category over the last days
+         * @description A read of a novel counts once for each of its categories.
+         */
+        get: operations["adminStatsCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/moderation/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reviews and comments awaiting moderation or flagged by automated checks
+         * @description `pending` lists content held back from the public by automated
+         *     moderation, oldest first. `flagged` lists published content with at
+         *     least one moderation flag, highest score first, until an admin decides
+         *     on it (any decision sets `moderation.reviewed_at`; editing a review
+         *     checks it afresh).
+         */
+        get: operations["adminModerationQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/moderation/{type}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Decide on a review or comment (approve publishes it; reviews update the novel's rating) */
+        put: operations["adminModerate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/moderation/terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Words and phrases checked in reviews and comments */
+        get: operations["adminListModerationTerms"];
+        put?: never;
+        /**
+         * Add a term
+         * @description Matching ignores case, full/half width and zh-TW/zh-CN variants.
+         */
+        post: operations["adminCreateModerationTerm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/moderation/terms/{termId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a term */
+        delete: operations["adminDeleteModerationTerm"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/stats": {
         parameters: {
             query?: never;
@@ -1809,8 +1949,76 @@ export interface components {
             translated_content: string;
             is_cached: boolean;
         };
-        /** @enum {string} */
-        ModerationStatus: "approved" | "rejected" | "hidden";
+        /**
+         * @description `pending` content was held back by automated moderation and is only
+         *     public once an admin approves it.
+         * @enum {string}
+         */
+        ModerationStatus: "pending" | "approved" | "rejected" | "hidden";
+        /**
+         * @description `block` holds matching content for review; `flag` publishes it with a flag.
+         * @enum {string}
+         */
+        ModerationSeverity: "block" | "flag";
+        ModerationTerm: {
+            id: number;
+            term: string;
+            severity: components["schemas"]["ModerationSeverity"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        ModerationFlag: {
+            /**
+             * @description Rules: blocked_term, flagged_term, link, contact_info, repetition,
+             *     shouting. AI review: ai_harassment, ai_hate, ai_sexual, ai_spam,
+             *     ai_violence, ai_other.
+             */
+            code: string;
+            /** @description The matched term or a short reason */
+            detail?: string;
+        };
+        ModerationResult: {
+            /** @description Estimated risk */
+            score: number;
+            flags: components["schemas"]["ModerationFlag"][];
+            /** @description An AI review has run on the content */
+            ai_checked: boolean;
+            /** Format: date-time */
+            checked_at?: string;
+            /**
+             * Format: date-time
+             * @description When an admin last approved, rejected or hid the content
+             */
+            reviewed_at?: string;
+        };
+        ModerationItem: {
+            /** @enum {string} */
+            type: "review" | "comment";
+            /** Format: uuid */
+            id: string;
+            /** @description Reviews only */
+            title?: string;
+            content: string;
+            /** @description Reviews only */
+            rating?: number;
+            status: components["schemas"]["ModerationStatus"];
+            moderation?: components["schemas"]["ModerationResult"];
+            user: components["schemas"]["UserBrief"];
+            novel?: {
+                /** Format: uuid */
+                id?: string;
+                title?: string;
+            };
+            /** @description Comments only */
+            chapter?: {
+                /** Format: uuid */
+                id?: string;
+                title?: string;
+                chapter_number?: number;
+            };
+            /** Format: date-time */
+            created_at: string;
+        };
         Review: {
             /** Format: uuid */
             id: string;
@@ -1823,6 +2031,8 @@ export interface components {
             rating: number;
             like_count: number;
             status: components["schemas"]["ModerationStatus"];
+            /** @description Only in admin listings */
+            moderation?: components["schemas"]["ModerationResult"];
             user?: components["schemas"]["UserBrief"];
             /** @description Only in admin listings */
             novel?: {
@@ -1975,7 +2185,48 @@ export interface components {
             /** @default true */
             is_active: boolean;
         };
+        AdminTrends: {
+            days: components["schemas"]["AdminTrendDay"][];
+            /**
+             * @description Share (0..1) of the readers active in the 7 days before the last 7
+             *     who read again in the last 7 days; 0 when there were none.
+             */
+            returning_rate: number;
+        };
+        AdminTrendDay: {
+            /**
+             * Format: date
+             * @description The client's local day
+             */
+            date: string;
+            new_users: number;
+            /** @description Distinct users with reading history that day */
+            active_readers: number;
+            /** @description Reading history entries (chapter reads) */
+            reads: number;
+            reading_seconds: number;
+            new_reviews: number;
+            new_comments: number;
+            bookshelf_adds: number;
+        };
+        AdminTopNovel: {
+            novel: components["schemas"]["Novel"];
+            reads: number;
+            readers: number;
+            bookshelf_adds: number;
+        };
+        AdminCategoryStat: {
+            category: {
+                id: number;
+                name: string;
+                slug: string;
+            };
+            reads: number;
+            readers: number;
+        };
         AdminStats: {
+            /** @description Reviews and comments held for moderation */
+            pending_moderation: number;
             users: number;
             new_users_today: number;
             novels: number;
@@ -4632,6 +4883,234 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    adminStatsTrends: {
+        parameters: {
+            query?: {
+                days?: number;
+                /** @description The client's UTC offset in minutes east of UTC; days follow its local midnight. Defaults to UTC. */
+                utc_offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One entry per local day, oldest first, including days with no activity */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["AdminTrends"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    adminStatsTopNovels: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+                /** @description The client's UTC offset in minutes east of UTC; days follow its local midnight. Defaults to UTC. */
+                utc_offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ordered by reads, then readers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["AdminTopNovel"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    adminStatsCategories: {
+        parameters: {
+            query?: {
+                days?: number;
+                /** @description The client's UTC offset in minutes east of UTC; days follow its local midnight. Defaults to UTC. */
+                utc_offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Categories with at least one read, ordered by reads */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["AdminCategoryStat"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    adminModerationQueue: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+                queue?: "pending" | "flagged";
+                /** @description Only reviews or only comments; both when omitted. */
+                type?: "review" | "comment";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: {
+                            items: components["schemas"]["ModerationItem"][];
+                            pagination: components["schemas"]["Pagination"];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    adminModerate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: "review" | "comment";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    status: "approved" | "rejected" | "hidden";
+                };
+            };
+        };
+        responses: {
+            /** @description The moderated item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ModerationItem"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminListModerationTerms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All terms, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ModerationTerm"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    adminCreateModerationTerm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    term: string;
+                    severity: components["schemas"]["ModerationSeverity"];
+                };
+            };
+        };
+        responses: {
+            /** @description Created term */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope"] & {
+                        data?: components["schemas"]["ModerationTerm"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    adminDeleteModerationTerm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                termId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     adminStats: {

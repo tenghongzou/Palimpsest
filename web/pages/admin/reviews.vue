@@ -21,16 +21,17 @@
       :loading="loading"
       :pagination="tablePagination"
       :row-key="(row: ApiReview) => row.id"
-      :scroll-x="1000"
+      :scroll-x="hasModeration ? 1200 : 1000"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { NButton, NDataTable, NRate, NSelect, NSpace, NTag, useMessage } from 'naive-ui'
+import { NButton, NDataTable, NProgress, NRate, NSelect, NSpace, NTag, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { h } from 'vue'
 import type { ApiReview, ModerationStatus } from '~/types/models'
+import { flagText, riskLevel, riskPercent, riskStatus } from '~/utils/moderation'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 
@@ -44,11 +45,8 @@ const { items, loading, filters, tablePagination, load } = useAdminList<ApiRevie
   status: ModerationStatus | null
 }>('/admin/reviews', { status: null })
 
-const statusTagType: Record<string, 'success' | 'error' | 'warning'> = {
-  approved: 'success',
-  rejected: 'error',
-  hidden: 'warning',
-}
+// The automated check column appears once the API sends results.
+const hasModeration = computed(() => items.value.some(r => r.moderation))
 
 async function moderate(review: ApiReview, status: ModerationStatus) {
   try {
@@ -91,12 +89,37 @@ const columns = computed<DataTableColumns<ApiReview>>(() => [
       h('div', { class: 'text-sm text-gray-600 whitespace-pre-wrap line-clamp-3' }, row.content),
     ]),
   },
+  ...(hasModeration.value
+    ? [{
+        title: t('admin.moderationQueue.autoCheck'),
+        key: 'moderation',
+        width: 200,
+        render: (row: ApiReview) => row.moderation
+          ? h('div', { class: 'space-y-1' }, [
+              h('div', { class: 'flex items-center gap-2' }, [
+                h(NProgress, {
+                  type: 'line',
+                  percentage: riskPercent(row.moderation.score),
+                  status: riskStatus(riskLevel(row.moderation.score)),
+                  height: 6,
+                  showIndicator: false,
+                  style: 'width: 72px',
+                }),
+                h('span', { class: 'text-xs tabular-nums' }, `${riskPercent(row.moderation.score)}%`),
+                row.moderation.ai_checked ? h(NTag, { size: 'tiny', bordered: false, type: 'success' }, () => t('admin.moderationQueue.aiShort')) : null,
+              ]),
+              h('div', { class: 'flex flex-wrap gap-1' }, row.moderation.flags.map(flag =>
+                h(NTag, { size: 'tiny', round: true, type: flag.code === 'blocked_term' ? 'error' : 'warning' }, () => flagText(t, flag)))),
+            ])
+          : '—',
+      }]
+    : []),
   { title: t('community.like'), key: 'like_count', width: 60 },
   {
     title: t('admin.columns.status'),
     key: 'status',
     width: 90,
-    render: row => h(NTag, { size: 'small', type: statusTagType[row.status] }, () => moderationLabel(row.status)),
+    render: row => h(NTag, { size: 'small', type: moderationTagType(row.status) }, () => moderationLabel(row.status)),
   },
   { title: t('admin.columns.time'), key: 'created_at', width: 170, render: row => dateTime(row.created_at) },
   {

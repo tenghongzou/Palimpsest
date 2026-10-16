@@ -1,5 +1,31 @@
 import '../../../../core/utils/formatters.dart';
 
+/// Moderation state of a review or comment (`ModerationStatus`).
+/// `pending` is held back from the public until an admin approves it.
+enum ModerationStatus {
+  pending,
+  approved,
+  rejected,
+  hidden,
+
+  /// A value this app version does not know.
+  unknown;
+
+  /// Missing means approved (servers before moderation omit it); unknown
+  /// values parse to [unknown] instead of throwing.
+  static ModerationStatus parse(Object? value) {
+    if (value == null) return approved;
+    for (final s in values) {
+      if (s != unknown && s.name == value) return s;
+    }
+    return unknown;
+  }
+
+  /// Created or edited content that is not public yet: held for review
+  /// (or already rejected/hidden), so it must not appear as published.
+  bool get isHeld => this == pending || this == rejected || this == hidden;
+}
+
 class UserBrief {
   final String id;
   final String username;
@@ -32,6 +58,7 @@ class Review {
   final bool likedByMe;
   final UserBrief? user;
   final DateTime? createdAt;
+  final ModerationStatus status;
 
   const Review({
     required this.id,
@@ -44,6 +71,7 @@ class Review {
     this.likedByMe = false,
     this.user,
     this.createdAt,
+    this.status = ModerationStatus.approved,
   });
 
   factory Review.fromJson(Map<String, dynamic> json) => Review(
@@ -57,6 +85,22 @@ class Review {
         likedByMe: json['liked_by_me'] as bool? ?? false,
         user: UserBrief.fromJson(json['user']),
         createdAt: parseDateTime(json['created_at']),
+        status: ModerationStatus.parse(json['status']),
+      );
+
+  /// The same review with [user] (save responses may omit it).
+  Review withUser(UserBrief? user) => Review(
+        id: id,
+        userId: userId,
+        novelId: novelId,
+        title: title,
+        content: content,
+        rating: rating,
+        likeCount: likeCount,
+        likedByMe: likedByMe,
+        user: user,
+        createdAt: createdAt,
+        status: status,
       );
 
   Review withLike({required bool liked, required int likeCount}) => Review(
@@ -70,6 +114,7 @@ class Review {
         likedByMe: liked,
         user: user,
         createdAt: createdAt,
+        status: status,
       );
 }
 
@@ -85,6 +130,7 @@ class Comment {
   final UserBrief? user;
   final List<Comment> replies;
   final DateTime? createdAt;
+  final ModerationStatus status;
 
   const Comment({
     required this.id,
@@ -98,6 +144,7 @@ class Comment {
     this.user,
     this.replies = const [],
     this.createdAt,
+    this.status = ModerationStatus.approved,
   });
 
   factory Comment.fromJson(Map<String, dynamic> json) => Comment(
@@ -114,6 +161,7 @@ class Comment {
             .map((e) => Comment.fromJson(e as Map<String, dynamic>))
             .toList(),
         createdAt: parseDateTime(json['created_at']),
+        status: ModerationStatus.parse(json['status']),
       );
 
   Comment copyWith({int? likeCount, bool? likedByMe, List<Comment>? replies}) => Comment(
@@ -128,6 +176,7 @@ class Comment {
         user: user,
         replies: replies ?? this.replies,
         createdAt: createdAt,
+        status: status,
       );
 }
 

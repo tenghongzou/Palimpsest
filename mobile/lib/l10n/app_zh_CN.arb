@@ -246,6 +246,8 @@
   "reviewPublished": "已发表书评",
   "reviewUpdated": "已更新书评",
   "reviewAlreadyExists": "你已经评论过这本书，可以编辑原来的书评",
+  "moderationPendingSubmitted": "已提交，内容将在审核后公开",
+  "moderationPendingBadge": "审核中",
   "submitFailed": "提交失败：{error}",
   "commonEdit": "编辑",
   "reviewEdit": "编辑书评",

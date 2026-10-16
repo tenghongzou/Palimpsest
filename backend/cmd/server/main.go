@@ -22,6 +22,7 @@ import (
 	"github.com/tenghongzou/palimpsest/backend/internal/middleware"
 	"github.com/tenghongzou/palimpsest/backend/internal/model"
 	"github.com/tenghongzou/palimpsest/backend/internal/pkg/mail"
+	"github.com/tenghongzou/palimpsest/backend/internal/pkg/moderation"
 	"github.com/tenghongzou/palimpsest/backend/internal/pkg/storage"
 	"github.com/tenghongzou/palimpsest/backend/internal/pkg/translate"
 	"github.com/tenghongzou/palimpsest/backend/internal/repository"
@@ -110,7 +111,14 @@ func main() {
 	userSvc := service.NewUserService(db)
 	bookmarkSvc := service.NewBookmarkService(db)
 	notificationSvc := service.NewNotificationService(db)
-	communitySvc := service.NewCommunityService(db, novelSvc.InvalidateNovel).WithNotifications(notificationSvc)
+	moderationSvc := service.NewModerationService(db)
+	if cfg.Moderation.AIEnabled {
+		reviewer := moderation.NewAIReviewer(cfg.Moderation.AIAPIKey, cfg.Moderation.AIModel, cfg.Moderation.AIBaseURL)
+		moderationSvc.WithAI(reviewer, 4, 20*time.Second)
+		log.Printf("Moderation: AI review enabled (%s)", cfg.Moderation.AIModel)
+	}
+	communitySvc := service.NewCommunityService(db, novelSvc.InvalidateNovel).
+		WithNotifications(notificationSvc).WithModeration(moderationSvc)
 	adminSvc := service.NewAdminService(db)
 	var translator translate.MachineTranslator
 	if g := translate.NewGoogleTranslator(cfg.Translation.GoogleAPIKey, cfg.Translation.GoogleEndpoint); g != nil {
@@ -127,7 +135,7 @@ func main() {
 	searchH := handler.NewSearchHandler(searchSvc)
 	translationH := handler.NewTranslationHandler(translationSvc)
 	adminH := handler.NewAdminHandler(handler.AdminDeps{
-		NovelRepo: novelRepo, NovelSvc: novelSvc, AdminSvc: adminSvc, CommunitySvc: communitySvc,
+		NovelRepo: novelRepo, NovelSvc: novelSvc, AdminSvc: adminSvc, CommunitySvc: communitySvc, ModerationSvc: moderationSvc,
 		HomeSvc: homeSvc, SearchSvc: searchSvc, Notifications: notificationSvc, Store: store, DB: db, Redis: rdb,
 	})
 
@@ -211,6 +219,13 @@ func main() {
 	}
 	if metricsSrv != nil {
 		_ = metricsSrv.Shutdown(ctx)
+	}
+	// Let AI reviews already under way record their verdicts.
+	waited := make(chan struct{})
+	go func() { moderationSvc.Wait(); close(waited) }()
+	select {
+	case <-waited:
+	case <-ctx.Done():
 	}
 
 	sqlDB.Close()

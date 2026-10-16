@@ -187,11 +187,15 @@ void main() {
       final unlike = await repo.setCommentLike('com1', false);
       expect(unlike.liked, isFalse);
 
+      backend.comments.add(commentJson('parent-1', '開頭'));
       final comment = await repo.createComment(chapterIds[0], '好看', parentId: 'parent-1');
       expect(backend.api.requests.last.json, {'content': '好看', 'parent_id': 'parent-1'});
       expect(comment.content, '好看');
+      // Listed as a reply of its thread.
       final comments = await repo.getComments(chapterIds[0]);
-      expect(comments.items.single.user?.nickname, '讀者一號');
+      final reply = comments.items.single.replies.single;
+      expect(reply.content, '好看');
+      expect(reply.user?.nickname, '讀者一號');
 
       await repo.report(targetType: 'comment', targetId: 'com1', reason: 'spoiler', description: ' 劇透 ');
       expect(backend.api.requests.last.json, {

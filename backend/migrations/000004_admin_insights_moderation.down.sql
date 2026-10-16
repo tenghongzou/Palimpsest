@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS moderation_terms;
+DROP INDEX IF EXISTS idx_comments_pending;
+DROP INDEX IF EXISTS idx_reviews_pending;
+ALTER TABLE comments DROP COLUMN IF EXISTS moderation;
+ALTER TABLE reviews DROP COLUMN IF EXISTS moderation;
+DROP INDEX IF EXISTS idx_bookshelf_items_added_at;
+DROP INDEX IF EXISTS idx_comments_created_at;
+DROP INDEX IF EXISTS idx_reviews_created_at;
+DROP INDEX IF EXISTS idx_users_created_at;
+DROP INDEX IF EXISTS idx_reading_history_read_at;

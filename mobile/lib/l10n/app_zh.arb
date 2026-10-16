@@ -562,6 +562,8 @@
   "reviewPublished": "已發表書評",
   "reviewUpdated": "已更新書評",
   "reviewAlreadyExists": "你已經評論過這本書，可以編輯原本的書評",
+  "moderationPendingSubmitted": "已送出，內容將在審核後公開",
+  "moderationPendingBadge": "審核中",
   "submitFailed": "送出失敗：{error}",
   "@submitFailed": {
     "placeholders": {

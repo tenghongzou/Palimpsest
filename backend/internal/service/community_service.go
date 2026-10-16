@@ -13,11 +13,13 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// Moderation statuses of reviews and comments. Only approved ones are public.
+// Moderation statuses of reviews and comments. Only approved ones are public;
+// pending ones were held by automated moderation until an admin decides.
 const (
-	StatusApproved = "approved"
-	StatusRejected = "rejected"
-	StatusHidden   = "hidden"
+	StatusPending  = model.ModerationPending
+	StatusApproved = model.ModerationApproved
+	StatusRejected = model.ModerationRejected
+	StatusHidden   = model.ModerationHidden
 )
 
 type CommunityService struct {
@@ -26,6 +28,8 @@ type CommunityService struct {
 	novelChanged func(novelID uuid.UUID)
 	// notifications, when set, tells authors about replies.
 	notifications *NotificationService
+	// moderation, when set, checks new reviews and comments.
+	moderation *ModerationService
 }
 
 func NewCommunityService(db *gorm.DB, novelChanged func(novelID uuid.UUID)) *CommunityService {
@@ -36,6 +40,54 @@ func NewCommunityService(db *gorm.DB, novelChanged func(novelID uuid.UUID)) *Com
 func (s *CommunityService) WithNotifications(n *NotificationService) *CommunityService {
 	s.notifications = n
 	return s
+}
+
+// WithModeration checks new and edited reviews and comments, holding
+// suspicious ones for an admin.
+func (s *CommunityService) WithModeration(m *ModerationService) *CommunityService {
+	s.moderation = m
+	return s
+}
+
+// moderate decides the status of new content and what moderation found.
+// Without a moderation service everything is approved unchecked.
+func (s *CommunityService) moderate(text string) (*model.ModerationResult, string) {
+	if s.moderation == nil {
+		return nil, StatusApproved
+	}
+	return s.moderation.Check(text)
+}
+
+// reviewText is what moderation checks of a review.
+func reviewText(title, content string) string {
+	return title + "\n" + content
+}
+
+// publicReview drops what only admins may see.
+func publicReview(r *model.Review) *model.Review {
+	if r != nil {
+		r.Moderation = nil
+	}
+	return r
+}
+
+// publicComments drops what only admins may see from comments and replies.
+func publicComments(comments []model.Comment) {
+	for i := range comments {
+		comments[i].Moderation = nil
+		publicComments(comments[i].Replies)
+	}
+}
+
+// visibleTo limits reviews or comments to published ones, plus the viewer's
+// own held ones so authors still see what they posted.
+func visibleTo(viewer *uuid.UUID) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if viewer == nil {
+			return db.Where("status = ?", StatusApproved)
+		}
+		return db.Where("(status = ? OR (status = ? AND user_id = ?))", StatusApproved, StatusPending, *viewer)
+	}
 }
 
 func withAuthor(db *gorm.DB) *gorm.DB {
@@ -64,7 +116,7 @@ func normalizeRating(r float64) float64 {
 func (s *CommunityService) ListReviews(novelID uuid.UUID, viewer *uuid.UUID, sortBy string, page, pageSize int) ([]model.Review, int64, error) {
 	reviews := []model.Review{}
 	var total int64
-	q := s.db.Model(&model.Review{}).Where("novel_id = ? AND status = ?", novelID, StatusApproved)
+	q := s.db.Model(&model.Review{}).Where("novel_id = ?", novelID).Scopes(visibleTo(viewer))
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -86,12 +138,14 @@ func (s *CommunityService) ListReviews(novelID uuid.UUID, viewer *uuid.UUID, sor
 	}
 	for i := range reviews {
 		reviews[i].LikedByMe = liked[reviews[i].ID]
+		publicReview(&reviews[i])
 	}
 	return reviews, total, nil
 }
 
 // CreateReview adds the user's review of a published novel; each user may
-// review a novel once (ErrConflict).
+// review a novel once (ErrConflict). A review held by moderation comes back
+// pending and does not count toward the rating until approved.
 func (s *CommunityService) CreateReview(userID, novelID uuid.UUID, in ReviewInput) (*model.Review, error) {
 	var count int64
 	if err := s.db.Model(&model.Novel{}).Where("id = ? AND is_published", novelID).Count(&count).Error; err != nil {
@@ -102,18 +156,23 @@ func (s *CommunityService) CreateReview(userID, novelID uuid.UUID, in ReviewInpu
 	}
 	review := &model.Review{
 		UserID: userID, NovelID: novelID, Title: strings.TrimSpace(in.Title),
-		Content: strings.TrimSpace(in.Content), Rating: normalizeRating(in.Rating), Status: StatusApproved,
+		Content: strings.TrimSpace(in.Content), Rating: normalizeRating(in.Rating),
 	}
+	review.Moderation, review.Status = s.moderate(reviewText(review.Title, review.Content))
 	if err := s.db.Create(review).Error; err != nil {
 		if IsUniqueViolation(err) {
 			return nil, ErrConflict
 		}
 		return nil, err
 	}
-	if err := s.refreshRating(novelID); err != nil {
-		return nil, err
+	if review.Status == StatusApproved {
+		if err := s.refreshRating(novelID); err != nil {
+			return nil, err
+		}
 	}
-	return s.getReview(review.ID)
+	s.reviewWithAI(model.LikeTargetReview, review.ID, reviewText(review.Title, review.Content), review.Status)
+	created, err := s.getReview(review.ID)
+	return publicReview(created), err
 }
 
 func (s *CommunityService) getReview(id uuid.UUID) (*model.Review, error) {
@@ -142,16 +201,32 @@ func (s *CommunityService) UpdateReview(userID, id uuid.UUID, in ReviewInput) (*
 	if err != nil {
 		return nil, err
 	}
-	err = s.db.Model(&model.Review{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"title": strings.TrimSpace(in.Title), "content": strings.TrimSpace(in.Content), "rating": normalizeRating(in.Rating),
-	}).Error
-	if err != nil {
+	title, content := strings.TrimSpace(in.Title), strings.TrimSpace(in.Content)
+	updates := map[string]interface{}{"title": title, "content": content, "rating": normalizeRating(in.Rating)}
+	status := review.Status
+	if s.moderation != nil {
+		// Edits are checked again. Published and held reviews follow the new
+		// check; rejected and hidden ones stay as an admin left them.
+		result, decided := s.moderate(reviewText(title, content))
+		value, err := jsonbValue(result)
+		if err != nil {
+			return nil, err
+		}
+		updates["moderation"] = value
+		if status == StatusApproved || status == StatusPending {
+			status = decided
+			updates["status"] = status
+		}
+	}
+	if err := s.db.Model(&model.Review{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 		return nil, err
 	}
 	if err := s.refreshRating(review.NovelID); err != nil {
 		return nil, err
 	}
-	return s.getReview(id)
+	s.reviewWithAI(model.LikeTargetReview, id, reviewText(title, content), status)
+	updated, err := s.getReview(id)
+	return publicReview(updated), err
 }
 
 func (s *CommunityService) DeleteReview(userID uuid.UUID, isAdmin bool, id uuid.UUID) error {
@@ -171,17 +246,24 @@ func (s *CommunityService) DeleteReview(userID uuid.UUID, isAdmin bool, id uuid.
 	return s.refreshRating(review.NovelID)
 }
 
-// SetReviewStatus moderates a review and updates the novel's rating.
+// SetReviewStatus moderates a review and updates the novel's rating. The
+// review is marked as reviewed by an admin, which takes it out of the
+// flagged queue.
 func (s *CommunityService) SetReviewStatus(id uuid.UUID, status string) (*model.Review, error) {
 	review, err := s.getReview(id)
 	if err != nil {
 		return nil, err
 	}
 	// Update by id: saving the loaded review would also try to save its author.
-	if err := s.db.Model(&model.Review{}).Where("id = ?", id).Update("status", status).Error; err != nil {
+	reviewedAt := time.Now().UTC()
+	if err := s.db.Model(&model.Review{}).Where("id = ?", id).
+		Updates(map[string]interface{}{"status": status, "moderation": markReviewed(reviewedAt)}).Error; err != nil {
 		return nil, err
 	}
 	review.Status = status
+	if review.Moderation != nil {
+		review.Moderation.ReviewedAt = &reviewedAt
+	}
 	if err := s.refreshRating(review.NovelID); err != nil {
 		return nil, err
 	}
@@ -226,11 +308,12 @@ type CommentInput struct {
 	ParagraphIndex *int       `json:"paragraph_index" binding:"omitempty,min=0"`
 }
 
-// ListComments returns a page of a chapter's top-level comments with their replies.
+// ListComments returns a page of a chapter's top-level comments with their
+// replies: published ones, plus the viewer's own held ones.
 func (s *CommunityService) ListComments(chapterID uuid.UUID, viewer *uuid.UUID, sortBy string, paragraph *int, page, pageSize int) ([]model.Comment, int64, error) {
 	comments := []model.Comment{}
 	var total int64
-	q := s.db.Model(&model.Comment{}).Where("chapter_id = ? AND parent_id IS NULL AND status = ?", chapterID, StatusApproved)
+	q := s.db.Model(&model.Comment{}).Where("chapter_id = ? AND parent_id IS NULL", chapterID).Scopes(visibleTo(viewer))
 	if paragraph != nil {
 		q = q.Where("paragraph_index = ?", *paragraph)
 	}
@@ -241,7 +324,7 @@ func (s *CommunityService) ListComments(chapterID uuid.UUID, viewer *uuid.UUID, 
 	if sortBy == "popular" {
 		order = "like_count DESC, created_at DESC"
 	}
-	err := withReplies(withAuthor(q)).
+	err := withReplies(withAuthor(q), viewer).
 		Order(order).Offset(offset(page, pageSize)).Limit(pageSize).Find(&comments).Error
 	if err != nil {
 		return nil, 0, err
@@ -249,20 +332,21 @@ func (s *CommunityService) ListComments(chapterID uuid.UUID, viewer *uuid.UUID, 
 	if err := s.markLiked(viewer, comments); err != nil {
 		return nil, 0, err
 	}
+	publicComments(comments)
 	return comments, total, nil
 }
 
-func withReplies(db *gorm.DB) *gorm.DB {
+func withReplies(db *gorm.DB, viewer *uuid.UUID) *gorm.DB {
 	return db.Preload("Replies", func(db *gorm.DB) *gorm.DB {
-		return db.Where("status = ?", StatusApproved).Order("created_at ASC")
+		return db.Scopes(visibleTo(viewer)).Order("created_at ASC")
 	}).Preload("Replies.User")
 }
 
 // GetThread returns the thread a comment belongs to: its top-level comment
-// with all replies.
+// with all replies. Held comments count only for their author.
 func (s *CommunityService) GetThread(id uuid.UUID, viewer *uuid.UUID) (*model.Comment, error) {
 	var c model.Comment
-	err := s.db.Select("id", "parent_id").First(&c, "id = ? AND status = ?", id, StatusApproved).Error
+	err := s.db.Select("id", "parent_id").Scopes(visibleTo(viewer)).First(&c, "id = ?", id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -274,7 +358,7 @@ func (s *CommunityService) GetThread(id uuid.UUID, viewer *uuid.UUID) (*model.Co
 		root = *c.ParentID
 	}
 	threads := []model.Comment{}
-	if err := withReplies(withAuthor(s.db)).Where("id = ? AND status = ?", root, StatusApproved).Find(&threads).Error; err != nil {
+	if err := withReplies(withAuthor(s.db), viewer).Where("id = ?", root).Scopes(visibleTo(viewer)).Find(&threads).Error; err != nil {
 		return nil, err
 	}
 	if len(threads) == 0 {
@@ -283,6 +367,7 @@ func (s *CommunityService) GetThread(id uuid.UUID, viewer *uuid.UUID) (*model.Co
 	if err := s.markLiked(viewer, threads); err != nil {
 		return nil, err
 	}
+	publicComments(threads)
 	return &threads[0], nil
 }
 
@@ -325,7 +410,9 @@ func (s *CommunityService) ParagraphCounts(chapterID uuid.UUID) ([]ParagraphCoun
 }
 
 // CreateComment comments on a published chapter. Replies attach to the
-// top-level comment so threads stay one level deep.
+// top-level comment so threads stay one level deep, and only to published
+// comments in published threads. A comment held by moderation comes back
+// pending.
 func (s *CommunityService) CreateComment(userID, chapterID uuid.UUID, in CommentInput) (*model.Comment, error) {
 	var count int64
 	if err := s.db.Model(&model.Chapter{}).Where("id = ? AND is_published", chapterID).Count(&count).Error; err != nil {
@@ -336,11 +423,14 @@ func (s *CommunityService) CreateComment(userID, chapterID uuid.UUID, in Comment
 	}
 	comment := &model.Comment{
 		UserID: userID, ChapterID: chapterID, Content: strings.TrimSpace(in.Content),
-		ParagraphIndex: in.ParagraphIndex, Status: StatusApproved,
+		ParagraphIndex: in.ParagraphIndex,
 	}
 	var parent model.Comment
 	if in.ParentID != nil {
-		err := s.db.First(&parent, "id = ? AND chapter_id = ?", *in.ParentID, chapterID).Error
+		// Readers cannot reply to what they cannot see.
+		published := s.db.Model(&model.Comment{}).Select("id").Where("status = ?", StatusApproved)
+		err := s.db.Where("status = ? AND (parent_id IS NULL OR parent_id IN (?))", StatusApproved, published).
+			First(&parent, "id = ? AND chapter_id = ?", *in.ParentID, chapterID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
@@ -355,17 +445,29 @@ func (s *CommunityService) CreateComment(userID, chapterID uuid.UUID, in Comment
 		// A reply belongs to its thread's paragraph.
 		comment.ParagraphIndex = nil
 	}
+	comment.Moderation, comment.Status = s.moderate(comment.Content)
 	if err := s.db.Create(comment).Error; err != nil {
 		return nil, err
 	}
-	if comment.ParentID != nil && s.notifications != nil {
-		if err := s.notifications.NotifyReply(comment, &parent); err != nil {
-			log.Printf("community: failed to notify reply %s: %v", comment.ID, err)
-		}
+	// A held reply notifies the parent's author once an admin approves it.
+	if comment.Status == StatusApproved {
+		s.notifyReply(comment, &parent)
 	}
+	s.reviewWithAI(model.LikeTargetComment, comment.ID, comment.Content, comment.Status)
 	var created model.Comment
 	err := withAuthor(s.db).First(&created, "id = ?", comment.ID).Error
+	created.Moderation = nil
 	return &created, err
+}
+
+// notifyReply tells the author of parent about a published reply.
+func (s *CommunityService) notifyReply(reply, parent *model.Comment) {
+	if reply.ParentID == nil || s.notifications == nil {
+		return
+	}
+	if err := s.notifications.NotifyReply(reply, parent); err != nil {
+		log.Printf("community: failed to notify reply %s: %v", reply.ID, err)
+	}
 }
 
 // DeleteComment soft-deletes a comment and its replies.
@@ -480,7 +582,12 @@ type ReportInput struct {
 // first report is pending returns the pending report.
 func (s *CommunityService) CreateReport(userID uuid.UUID, in ReportInput) (*model.Report, error) {
 	var count int64
-	if err := s.db.Model(ReportTargets[in.TargetType]).Where("id = ?", in.TargetID).Count(&count).Error; err != nil {
+	q := s.db.Model(ReportTargets[in.TargetType]).Where("id = ?", in.TargetID)
+	if in.TargetType == "review" || in.TargetType == "comment" {
+		// Held content is not public and already waits for an admin.
+		q = q.Where("status <> ?", StatusPending)
+	}
+	if err := q.Count(&count).Error; err != nil {
 		return nil, err
 	}
 	if count == 0 {

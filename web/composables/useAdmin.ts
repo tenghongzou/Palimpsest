@@ -2,13 +2,14 @@
 import { useMessage } from 'naive-ui'
 import { apiFetch, describeError, statusOf, type ApiResponse, type Paginated, type Pagination } from '~/utils/api'
 import { LOCALE_NAMES, intlLocale } from '~/i18n/constants'
+import type { ApiAdminStats } from '~/types/models'
 
 export const NOVEL_STATUSES = ['ongoing', 'completed', 'hiatus'] as const
 
 /** A novel's content language (not the UI language); each shown in its own script. */
 export const LANGUAGE_OPTIONS = (['zh-TW', 'zh-CN', 'en'] as const).map(value => ({ label: LOCALE_NAMES[value], value }))
 
-export const MODERATION_STATUSES = ['approved', 'rejected', 'hidden'] as const
+export const MODERATION_STATUSES = ['pending', 'approved', 'rejected', 'hidden'] as const
 export const REPORT_STATUSES = ['pending', 'resolved', 'dismissed'] as const
 export const REPORT_TARGETS = ['review', 'comment', 'novel', 'chapter', 'user'] as const
 
@@ -32,6 +33,78 @@ export function useAdminLabels() {
     reportTargetLabel: (v?: string) => keyedLabel(t, 'admin.reports.targets', REPORT_TARGETS, v),
     dateTime: (v: string | undefined | null) => adminDateTime(v, locale.value),
   }
+}
+
+/** Naive UI tag type for a moderation status. */
+export function moderationTagType(status: string | undefined): 'default' | 'info' | 'success' | 'error' | 'warning' {
+  switch (status) {
+    case 'pending': return 'info'
+    case 'approved': return 'success'
+    case 'rejected': return 'error'
+    case 'hidden': return 'warning'
+    default: return 'default'
+  }
+}
+
+/**
+ * How many reviews and comments await moderation, shared by the admin menu
+ * badge, the dashboard and the moderation page. `refresh` reads it from
+ * /admin/stats; pages that already have the number call `set`.
+ */
+export function usePendingModeration() {
+  const count = useState<number | null>('admin.pendingModeration', () => null)
+
+  async function refresh() {
+    try {
+      const res = await apiFetch<ApiResponse<ApiAdminStats>>('/admin/stats', { params: { utc_offset: -new Date().getTimezoneOffset() } })
+      count.value = res.data.pending_moderation ?? 0
+    }
+    catch {
+      // The badge is optional; keep the last known count.
+    }
+  }
+
+  function set(value: number | null | undefined) {
+    if (typeof value === 'number' && Number.isFinite(value)) count.value = Math.max(0, value)
+  }
+
+  function decrement(by = 1) {
+    if (count.value !== null) count.value = Math.max(0, count.value - by)
+  }
+
+  return { count, refresh, set, decrement }
+}
+
+/**
+ * One independently loaded dashboard section: keeps its data, loading and
+ * failure state, and ignores responses superseded by a newer request.
+ */
+export function useAdminSection<T>(fetcher: () => Promise<T>) {
+  const data = ref<T | null>(null) as Ref<T | null>
+  const loading = ref(false)
+  const failed = ref(false)
+  let current = 0
+
+  async function run() {
+    const id = ++current
+    loading.value = true
+    failed.value = false
+    try {
+      const result = await fetcher()
+      if (id === current) data.value = result
+    }
+    catch {
+      if (id === current) {
+        data.value = null
+        failed.value = true
+      }
+    }
+    finally {
+      if (id === current) loading.value = false
+    }
+  }
+
+  return { data, loading, failed, run }
 }
 
 /** Message for a failed image upload, with the storage/size/type cases spelled out. */
