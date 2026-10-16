@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error.dart';
+import '../../../../core/widgets/brand_logo.dart';
 import '../../../../core/widgets/common_widgets.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../domain/entities/home_data.dart';
@@ -22,7 +23,8 @@ class HomePage extends ConsumerWidget {
     final home = ref.watch(homeProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n.appTitle),
+        // Wide layouts already show the logo at the top of the navigation rail.
+        title: isWideLayout(context) ? Text(context.l10n.navHome) : const BrandLogo.horizontal(height: 26),
         actions: [
           IconButton(tooltip: context.l10n.search, icon: const Icon(Icons.search), onPressed: () => context.push('/search')),
           const NotificationBell(),

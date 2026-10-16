@@ -21,4 +21,18 @@ useHead({
   titleTemplate,
   meta: [{ name: 'description', content: computed(() => t('meta.description')) }],
 })
+
+// Default share card (public/og-image.png, the stacked logo). Crawlers need an
+// absolute URL. Pages that call useSeoMeta({ ogImage }) replace it, since
+// entries added later win for the same property.
+const ogImage = `${useRequestURL().origin}/og-image.png`
+useSeoMeta({
+  ogSiteName: 'Palimpsest',
+  ogImage,
+  ogImageWidth: 1200,
+  ogImageHeight: 630,
+  ogImageAlt: 'Palimpsest',
+  twitterCard: 'summary_large_image',
+  twitterImage: ogImage,
+})
 </script>

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/l10n.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/widgets/adaptive_layout.dart';
+import '../../../../core/widgets/brand_logo.dart';
 import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -60,8 +61,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(l.appTitle, style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
+                const BrandLogo.stacked(height: 128),
+                const SizedBox(height: 12),
                 Text(l.appTagline, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
                 const SizedBox(height: 48),
                 Form(

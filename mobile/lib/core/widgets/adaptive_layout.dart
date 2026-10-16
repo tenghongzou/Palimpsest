@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../l10n/l10n.dart';
+import 'brand_logo.dart';
 
 /// Window widths at which the layout changes (Material 3 window size classes).
 abstract final class Breakpoints {
@@ -102,9 +103,7 @@ class AppNavShell extends StatelessWidget {
               onDestinationSelected: (index) => _goToDestination(context, index, selectedIndex),
               leading: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: extended
-                    ? Text(l.appTitle, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold))
-                    : Icon(Icons.auto_stories, color: theme.colorScheme.primary),
+                child: extended ? const BrandLogo.horizontal(height: 30) : const BrandLogo.mark(size: 36),
               ),
               destinations: [
                 for (final d in appDestinations)

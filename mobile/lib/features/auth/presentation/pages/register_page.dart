@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/l10n.dart';
 import '../../../../core/network/api_error.dart';
 import '../../../../core/widgets/adaptive_layout.dart';
+import '../../../../core/widgets/brand_logo.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -64,6 +65,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             autovalidateMode: _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
             child: Column(
               children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 8, bottom: 32),
+                  child: BrandLogo.horizontal(height: 40),
+                ),
                 TextFormField(
                   controller: _usernameController,
                   decoration: InputDecoration(

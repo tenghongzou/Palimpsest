@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:palimpsest/core/widgets/brand_logo.dart';
 import 'package:palimpsest/features/reader/domain/entities/chapter.dart';
 
 import '../support/fake_backend.dart';
@@ -221,6 +222,7 @@ void main() {
     testWidgets('login: field errors clear as the user types after a failed submit', (tester) async {
       await start(tester, signedIn: false);
       await env.push(tester, '/login');
+      expect(tester.widget<BrandLogo>(find.byType(BrandLogo)).variant, BrandLogoVariant.stacked);
       final submit = find.widgetWithText(FilledButton, '登入');
       await tester.tap(submit);
       await tester.pumpAndSettle();
@@ -257,6 +259,7 @@ void main() {
     testWidgets('register: field errors update as the user types after a failed submit', (tester) async {
       await start(tester, signedIn: false);
       await env.push(tester, '/register');
+      expect(tester.widget<BrandLogo>(find.byType(BrandLogo)).variant, BrandLogoVariant.horizontal);
       final submit = find.widgetWithText(FilledButton, '註冊');
       await tester.ensureVisible(submit);
       await tester.tap(submit);

@@ -110,6 +110,10 @@
   },
   "header": {
     "searchPlaceholder": "Search novels...",
+    "search": "Search",
+    "openMenu": "Open menu",
+    "menu": "Menu",
+    "mainNav": "Main navigation",
     "nav": {
       "home": "Home",
       "categories": "Categories",
