@@ -144,7 +144,8 @@
       "reports": "举报处理",
       "categories": "分类管理",
       "banners": "横幅管理",
-      "announcements": "系统公告"
+      "announcements": "系统公告",
+      "moderation": "内容审核"
     },
     "image": {
       "urlPlaceholder": "图片网址",
@@ -160,7 +161,8 @@
     "moderation": {
       "approved": "已通过",
       "rejected": "已拒绝",
-      "hidden": "已隐藏"
+      "hidden": "已隐藏",
+      "pending": "待审核"
     },
     "reports": {
       "status": {
@@ -246,7 +248,46 @@
         "chapters": "章节总数",
         "reviews": "书评数",
         "comments": "留言数",
-        "pending_reports": "待处理举报"
+        "pending_reports": "待处理举报",
+        "pending_moderation": "待审核内容"
+      },
+      "today": "今日",
+      "lastDays": "近 {n} 天",
+      "series": {
+        "active_readers": "活跃读者",
+        "reads": "阅读章节数",
+        "new_users": "新用户",
+        "reading_hours": "阅读时数",
+        "new_reviews": "新书评",
+        "new_comments": "新评论",
+        "bookshelf_adds": "加入书架"
+      },
+      "trends": {
+        "title": "活跃趋势",
+        "engagement": "互动",
+        "total": "合计 {value}",
+        "avgPerDay": "日均 {value}",
+        "hours": "{n} 小时",
+        "returningRate": "读者回访率",
+        "returningRateHelp": "前一周（8–14 天前）有阅读的读者中，最近 7 天再次阅读的比例。",
+        "empty": "这段期间没有活动数据",
+        "loadFailed": "无法加载趋势数据"
+      },
+      "topNovels": {
+        "title": "热门作品",
+        "novel": "作品",
+        "reads": "阅读数",
+        "readers": "读者数",
+        "bookshelfAdds": "加入书架",
+        "empty": "这段期间没有阅读记录",
+        "loadFailed": "无法加载热门作品"
+      },
+      "categories": {
+        "title": "分类分布",
+        "value": "{reads} 次阅读 · {readers} 位读者",
+        "note": "作品属于多个分类时，每个分类各计一次。",
+        "empty": "这段期间没有阅读记录",
+        "loadFailed": "无法加载分类统计"
       }
     },
     "users": {
@@ -407,6 +448,79 @@
       "updateFailed": "更新失败",
       "delete": "删除章节",
       "confirmDelete": "确定要删除第 {n} 章「{title}」吗？"
+    },
+    "moderationQueue": {
+      "tabs": {
+        "pending": "待审核",
+        "flagged": "已标记",
+        "terms": "敏感词"
+      },
+      "help": {
+        "pending": "自动审核暂缓公开的书评与评论，按提交时间排列。通过后即公开。",
+        "flagged": "已公开但被自动检查标记的内容，按风险分数从高到低排列。"
+      },
+      "allTypes": "全部",
+      "total": "共 {n} 条",
+      "select": "选择",
+      "selectPage": "全选本页",
+      "selected": "已选 {n} 条",
+      "batchApprove": "批量通过",
+      "batchReject": "批量拒绝",
+      "confirmBatchReject": "确定拒绝选中的 {n} 条内容吗？拒绝后不会公开。",
+      "batchDone": "已处理 {n} 条",
+      "batchPartial": "已处理 {ok} 条，{failed} 条失败",
+      "confirm": {
+        "rejected": "确定拒绝这条{type}吗？拒绝后不会公开。",
+        "hidden": "确定隐藏这条{type}吗？"
+      },
+      "gone": "这条内容已不存在",
+      "empty": {
+        "pending": "目前没有待审核的内容",
+        "flagged": "没有被标记的内容"
+      },
+      "expand": "展开",
+      "collapse": "收起",
+      "risk": "风险",
+      "noFlags": "无标记",
+      "aiChecked": "AI 已检查",
+      "aiNotChecked": "AI 未检查",
+      "aiShort": "AI",
+      "autoCheck": "自动审核",
+      "flagWithDetail": "{label}：{detail}",
+      "flags": {
+        "blocked_term": "送审词",
+        "flagged_term": "标记词",
+        "link": "含链接",
+        "contact_info": "联系方式",
+        "repetition": "重复内容",
+        "shouting": "大量大写或感叹号",
+        "ai_harassment": "AI：骚扰",
+        "ai_hate": "AI：仇恨",
+        "ai_sexual": "AI：色情",
+        "ai_spam": "AI：垃圾信息",
+        "ai_violence": "AI：暴力",
+        "ai_other": "AI：其他"
+      },
+      "severities": {
+        "block": "送审",
+        "flag": "标记"
+      },
+      "severityHelp": {
+        "block": "含有此词的书评与评论会暂缓公开，待管理员在“待审核”通过后才公开。",
+        "flag": "内容照常公开，但会列入“已标记”供复查。",
+        "matching": "比对时不区分大小写、全角半角与繁简字。"
+      },
+      "term": "词语",
+      "severity": "处理方式",
+      "createdAt": "添加时间",
+      "termPlaceholder": "输入要检查的词语",
+      "addTerm": "添加",
+      "termRequired": "请输入词语",
+      "termTooLong": "最多 {max} 字",
+      "termExists": "“{term}”已存在",
+      "termAdded": "已添加“{term}”",
+      "termDeleted": "已删除“{term}”",
+      "termsEmpty": "尚未设置敏感词"
     }
   },
   "auth": {
@@ -624,7 +738,8 @@
         "inappropriate": "不当内容",
         "other": "其他"
       }
-    }
+    },
+    "pendingModeration": "已提交，内容将在审核后公开"
   },
   "reviews": {
     "title": "书评",

@@ -136,12 +136,14 @@ async function save() {
   const input = { rating: form.rating, title: form.title.trim(), content: form.content.trim() }
   try {
     if (editingId.value) {
-      await update(editingId.value, input)
-      message.success(t('reviews.updated'))
+      const review = await update(editingId.value, input)
+      if (isPendingModeration(review)) message.info(t('community.pendingModeration'))
+      else message.success(t('reviews.updated'))
     }
     else {
-      await create(input)
-      message.success(t('reviews.published'))
+      const review = await create(input)
+      if (isPendingModeration(review)) message.info(t('community.pendingModeration'))
+      else message.success(t('reviews.published'))
     }
     editorOpen.value = false
     emit('changed')
