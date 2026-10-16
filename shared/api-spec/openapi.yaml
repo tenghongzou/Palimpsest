@@ -2330,6 +2330,243 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /admin/stats/trends:
+    get:
+      tags: [admin]
+      operationId: adminStatsTrends
+      summary: Daily activity series for the dashboard charts
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 7, maximum: 90, default: 30 }
+        - name: utc_offset
+          in: query
+          description: The client's UTC offset in minutes east of UTC; days follow its local midnight. Defaults to UTC.
+          schema: { type: integer, minimum: -840, maximum: 840, default: 0 }
+      responses:
+        '200':
+          description: One entry per local day, oldest first, including days with no activity
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/AdminTrends' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/stats/top-novels:
+    get:
+      tags: [admin]
+      operationId: adminStatsTopNovels
+      summary: Most-read novels over the last days
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 90, default: 7 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - name: utc_offset
+          in: query
+          description: The client's UTC offset in minutes east of UTC; days follow its local midnight. Defaults to UTC.
+          schema: { type: integer, minimum: -840, maximum: 840, default: 0 }
+      responses:
+        '200':
+          description: Ordered by reads, then readers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: 
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminTopNovel' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/stats/categories:
+    get:
+      tags: [admin]
+      operationId: adminStatsCategories
+      summary: Reads per category over the last days
+      description: A read of a novel counts once for each of its categories.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+        - name: utc_offset
+          in: query
+          description: The client's UTC offset in minutes east of UTC; days follow its local midnight. Defaults to UTC.
+          schema: { type: integer, minimum: -840, maximum: 840, default: 0 }
+      responses:
+        '200':
+          description: Categories with at least one read, ordered by reads
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: 
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminCategoryStat' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/moderation/queue:
+    get:
+      tags: [admin]
+      operationId: adminModerationQueue
+      summary: Reviews and comments awaiting moderation or flagged by automated checks
+      description: |
+        `pending` lists content held back from the public by automated
+        moderation, oldest first. `flagged` lists published content with at
+        least one moderation flag, highest score first.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: queue
+          in: query
+          schema: { type: string, enum: [pending, flagged], default: pending }
+        - name: type
+          in: query
+          description: Only reviews or only comments; both when omitted.
+          schema: { type: string, enum: [review, comment] }
+      responses:
+        '200':
+          description: Paginated items
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: 
+                        type: object
+                        required: [items, pagination]
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/ModerationItem' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/moderation/{type}/{id}:
+    put:
+      tags: [admin]
+      operationId: adminModerate
+      summary: Decide on a review or comment (approve publishes it; reviews update the novel's rating)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string, enum: [review, comment] }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [approved, rejected, hidden] }
+      responses:
+        '200':
+          description: The moderated item
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ModerationItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/moderation/terms:
+    get:
+      tags: [admin]
+      operationId: adminListModerationTerms
+      summary: Words and phrases checked in reviews and comments
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: All terms, newest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: 
+                        type: array
+                        items: { $ref: '#/components/schemas/ModerationTerm' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [admin]
+      operationId: adminCreateModerationTerm
+      summary: Add a term
+      description: Matching ignores case, full/half width and zh-TW/zh-CN variants.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [term, severity]
+              properties:
+                term: { type: string, minLength: 1, maxLength: 50 }
+                severity: { $ref: '#/components/schemas/ModerationSeverity' }
+      responses:
+        '201':
+          description: Created term
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ModerationTerm' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /admin/moderation/terms/{termId}:
+    delete:
+      tags: [admin]
+      operationId: adminDeleteModerationTerm
+      summary: Remove a term
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: termId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Removed }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /admin/stats:
     get:
       tags: [admin]
@@ -3062,7 +3299,68 @@ components:
     # ----------------------------------------------------------- community
     ModerationStatus:
       type: string
-      enum: [approved, rejected, hidden]
+      description: |
+        `pending` content was held back by automated moderation and is only
+        public once an admin approves it.
+      enum: [pending, approved, rejected, hidden]
+    ModerationSeverity:
+      type: string
+      description: "`block` holds matching content for review; `flag` publishes it with a flag."
+      enum: [block, flag]
+    ModerationTerm:
+      type: object
+      required: [id, term, severity, created_at]
+      properties:
+        id: { type: integer }
+        term: { type: string }
+        severity: { $ref: '#/components/schemas/ModerationSeverity' }
+        created_at: { type: string, format: date-time }
+    ModerationFlag:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: |
+            Rules: blocked_term, flagged_term, link, contact_info, repetition,
+            shouting. AI review: ai_harassment, ai_hate, ai_sexual, ai_spam,
+            ai_violence, ai_other.
+        detail: { type: string, description: The matched term or a short reason }
+    ModerationResult:
+      type: object
+      required: [score, flags, ai_checked]
+      properties:
+        score: { type: number, minimum: 0, maximum: 1, description: Estimated risk }
+        flags:
+          type: array
+          items: { $ref: '#/components/schemas/ModerationFlag' }
+        ai_checked: { type: boolean, description: An AI review has run on the content }
+        checked_at: { type: string, format: date-time }
+    ModerationItem:
+      type: object
+      required: [type, id, content, status, user, created_at]
+      properties:
+        type: { type: string, enum: [review, comment] }
+        id: { type: string, format: uuid }
+        title: { type: string, description: Reviews only }
+        content: { type: string }
+        rating: { type: number, description: Reviews only }
+        status: { $ref: '#/components/schemas/ModerationStatus' }
+        moderation: { $ref: '#/components/schemas/ModerationResult' }
+        user: { $ref: '#/components/schemas/UserBrief' }
+        novel:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            title: { type: string }
+        chapter:
+          type: object
+          description: Comments only
+          properties:
+            id: { type: string, format: uuid }
+            title: { type: string }
+            chapter_number: { type: integer }
+        created_at: { type: string, format: date-time }
 
     Review:
       type: object
@@ -3076,6 +3374,10 @@ components:
         rating: { type: number, minimum: 0.5, maximum: 5, multipleOf: 0.5 }
         like_count: { type: integer }
         status: { $ref: '#/components/schemas/ModerationStatus' }
+        moderation:
+          allOf:
+            - $ref: '#/components/schemas/ModerationResult'
+          description: Only in admin listings
         user: { $ref: '#/components/schemas/UserBrief' }
         novel:
           type: object
@@ -3263,10 +3565,56 @@ components:
         sort_order: { type: integer }
         is_active: { type: boolean, default: true }
 
+    AdminTrends:
+      type: object
+      required: [days, returning_rate]
+      properties:
+        days:
+          type: array
+          items: { $ref: '#/components/schemas/AdminTrendDay' }
+        returning_rate:
+          type: number
+          description: |
+            Share (0..1) of the readers active in the 7 days before the last 7
+            who read again in the last 7 days; 0 when there were none.
+    AdminTrendDay:
+      type: object
+      required: [date, new_users, active_readers, reads, reading_seconds, new_reviews, new_comments, bookshelf_adds]
+      properties:
+        date: { type: string, format: date, description: The client's local day }
+        new_users: { type: integer }
+        active_readers: { type: integer, description: Distinct users with reading history that day }
+        reads: { type: integer, description: Reading history entries (chapter reads) }
+        reading_seconds: { type: integer }
+        new_reviews: { type: integer }
+        new_comments: { type: integer }
+        bookshelf_adds: { type: integer }
+    AdminTopNovel:
+      type: object
+      required: [novel, reads, readers, bookshelf_adds]
+      properties:
+        novel: { $ref: '#/components/schemas/Novel' }
+        reads: { type: integer }
+        readers: { type: integer }
+        bookshelf_adds: { type: integer }
+    AdminCategoryStat:
+      type: object
+      required: [category, reads, readers]
+      properties:
+        category:
+          type: object
+          required: [id, name, slug]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: string }
+        reads: { type: integer }
+        readers: { type: integer }
     AdminStats:
       type: object
-      required: [users, new_users_today, novels, published_novels, chapters, reviews, comments, pending_reports, active_readers_7d, reads_today]
+      required: [users, new_users_today, novels, published_novels, chapters, reviews, comments, pending_reports, pending_moderation, active_readers_7d, reads_today]
       properties:
+        pending_moderation: { type: integer, description: Reviews and comments held for moderation }
         users: { type: integer }
         new_users_today: { type: integer }
         novels: { type: integer }
