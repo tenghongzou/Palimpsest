@@ -1,32 +1,53 @@
 <template>
-  <div class="flex items-center justify-between w-full">
-    <div class="flex items-center gap-6">
-      <NuxtLink to="/" class="text-xl font-bold text-primary no-underline">
-        Palimpsest
+  <!-- From md up: logo, nav menu, search box, language, account. Below md the nav
+       and language switch move into a drawer and search becomes an icon link. -->
+  <div class="flex items-center justify-between w-full gap-2">
+    <div class="flex items-center gap-6 min-w-0">
+      <!-- The logo's aria-label ("Palimpsest") names the link. -->
+      <NuxtLink to="/" class="brand-link flex items-center shrink-0" data-testid="brand-home">
+        <BrandLogo variant="horizontal" :height="30" class="hidden md:block" />
+        <BrandLogo variant="mark" :height="30" class="md:hidden" />
       </NuxtLink>
-      <n-menu
-        mode="horizontal"
-        :options="navOptions"
-        :value="activeNav"
-        @update:value="handleNavSelect"
-      />
+      <div class="hidden md:block">
+        <n-menu
+          mode="horizontal"
+          :options="navOptions"
+          :value="activeNav"
+          @update:value="handleNavSelect"
+        />
+      </div>
     </div>
 
-    <div class="flex items-center gap-4">
-      <n-input
-        v-model:value="searchQuery"
-        :placeholder="$t('header.searchPlaceholder')"
-        clearable
-        size="small"
-        class="w-48"
-        @keyup.enter="handleSearch"
-      >
-        <template #prefix>
-          <n-icon :component="SearchIcon" />
-        </template>
-      </n-input>
+    <div class="flex items-center gap-2 md:gap-4 shrink-0">
+      <div class="hidden md:block">
+        <n-input
+          v-model:value="searchQuery"
+          :placeholder="$t('header.searchPlaceholder')"
+          clearable
+          size="small"
+          class="w-48"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
+            <n-icon :component="SearchIcon" />
+          </template>
+        </n-input>
+      </div>
+      <div class="flex md:hidden">
+        <NuxtLink
+          to="/search"
+          class="header-icon-link"
+          :aria-label="$t('header.search')"
+          :title="$t('header.search')"
+          data-testid="header-search-link"
+        >
+          <n-icon :component="SearchIcon" :size="22" aria-hidden="true" />
+        </NuxtLink>
+      </div>
 
-      <LanguageSwitcher />
+      <div class="hidden md:block">
+        <LanguageSwitcher />
+      </div>
 
       <ClientOnly>
         <NotificationBell v-if="isLoggedIn" />
@@ -52,18 +73,61 @@
 
       <template v-else>
         <n-button size="small" @click="navigateTo('/login')">{{ $t('common.login') }}</n-button>
-        <n-button size="small" type="primary" @click="navigateTo('/register')">{{ $t('common.register') }}</n-button>
+        <div class="hidden md:block">
+          <n-button size="small" type="primary" @click="navigateTo('/register')">{{ $t('common.register') }}</n-button>
+        </div>
       </template>
+
+      <div class="flex md:hidden">
+        <n-button
+          quaternary
+          circle
+          :aria-label="$t('header.openMenu')"
+          :title="$t('header.openMenu')"
+          aria-haspopup="dialog"
+          :aria-expanded="drawerOpen"
+          data-testid="header-menu-button"
+          @click="drawerOpen = true"
+        >
+          <template #icon>
+            <n-icon :component="MenuIcon" :size="22" />
+          </template>
+        </n-button>
+      </div>
     </div>
+
+    <n-drawer v-model:show="drawerOpen" placement="right" :width="272" :auto-focus="false">
+      <n-drawer-content :title="$t('header.menu')" closable body-content-style="padding: 8px 0;">
+        <nav :aria-label="$t('header.mainNav')" data-testid="header-drawer-nav">
+          <NuxtLink
+            v-for="n in NAV"
+            :key="n.to"
+            :to="n.to"
+            class="drawer-link"
+            :class="{ 'drawer-link--active': activeNav === n.to }"
+            :aria-current="activeNav === n.to ? 'page' : undefined"
+          >
+            {{ $t(n.labelKey) }}
+          </NuxtLink>
+        </nav>
+        <div class="drawer-section">
+          <LanguageSwitcher />
+        </div>
+        <div v-if="!isLoggedIn" class="drawer-section flex gap-2">
+          <n-button class="flex-1" @click="navigateTo('/login')">{{ $t('common.login') }}</n-button>
+          <n-button class="flex-1" type="primary" @click="navigateTo('/register')">{{ $t('common.register') }}</n-button>
+        </div>
+      </n-drawer-content>
+    </n-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import {
-  NMenu, NInput, NIcon, NButton, NDropdown, NAvatar,
+  NMenu, NInput, NIcon, NButton, NDropdown, NAvatar, NDrawer, NDrawerContent,
 } from 'naive-ui'
 import type { MenuOption, DropdownOption } from 'naive-ui'
-import { Search as SearchIcon, Person as PersonIcon } from '@vicons/ionicons5'
+import { Search as SearchIcon, Person as PersonIcon, Menu as MenuIcon } from '@vicons/ionicons5'
 import { h } from 'vue'
 
 const { t } = useI18n()
@@ -75,6 +139,12 @@ const isLoggedIn = computed(() => authStore.isLoggedIn)
 const user = computed(() => authStore.user)
 
 const searchQuery = ref('')
+
+// Mobile navigation drawer; closes once a link inside it changes the route.
+const drawerOpen = ref(false)
+watch(() => route.fullPath, () => {
+  drawerOpen.value = false
+})
 
 const activeNav = computed(() => {
   const path = route.path
@@ -147,3 +217,40 @@ async function handleUserMenuSelect(key: string) {
   }
 }
 </script>
+
+<style scoped>
+.brand-link:hover,
+.header-icon-link:hover,
+.drawer-link:hover {
+  text-decoration: none;
+}
+
+.header-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: inherit;
+}
+
+.drawer-link {
+  display: block;
+  padding: 12px 24px;
+  font-size: 16px;
+  color: inherit;
+}
+
+.drawer-link--active {
+  color: var(--color-primary);
+  background: rgba(24, 144, 255, 0.08);
+  font-weight: 600;
+}
+
+.drawer-section {
+  padding: 12px 24px;
+  border-top: 1px solid #efeff5;
+  margin-top: 8px;
+}
+</style>

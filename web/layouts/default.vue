@@ -4,7 +4,7 @@
       <PwaPrompt />
       <n-dialog-provider>
         <n-layout class="min-h-screen">
-          <n-layout-header bordered class="px-6 py-3">
+          <n-layout-header bordered class="px-3 py-3 md:px-6">
             <AppHeader />
           </n-layout-header>
           <n-layout-content class="px-6 py-4">

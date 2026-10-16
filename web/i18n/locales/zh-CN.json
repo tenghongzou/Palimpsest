@@ -110,6 +110,10 @@
   },
   "header": {
     "searchPlaceholder": "搜索小说...",
+    "search": "搜索",
+    "openMenu": "打开菜单",
+    "menu": "菜单",
+    "mainNav": "主导航",
     "nav": {
       "home": "首页",
       "categories": "分类",

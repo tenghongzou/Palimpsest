@@ -110,6 +110,10 @@
   },
   "header": {
     "searchPlaceholder": "搜尋小說...",
+    "search": "搜尋",
+    "openMenu": "開啟選單",
+    "menu": "選單",
+    "mainNav": "主要導覽",
     "nav": {
       "home": "首頁",
       "categories": "分類",
